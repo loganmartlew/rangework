@@ -1,0 +1,1 @@
+-- Phase 1 keeps seed data empty. Add development fixtures in Phase 2.
