@@ -6,8 +6,9 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 
 sealed interface GoogleIdTokenRequestResult {
     data class Success(
@@ -35,9 +36,7 @@ class AndroidGoogleIdTokenProvider(
         }
 
         val credentialManager = CredentialManager.create(activity)
-        val googleIdOption = GetGoogleIdOption.Builder()
-            .setServerClientId(webClientId)
-            .setFilterByAuthorizedAccounts(false)
+        val googleIdOption = GetSignInWithGoogleOption.Builder(webClientId)
             .build()
         val request = GetCredentialRequest.Builder()
             .addCredentialOption(googleIdOption)
@@ -62,6 +61,10 @@ class AndroidGoogleIdTokenProvider(
         } catch (_: GetCredentialCancellationException) {
             GoogleIdTokenRequestResult.Cancelled(
                 message = "Google sign-in was cancelled.",
+            )
+        } catch (_: NoCredentialException) {
+            GoogleIdTokenRequestResult.Failure(
+                message = "Google could not provide a sign-in credential. This usually means the device has no eligible Google account, or the app's Google OAuth setup (web client ID / SHA fingerprints) is not configured yet.",
             )
         } catch (exception: GetCredentialException) {
             GoogleIdTokenRequestResult.Failure(
