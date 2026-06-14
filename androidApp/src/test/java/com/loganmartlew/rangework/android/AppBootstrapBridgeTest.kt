@@ -10,5 +10,6 @@ class AppBootstrapBridgeTest {
         val message = AppBootstrapMessageUseCase().invoke()
 
         assertTrue(message.detail.contains("Supabase"))
+        assertTrue(message.detail.contains("rangeworkGoogleWebClientId"))
     }
 }
