@@ -12,6 +12,8 @@ import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.SpeedUnit
 import com.loganmartlew.rangework.shared.model.UnitSystem
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class SettingsUiState(
     val dataConfigured: Boolean,
@@ -26,6 +28,8 @@ class SettingsViewModel(
     private val themePreferenceStore: ThemePreferenceStore,
 ) : ViewModel() {
     private var activeUserId: String? = null
+    private val saveMutex = Mutex()
+    private var saveToken = 0
 
     private val _uiState = androidx.compose.runtime.mutableStateOf(
         SettingsUiState(
@@ -114,16 +118,27 @@ class SettingsViewModel(
     private fun saveMeasurementPreferences(preferences: MeasurementPreferences) {
         val foundation = dataFoundation ?: return
         val previous = _uiState.value.measurementPreferences
+        // Optimistically reflect the change immediately, and tag this request so a
+        // slower in-flight save can't clobber the state with a stale result.
+        val token = ++saveToken
         _uiState.value = _uiState.value.copy(measurementPreferences = preferences)
         viewModelScope.launch {
             try {
-                val saved = foundation.saveMeasurementPreferencesUseCase(preferences)
-                _uiState.value = _uiState.value.copy(measurementPreferences = saved)
+                // Serialize persistence so concurrent fast toggles apply in click order
+                // instead of racing (which left the UI on an earlier selection).
+                val saved = saveMutex.withLock {
+                    foundation.saveMeasurementPreferencesUseCase(preferences)
+                }
+                if (token == saveToken) {
+                    _uiState.value = _uiState.value.copy(measurementPreferences = saved)
+                }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    measurementPreferences = previous,
-                    statusMessage = "Could not save preferences.",
-                )
+                if (token == saveToken) {
+                    _uiState.value = _uiState.value.copy(
+                        measurementPreferences = previous,
+                        statusMessage = "Could not save preferences.",
+                    )
+                }
             }
         }
     }

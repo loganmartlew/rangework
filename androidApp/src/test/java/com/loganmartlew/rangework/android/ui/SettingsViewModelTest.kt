@@ -78,6 +78,24 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun rapidDistanceTogglesEndOnLastSelection() = runTest {
+        val repo = FakeMeasurementPreferencesRepository()
+        val viewModel = createViewModel(repo)
+
+        viewModel.onAuthStateChanged(signedIn())
+        advanceUntilIdle()
+
+        // Fire several toggles back-to-back without letting saves settle in between.
+        viewModel.selectDistanceUnit(DistanceUnit.METERS)
+        viewModel.selectDistanceUnit(DistanceUnit.YARDS)
+        viewModel.selectDistanceUnit(DistanceUnit.METERS)
+        advanceUntilIdle()
+
+        assertEquals(DistanceUnit.METERS, viewModel.uiState.value.measurementPreferences.distanceUnit)
+        assertEquals(DistanceUnit.METERS, repo.storedPreferences.distanceUnit)
+    }
+
+    @Test
     fun setThemeModeDarkUpdatesState() = runTest {
         val themeStore = FakeThemePreferenceStore()
         val viewModel = createViewModel(themePreferenceStore = themeStore)
