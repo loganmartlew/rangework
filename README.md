@@ -32,8 +32,11 @@ Provide these values through your user-level `~/.gradle/gradle.properties` file 
 | `rangeworkSupabaseAnonKey` | `RANGEWORK_SUPABASE_ANON_KEY` | Supabase anon key |
 | `rangeworkGoogleWebClientId` | `RANGEWORK_GOOGLE_WEB_CLIENT_ID` | Google OAuth web client ID used by Credential Manager |
 
+The repo-level Supabase CLI scaffold lives in `supabase/config.toml`. Keep the Google provider `client_id` aligned with `rangeworkGoogleWebClientId`, and inject the real provider secret through your Supabase project or local CLI config rather than source control.
+
 ## Notes
 
 - Java 17 is the Gradle toolchain target for Android and shared JVM compilation.
 - The repository is remote-first and leaves room for future Supabase schema work and local persistence.
 - `supabase/migrations` now contains the auth/profile foundation migration used by the Phase 2 scaffold.
+- Android auth/session state is owned by a lifecycle-aware ViewModel so restore/sign-out work survives recomposition and configuration changes cleanly.

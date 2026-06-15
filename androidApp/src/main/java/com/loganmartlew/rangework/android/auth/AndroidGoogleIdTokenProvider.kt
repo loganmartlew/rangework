@@ -27,8 +27,8 @@ sealed interface GoogleIdTokenRequestResult {
 class AndroidGoogleIdTokenProvider(
     private val activity: ComponentActivity,
     private val webClientId: String,
-) {
-    suspend fun requestIdToken(): GoogleIdTokenRequestResult {
+) : GoogleIdTokenProvider {
+    override suspend fun requestIdToken(): GoogleIdTokenRequestResult {
         if (webClientId.isBlank()) {
             return GoogleIdTokenRequestResult.Failure(
                 message = "Google sign-in is not configured. Add a web client ID first.",

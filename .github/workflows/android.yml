@@ -33,5 +33,5 @@ jobs:
       - name: Ensure Gradle wrapper is executable
         run: chmod +x gradlew
 
-      - name: Run shared tests and assemble app
-        run: ./gradlew :shared:testDebugUnitTest :androidApp:assembleDebug
+      - name: Run shared and Android unit tests, then assemble app
+        run: ./gradlew :shared:testDebugUnitTest :androidApp:testDebugUnitTest :androidApp:assembleDebug
