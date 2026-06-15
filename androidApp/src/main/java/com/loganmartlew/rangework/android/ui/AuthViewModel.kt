@@ -141,7 +141,12 @@ class AuthViewModel(
     }
 
     companion object {
-        fun factory(androidAuthConfig: AndroidAppAuthConfig): ViewModelProvider.Factory =
+        fun factory(
+            androidAuthConfig: AndroidAppAuthConfig,
+            authFoundation: AuthFoundation? = createAuthFoundation(
+                androidAuthConfig.environment.supabaseConfig,
+            ),
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -149,7 +154,10 @@ class AuthViewModel(
                         "Unsupported ViewModel class: ${modelClass.name}"
                     }
 
-                    return AuthViewModel(androidAuthConfig) as T
+                    return AuthViewModel(
+                        androidAuthConfig = androidAuthConfig,
+                        authFoundation = authFoundation,
+                    ) as T
                 }
             }
     }

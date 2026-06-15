@@ -1,6 +1,6 @@
 # Rangework
 
-Phase 3 shared domain and data foundation for the Android-first golf practice session planning app described in [baseline-plan.md](baseline-plan.md).
+Phase 5 planning workflow implementation for the Android-first golf practice session planning app described in [baseline-plan.md](baseline-plan.md).
 
 ## Modules
 
@@ -41,3 +41,5 @@ The repo-level Supabase CLI scaffold lives in `supabase/config.toml`. Keep the G
 - `supabase/migrations` now contains the auth/profile foundation plus the Phase 3 planning-data schema used by the shared repositories.
 - Android auth/session state is owned by a lifecycle-aware ViewModel so restore/sign-out work survives recomposition and configuration changes cleanly.
 - The shared module now defines serializable models, validation, repository contracts, and Supabase-backed foundations for practice units, session templates, and user measurement preferences.
+- The Android app now has a Material 3 Compose shell with auth-gated navigation plus compact and expanded layout foundations for phone and tablet flows.
+- Practice units and reusable session templates can now be created, edited, deleted, reordered, and composed directly in the Android shell through the shared Supabase-backed planning foundation.
