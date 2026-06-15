@@ -15,6 +15,8 @@ import com.loganmartlew.rangework.shared.model.PracticeSessionItem
 import com.loganmartlew.rangework.shared.model.PracticeSessionItemDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
+import com.loganmartlew.rangework.shared.model.ValidationIssue
+import com.loganmartlew.rangework.shared.model.validationIssues
 import kotlinx.coroutines.launch
 
 data class PracticeInstructionEditorState(
@@ -22,7 +24,12 @@ data class PracticeInstructionEditorState(
     val text: String = "",
     val repCount: String = "",
     val ballCount: String = "",
-)
+    val textError: String? = null,
+    val repCountError: String? = null,
+    val ballCountError: String? = null,
+) {
+    fun withoutErrors() = copy(textError = null, repCountError = null, ballCountError = null)
+}
 
 data class PracticeUnitEditorState(
     val unitId: String? = null,
@@ -33,7 +40,13 @@ data class PracticeUnitEditorState(
     val instructions: List<PracticeInstructionEditorState> = listOf(
         PracticeInstructionEditorState(order = 1),
     ),
-)
+    val titleError: String? = null,
+) {
+    fun withoutErrors() = copy(
+        titleError = null,
+        instructions = instructions.map { it.withoutErrors() },
+    )
+}
 
 data class PracticeSessionItemEditorState(
     val order: Int,
@@ -43,32 +56,52 @@ data class PracticeSessionItemEditorState(
     val notes: String = "",
     val focusCue: String = "",
     val restSeconds: String = "",
-)
+    val unitError: String? = null,
+    val repeatCountError: String? = null,
+    val restSecondsError: String? = null,
+) {
+    fun withoutErrors() = copy(unitError = null, repeatCountError = null, restSecondsError = null)
+}
 
 data class PracticeSessionEditorState(
     val sessionId: String? = null,
     val name: String = "",
     val notes: String = "",
     val items: List<PracticeSessionItemEditorState> = emptyList(),
-)
+    val nameError: String? = null,
+) {
+    fun withoutErrors() = copy(
+        nameError = null,
+        items = items.map { it.withoutErrors() },
+    )
+}
 
 data class PracticePlannerUiState(
     val environment: AppEnvironment,
     val dataConfigured: Boolean,
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
+    val hasLoaded: Boolean = false,
     val units: List<PracticeUnit> = emptyList(),
     val sessions: List<PracticeSession> = emptyList(),
     val clubCatalog: List<Club> = emptyList(),
     val enabledClubCodes: Set<String> = emptySet(),
     val unitEditor: PracticeUnitEditorState = PracticeUnitEditorState(),
     val sessionEditor: PracticeSessionEditorState = PracticeSessionEditorState(),
+    val unitEditorBaseline: PracticeUnitEditorState? = null,
+    val sessionEditorBaseline: PracticeSessionEditorState? = null,
     val savedUnitId: String? = null,
     val savedSessionId: String? = null,
     val statusMessage: String? = if (dataConfigured) null else planningUnavailableMessage(environment),
 ) {
     val isWorking: Boolean
         get() = isLoading || isSaving
+
+    val isUnitEditorDirty: Boolean
+        get() = unitEditorBaseline != null && unitEditor.withoutErrors() != unitEditorBaseline
+
+    val isSessionEditorDirty: Boolean
+        get() = sessionEditorBaseline != null && sessionEditor.withoutErrors() != sessionEditorBaseline
 }
 
 class PracticePlannerViewModel(
@@ -116,12 +149,15 @@ class PracticePlannerViewModel(
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isSaving = false,
+                    hasLoaded = false,
                     units = emptyList(),
                     sessions = emptyList(),
                     clubCatalog = emptyList(),
                     enabledClubCodes = emptySet(),
                     unitEditor = PracticeUnitEditorState(),
                     sessionEditor = PracticeSessionEditorState(),
+                    unitEditorBaseline = null,
+                    sessionEditorBaseline = null,
                     savedUnitId = null,
                     savedSessionId = null,
                     statusMessage = if (dataFoundation == null) {
@@ -146,8 +182,10 @@ class PracticePlannerViewModel(
     }
 
     fun beginNewUnit() {
+        val freshEditor = PracticeUnitEditorState()
         _uiState.value = _uiState.value.copy(
-            unitEditor = PracticeUnitEditorState(),
+            unitEditor = freshEditor,
+            unitEditorBaseline = freshEditor,
             savedUnitId = null,
             statusMessage = null,
         )
@@ -155,8 +193,10 @@ class PracticePlannerViewModel(
 
     fun editUnit(unitId: String) {
         val unit = _uiState.value.units.firstOrNull { item -> item.id == unitId } ?: return
+        val editorState = unit.toEditorState()
         _uiState.value = _uiState.value.copy(
-            unitEditor = unit.toEditorState(),
+            unitEditor = editorState,
+            unitEditorBaseline = editorState,
             savedUnitId = null,
             statusMessage = "Editing ${unit.title}.",
         )
@@ -166,7 +206,7 @@ class PracticePlannerViewModel(
         _uiState.value = _uiState.value.copy(savedUnitId = null)
     }
 
-    fun updateUnitTitle(value: String) = updateUnitEditor { copy(title = value) }
+    fun updateUnitTitle(value: String) = updateUnitEditor { copy(title = value, titleError = null) }
 
     fun updateUnitNotes(value: String) = updateUnitEditor { copy(notes = value) }
 
@@ -182,12 +222,12 @@ class PracticePlannerViewModel(
         )
     }
 
-    fun updateInstructionText(index: Int, value: String) = updateInstruction(index) { copy(text = value) }
+    fun updateInstructionText(index: Int, value: String) = updateInstruction(index) { copy(text = value, textError = null) }
 
-    fun updateInstructionRepCount(index: Int, value: String) = updateInstruction(index) { copy(repCount = value) }
+    fun updateInstructionRepCount(index: Int, value: String) = updateInstruction(index) { copy(repCount = value, repCountError = null) }
 
     fun updateInstructionBallCount(index: Int, value: String) = updateInstruction(index) {
-        copy(ballCount = value)
+        copy(ballCount = value, ballCountError = null)
     }
 
     fun moveInstructionUp(index: Int) = moveInstruction(index, index - 1)
@@ -210,6 +250,18 @@ class PracticePlannerViewModel(
             return
         }
 
+        val editor = _uiState.value.unitEditor
+        val draft = editor.toDraft()
+        val issues = draft.validationIssues()
+
+        if (issues.isNotEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                unitEditor = editor.withErrors(issues),
+                statusMessage = issues.joinToString(" ") { it.message },
+            )
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isSaving = true,
@@ -218,10 +270,9 @@ class PracticePlannerViewModel(
             )
 
             try {
-                val draft = _uiState.value.unitEditor.toDraft()
                 val savedUnit = foundation.savePracticeUnitUseCase(
                     draft = draft,
-                    unitId = _uiState.value.unitEditor.unitId,
+                    unitId = editor.unitId,
                 )
                 val units = foundation.listPracticeUnitsUseCase()
                 val sessions = foundation.listPracticeSessionsUseCase()
@@ -231,6 +282,7 @@ class PracticePlannerViewModel(
                     units = units,
                     sessions = sessions,
                     unitEditor = savedUnit.toEditorState(),
+                    unitEditorBaseline = null,
                     sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
                     savedUnitId = savedUnit.id,
                     statusMessage = "Saved ${savedUnit.title}.",
@@ -283,8 +335,10 @@ class PracticePlannerViewModel(
     }
 
     fun beginNewSession() {
+        val freshEditor = PracticeSessionEditorState()
         _uiState.value = _uiState.value.copy(
-            sessionEditor = PracticeSessionEditorState(),
+            sessionEditor = freshEditor,
+            sessionEditorBaseline = freshEditor,
             savedSessionId = null,
             statusMessage = null,
         )
@@ -292,8 +346,10 @@ class PracticePlannerViewModel(
 
     fun editSession(sessionId: String) {
         val session = _uiState.value.sessions.firstOrNull { item -> item.id == sessionId } ?: return
+        val editorState = session.toEditorState()
         _uiState.value = _uiState.value.copy(
-            sessionEditor = session.toEditorState(),
+            sessionEditor = editorState,
+            sessionEditorBaseline = editorState,
             savedSessionId = null,
             statusMessage = "Editing ${session.name}.",
         )
@@ -303,7 +359,7 @@ class PracticePlannerViewModel(
         _uiState.value = _uiState.value.copy(savedSessionId = null)
     }
 
-    fun updateSessionName(value: String) = updateSessionEditor { copy(name = value) }
+    fun updateSessionName(value: String) = updateSessionEditor { copy(name = value, nameError = null) }
 
     fun updateSessionNotes(value: String) = updateSessionEditor { copy(notes = value) }
 
@@ -321,11 +377,11 @@ class PracticePlannerViewModel(
     }
 
     fun updateSessionItemUnit(index: Int, practiceUnitId: String) = updateSessionItem(index) {
-        copy(practiceUnitId = practiceUnitId)
+        copy(practiceUnitId = practiceUnitId, unitError = null)
     }
 
     fun updateSessionItemRepeatCount(index: Int, value: String) = updateSessionItem(index) {
-        copy(repeatCount = value)
+        copy(repeatCount = value, repeatCountError = null)
     }
 
     fun updateSessionItemClubReference(index: Int, value: String) = updateSessionItem(index) {
@@ -337,7 +393,7 @@ class PracticePlannerViewModel(
     fun updateSessionItemFocusCue(index: Int, value: String) = updateSessionItem(index) { copy(focusCue = value) }
 
     fun updateSessionItemRestSeconds(index: Int, value: String) = updateSessionItem(index) {
-        copy(restSeconds = value)
+        copy(restSeconds = value, restSecondsError = null)
     }
 
     fun moveSessionItem(fromIndex: Int, toIndex: Int) {
@@ -365,6 +421,36 @@ class PracticePlannerViewModel(
             return
         }
 
+        val editor = _uiState.value.sessionEditor
+
+        // Check for empty required repeat counts before draft conversion
+        val parseIssues = editor.items.mapIndexedNotNull { index, item ->
+            if (item.repeatCount.trim().isEmpty()) {
+                ValidationIssue("items[$index].repeatCount", "Repeat count is required.")
+            } else {
+                null
+            }
+        }
+
+        if (parseIssues.isNotEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                sessionEditor = editor.withErrors(parseIssues),
+                statusMessage = parseIssues.joinToString(" ") { it.message },
+            )
+            return
+        }
+
+        val draft = editor.toDraft()
+        val issues = draft.validationIssues()
+
+        if (issues.isNotEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                sessionEditor = editor.withErrors(issues),
+                statusMessage = issues.joinToString(" ") { it.message },
+            )
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isSaving = true,
@@ -373,10 +459,9 @@ class PracticePlannerViewModel(
             )
 
             try {
-                val draft = _uiState.value.sessionEditor.toDraft()
                 val savedSession = foundation.savePracticeSessionUseCase(
                     draft = draft,
-                    sessionId = _uiState.value.sessionEditor.sessionId,
+                    sessionId = editor.sessionId,
                 )
                 val units = foundation.listPracticeUnitsUseCase()
                 val sessions = foundation.listPracticeSessionsUseCase()
@@ -387,6 +472,7 @@ class PracticePlannerViewModel(
                     sessions = sessions,
                     unitEditor = _uiState.value.unitEditor.resolveWith(units),
                     sessionEditor = savedSession.toEditorState(),
+                    sessionEditorBaseline = null,
                     savedSessionId = savedSession.id,
                     statusMessage = "Saved ${savedSession.name}.",
                 )
@@ -437,6 +523,13 @@ class PracticePlannerViewModel(
         }
     }
 
+    fun clearEditorBaselines() {
+        _uiState.value = _uiState.value.copy(
+            unitEditorBaseline = null,
+            sessionEditorBaseline = null,
+        )
+    }
+
     private fun refreshPlanning(
         statusMessage: String?,
         skipIfWorking: Boolean = false,
@@ -459,6 +552,7 @@ class PracticePlannerViewModel(
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isSaving = false,
+                    hasLoaded = true,
                     units = units,
                     sessions = sessions,
                     unitEditor = _uiState.value.unitEditor.resolveWith(units),
@@ -774,4 +868,55 @@ private fun <T> List<T>.moveItem(
     val item = mutable.removeAt(fromIndex)
     mutable.add(toIndex, item)
     return mutable.toList()
+}
+
+private val issueIndexRegex = Regex("\\[(\\d+)]")
+
+private fun issueIndex(field: String): Int? =
+    issueIndexRegex.find(field)?.groupValues?.get(1)?.toIntOrNull()
+
+private fun PracticeUnitEditorState.withErrors(issues: List<ValidationIssue>): PracticeUnitEditorState {
+    var updated = this
+    for (issue in issues) {
+        val idx = issueIndex(issue.field)
+        when {
+            issue.field == "title" -> updated = updated.copy(titleError = issue.message)
+            idx != null && issue.field.endsWith("].text") ->
+                updated = updated.copy(instructions = updated.instructions.mapIndexed { i, instr ->
+                    if (i == idx) instr.copy(textError = issue.message) else instr
+                })
+            idx != null && issue.field.endsWith("].repCount") ->
+                updated = updated.copy(instructions = updated.instructions.mapIndexed { i, instr ->
+                    if (i == idx) instr.copy(repCountError = issue.message) else instr
+                })
+            idx != null && issue.field.endsWith("].ballCount") ->
+                updated = updated.copy(instructions = updated.instructions.mapIndexed { i, instr ->
+                    if (i == idx) instr.copy(ballCountError = issue.message) else instr
+                })
+        }
+    }
+    return updated
+}
+
+private fun PracticeSessionEditorState.withErrors(issues: List<ValidationIssue>): PracticeSessionEditorState {
+    var updated = this
+    for (issue in issues) {
+        val idx = issueIndex(issue.field)
+        when {
+            issue.field == "name" -> updated = updated.copy(nameError = issue.message)
+            idx != null && issue.field.endsWith("].practiceUnitId") ->
+                updated = updated.copy(items = updated.items.mapIndexed { i, item ->
+                    if (i == idx) item.copy(unitError = issue.message) else item
+                })
+            idx != null && issue.field.endsWith("].repeatCount") ->
+                updated = updated.copy(items = updated.items.mapIndexed { i, item ->
+                    if (i == idx) item.copy(repeatCountError = issue.message) else item
+                })
+            idx != null && issue.field.endsWith("].restSeconds") ->
+                updated = updated.copy(items = updated.items.mapIndexed { i, item ->
+                    if (i == idx) item.copy(restSecondsError = issue.message) else item
+                })
+        }
+    }
+    return updated
 }

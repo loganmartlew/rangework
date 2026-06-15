@@ -187,6 +187,80 @@ class PracticePlannerViewModelTest {
         assertTrue(repositories.savedUnitDrafts.isEmpty())
         assertEquals("Sign in before changing practice plans.", viewModel.uiState.value.statusMessage)
     }
+
+    @Test
+    fun saveUnitWithBlankTitlePopulatesErrorAndAborts() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.updateInstructionText(0, "Hit some balls")
+        viewModel.saveUnit()
+        advanceUntilIdle()
+
+        assertTrue(repositories.savedUnitDrafts.isEmpty())
+        val titleError = viewModel.uiState.value.unitEditor.titleError
+        assertTrue("Expected titleError to be non-null", titleError != null)
+    }
+
+    @Test
+    fun editingUnitTitleClearsItsError() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.updateInstructionText(0, "Do something")
+        viewModel.saveUnit()
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.unitEditor.titleError != null)
+
+        viewModel.updateUnitTitle("Wedge work")
+        assertEquals(null, viewModel.uiState.value.unitEditor.titleError)
+    }
+
+    @Test
+    fun isUnitEditorDirtyTogglesCorrectly() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.uiState.value.isUnitEditorDirty)
+
+        viewModel.editUnit("unit-1")
+        assertEquals(false, viewModel.uiState.value.isUnitEditorDirty)
+
+        viewModel.updateUnitTitle("Changed title")
+        assertEquals(true, viewModel.uiState.value.isUnitEditorDirty)
+    }
+
+    @Test
+    fun hasLoadedFlipsAfterFirstSuccessfulRefresh() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+
+        assertEquals(false, viewModel.uiState.value.hasLoaded)
+
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        assertEquals(true, viewModel.uiState.value.hasLoaded)
+    }
 }
 
 private class FakePlannerRepositories :
