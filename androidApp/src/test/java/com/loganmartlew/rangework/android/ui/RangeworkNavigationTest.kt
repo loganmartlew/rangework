@@ -2,6 +2,8 @@ package com.loganmartlew.rangework.android.ui
 
 import com.loganmartlew.rangework.shared.auth.AuthState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RangeworkNavigationTest {

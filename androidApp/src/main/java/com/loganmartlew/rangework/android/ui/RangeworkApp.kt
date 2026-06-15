@@ -56,6 +56,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -207,6 +208,7 @@ fun RangeworkApp(
                         onSelectDistanceUnit = settingsViewModel::selectDistanceUnit,
                         onSelectSpeedUnit = settingsViewModel::selectSpeedUnit,
                         onRefreshPlanning = plannerViewModel::refreshPlanning,
+                        onRefreshPlanningOnNavigation = plannerViewModel::refreshPlanningOnNavigation,
                         onBeginNewUnit = plannerViewModel::beginNewUnit,
                         onEditUnit = plannerViewModel::editUnit,
                         onDeleteUnit = plannerViewModel::deleteUnit,
@@ -289,6 +291,7 @@ private fun AuthenticatedAppShell(
     onSelectDistanceUnit: (DistanceUnit) -> Unit,
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
     onRefreshPlanning: () -> Unit,
+    onRefreshPlanningOnNavigation: () -> Unit,
     onBeginNewUnit: () -> Unit,
     onEditUnit: (String) -> Unit,
     onDeleteUnit: (String) -> Unit,
@@ -346,6 +349,12 @@ private fun AuthenticatedAppShell(
         }
     }
 
+    LaunchedEffect(currentRoute) {
+        if (currentRoute.shouldRefreshPlanningOnEnter()) {
+            onRefreshPlanningOnNavigation()
+        }
+    }
+
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -364,12 +373,7 @@ private fun AuthenticatedAppShell(
                     } else {
                         BrandWordmark(modifier = Modifier.padding(start = 12.dp))
                     }
-                },
-                actions = {
-                    TextButton(onClick = onRefreshPlanning) {
-                        Text("Refresh")
-                    }
-                },
+                }
             )
         },
         bottomBar = {
@@ -464,6 +468,7 @@ private fun AuthenticatedAppShell(
                     composable(RangeworkRoutes.Units) {
                         UnitListScreen(
                             plannerUiState = plannerUiState,
+                            onRefresh = onRefreshPlanning,
                             onCreateUnit = {
                                 onBeginNewUnit()
                                 shellNavController.navigate(RangeworkRoutes.UnitCreate)
@@ -559,6 +564,7 @@ private fun AuthenticatedAppShell(
                     composable(RangeworkRoutes.Sessions) {
                         SessionListScreen(
                             plannerUiState = plannerUiState,
+                            onRefresh = onRefreshPlanning,
                             onCreateSession = {
                                 onBeginNewSession()
                                 shellNavController.navigate(RangeworkRoutes.SessionCreate)
@@ -770,12 +776,20 @@ private fun OverviewScreen(
 @Composable
 private fun UnitListScreen(
     plannerUiState: PracticePlannerUiState,
+    onRefresh: () -> Unit,
     onCreateUnit: () -> Unit,
     onViewUnit: (String) -> Unit,
     onEditUnit: (String) -> Unit,
     onDeleteUnit: (String) -> Unit,
 ) {
-    ScrollableScreen {
+    RefreshableScrollableScreen(
+        isRefreshing = plannerUiState.isLoading,
+        onRefresh = {
+            if (!plannerUiState.isWorking) {
+                onRefresh()
+            }
+        },
+    ) {
         Text(
             text = "Practice units",
             style = MaterialTheme.typography.headlineMedium,
@@ -790,36 +804,35 @@ private fun UnitListScreen(
                 title = "Planning unavailable",
                 body = plannerUiState.statusMessage ?: planningUnavailableMessage(plannerUiState.environment),
             )
-            return@ScrollableScreen
-        }
-
-        FilledTonalButton(
-            enabled = !plannerUiState.isWorking,
-            onClick = onCreateUnit,
-        ) {
-            Text("New unit")
-        }
-
-        if (plannerUiState.units.isEmpty()) {
-            EntryHighlightCard(
-                title = "No units yet",
-                body = "Create a unit to start building reusable drills.",
-            )
         } else {
-            plannerUiState.units.forEachIndexed { index, unit ->
-                SummaryEntityCard(
-                    title = unit.title,
-                    subtitle = "${unit.instructions.size} instruction${if (unit.instructions.size == 1) "" else "s"}  •  ${ballSummary(unit.derivedBallCount())}",
-                    supportingText = buildString {
-                        unit.defaultClubReference?.let { append("$it  •  ") }
-                        append(unit.instructions.joinToString("  •  ") { instruction -> instruction.text })
-                    },
-                    onView = { onViewUnit(unit.id) },
-                    onEdit = { onEditUnit(unit.id) },
-                    onDelete = { onDeleteUnit(unit.id) },
+            FilledTonalButton(
+                enabled = !plannerUiState.isWorking,
+                onClick = onCreateUnit,
+            ) {
+                Text("New unit")
+            }
+
+            if (plannerUiState.units.isEmpty()) {
+                EntryHighlightCard(
+                    title = "No units yet",
+                    body = "Create a unit to start building reusable drills.",
                 )
-                if (index != plannerUiState.units.lastIndex) {
-                    HorizontalDivider()
+            } else {
+                plannerUiState.units.forEachIndexed { index, unit ->
+                    SummaryEntityCard(
+                        title = unit.title,
+                        subtitle = "${unit.instructions.size} instruction${if (unit.instructions.size == 1) "" else "s"}  •  ${ballSummary(unit.derivedBallCount())}",
+                        supportingText = buildString {
+                            unit.defaultClubReference?.let { append("$it  •  ") }
+                            append(unit.instructions.joinToString("  •  ") { instruction -> instruction.text })
+                        },
+                        onView = { onViewUnit(unit.id) },
+                        onEdit = { onEditUnit(unit.id) },
+                        onDelete = { onDeleteUnit(unit.id) },
+                    )
+                    if (index != plannerUiState.units.lastIndex) {
+                        HorizontalDivider()
+                    }
                 }
             }
         }
@@ -958,6 +971,7 @@ private fun UnitEditorScreen(
 @Composable
 private fun SessionListScreen(
     plannerUiState: PracticePlannerUiState,
+    onRefresh: () -> Unit,
     onCreateSession: () -> Unit,
     onViewSession: (String) -> Unit,
     onEditSession: (String) -> Unit,
@@ -966,7 +980,14 @@ private fun SessionListScreen(
     val unitsById = remember(plannerUiState.units) {
         plannerUiState.units.associateBy(PracticeUnit::id)
     }
-    ScrollableScreen {
+    RefreshableScrollableScreen(
+        isRefreshing = plannerUiState.isLoading,
+        onRefresh = {
+            if (!plannerUiState.isWorking) {
+                onRefresh()
+            }
+        },
+    ) {
         Text(
             text = "Session templates",
             style = MaterialTheme.typography.headlineMedium,
@@ -981,42 +1002,41 @@ private fun SessionListScreen(
                 title = "Planning unavailable",
                 body = plannerUiState.statusMessage ?: planningUnavailableMessage(plannerUiState.environment),
             )
-            return@ScrollableScreen
-        }
-
-        FilledTonalButton(
-            enabled = !plannerUiState.isWorking && plannerUiState.units.isNotEmpty(),
-            onClick = onCreateSession,
-        ) {
-            Text("New session")
-        }
-
-        if (plannerUiState.units.isEmpty()) {
-            EntryHighlightCard(
-                title = "Create a unit first",
-                body = "Sessions are built from live unit references, so add at least one unit before creating a session.",
-            )
-        }
-
-        if (plannerUiState.sessions.isEmpty()) {
-            EntryHighlightCard(
-                title = "No sessions yet",
-                body = "Create a session template once you have units ready.",
-            )
         } else {
-            plannerUiState.sessions.forEachIndexed { index, session ->
-                SummaryEntityCard(
-                    title = session.name,
-                    subtitle = "${session.items.size} item${if (session.items.size == 1) "" else "s"}  •  ${ballSummary(session.derivedBallCount(unitsById))}",
-                    supportingText = session.items.joinToString("  •  ") { item ->
-                        unitsById[item.practiceUnitId]?.title ?: "Missing unit"
-                    }.ifBlank { "No items yet." },
-                    onView = { onViewSession(session.id) },
-                    onEdit = { onEditSession(session.id) },
-                    onDelete = { onDeleteSession(session.id) },
+            FilledTonalButton(
+                enabled = !plannerUiState.isWorking && plannerUiState.units.isNotEmpty(),
+                onClick = onCreateSession,
+            ) {
+                Text("New session")
+            }
+
+            if (plannerUiState.units.isEmpty()) {
+                EntryHighlightCard(
+                    title = "Create a unit first",
+                    body = "Sessions are built from live unit references, so add at least one unit before creating a session.",
                 )
-                if (index != plannerUiState.sessions.lastIndex) {
-                    HorizontalDivider()
+            }
+
+            if (plannerUiState.sessions.isEmpty()) {
+                EntryHighlightCard(
+                    title = "No sessions yet",
+                    body = "Create a session template once you have units ready.",
+                )
+            } else {
+                plannerUiState.sessions.forEachIndexed { index, session ->
+                    SummaryEntityCard(
+                        title = session.name,
+                        subtitle = "${session.items.size} item${if (session.items.size == 1) "" else "s"}  •  ${ballSummary(session.derivedBallCount(unitsById))}",
+                        supportingText = session.items.joinToString("  •  ") { item ->
+                            unitsById[item.practiceUnitId]?.title ?: "Missing unit"
+                        }.ifBlank { "No items yet." },
+                        onView = { onViewSession(session.id) },
+                        onEdit = { onEditSession(session.id) },
+                        onDelete = { onDeleteSession(session.id) },
+                    )
+                    if (index != plannerUiState.sessions.lastIndex) {
+                        HorizontalDivider()
+                    }
                 }
             }
         }
@@ -1962,6 +1982,26 @@ private fun ScrollableScreen(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RefreshableScrollableScreen(
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = modifier.fillMaxSize(),
+    ) {
+        ScrollableScreen(
+            modifier = Modifier.fillMaxSize(),
+            content = content,
+        )
+    }
+}
+
 @Composable
 private fun SignInActionsCard(
     uiState: AuthUiState,
@@ -2259,7 +2299,19 @@ internal fun titleForRoute(route: String): String = when {
     else -> "Rangework"
 }
 
-internal fun String.isTopLevelRoute(): Boolean = this == RangeworkRoutes.Overview ||
+internal fun String.shouldRefreshPlanningOnEnter(): Boolean = when {
+    this == RangeworkRoutes.Overview -> true
+    this == RangeworkRoutes.Units -> true
+    this == RangeworkRoutes.Sessions -> true
+    this == RangeworkRoutes.Settings -> true
+    this == RangeworkRoutes.UnitDetail -> true
+    this == RangeworkRoutes.SessionDetail -> true
+    startsWith("units/") && this != RangeworkRoutes.UnitCreate && !endsWith("/edit") -> true
+    startsWith("sessions/") && this != RangeworkRoutes.SessionCreate && !endsWith("/edit") -> true
+    else -> false
+}
+
+private fun String.isTopLevelRoute(): Boolean = this == RangeworkRoutes.Overview ||
     this == RangeworkRoutes.Units ||
     this == RangeworkRoutes.Sessions ||
     this == RangeworkRoutes.Settings
