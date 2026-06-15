@@ -1844,7 +1844,7 @@ private fun StatusLine(
     )
 }
 
-private fun titleForRoute(route: String): String = when {
+internal fun titleForRoute(route: String): String = when {
     route == RangeworkRoutes.Overview -> "Overview"
     route == RangeworkRoutes.Units -> "Units"
     route == RangeworkRoutes.UnitCreate -> "New unit"
@@ -1862,7 +1862,7 @@ private fun titleForRoute(route: String): String = when {
     else -> "Rangework"
 }
 
-private fun String.isTopLevelRoute(): Boolean = this == RangeworkRoutes.Overview ||
+internal fun String.isTopLevelRoute(): Boolean = this == RangeworkRoutes.Overview ||
     this == RangeworkRoutes.Units ||
     this == RangeworkRoutes.Sessions ||
     this == RangeworkRoutes.Settings

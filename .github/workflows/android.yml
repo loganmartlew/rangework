@@ -1,14 +1,21 @@
-name: Android CI
+name: Android baseline CI
 
 on:
   push:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: android-baseline-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Check out repository
@@ -18,7 +25,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -33,5 +40,15 @@ jobs:
       - name: Ensure Gradle wrapper is executable
         run: chmod +x gradlew
 
-      - name: Run shared and Android unit tests, then assemble app
-        run: ./gradlew :shared:testDebugUnitTest :androidApp:testDebugUnitTest :androidApp:assembleDebug
+      - name: Run baseline verification
+        run: ./gradlew :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease
+
+      - name: Upload Gradle test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-test-reports
+          path: |
+            shared/build/reports/tests
+            androidApp/build/reports/tests
+          if-no-files-found: ignore
