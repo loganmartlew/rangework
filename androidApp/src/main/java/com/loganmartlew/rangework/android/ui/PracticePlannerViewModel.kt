@@ -132,6 +132,13 @@ class PracticePlannerViewModel(
         refreshPlanning(statusMessage = "Planning data refreshed.")
     }
 
+    fun refreshPlanningOnNavigation() {
+        refreshPlanning(
+            statusMessage = _uiState.value.statusMessage,
+            skipIfWorking = true,
+        )
+    }
+
     fun beginNewUnit() {
         _uiState.value = _uiState.value.copy(
             unitEditor = PracticeUnitEditorState(),
@@ -424,15 +431,22 @@ class PracticePlannerViewModel(
         }
     }
 
-    private fun refreshPlanning(statusMessage: String?) {
+    private fun refreshPlanning(
+        statusMessage: String?,
+        skipIfWorking: Boolean = false,
+    ) {
         val foundation = dataFoundation ?: return markPlannerUnavailable()
         if (activeUserId == null) {
             markSignedOut()
             return
         }
+        if (skipIfWorking && _uiState.value.isWorking) {
+            return
+        }
+
+        _uiState.value = _uiState.value.copy(isLoading = true)
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
             try {
                 val units = foundation.listPracticeUnitsUseCase()
                 val sessions = foundation.listPracticeSessionsUseCase()
