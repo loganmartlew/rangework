@@ -78,13 +78,11 @@ class PracticePlannerViewModelTest {
 
         viewModel.updateUnitTitle("  Distance wedges ")
         viewModel.updateInstructionText(0, "  Hit 10 wedges ")
-        viewModel.updateInstructionClubReference(0, "  54* ")
         viewModel.updateInstructionBallCount(0, "10")
         viewModel.saveUnit()
         advanceUntilIdle()
 
         assertEquals("Distance wedges", repositories.savedUnitDrafts.single().title)
-        assertEquals("54*", repositories.savedUnitDrafts.single().instructions.single().clubReference)
         assertEquals(10, repositories.savedUnitDrafts.single().instructions.single().ballCount)
         assertTrue(viewModel.uiState.value.statusMessage.orEmpty().contains("Saved"))
         assertEquals(1, viewModel.uiState.value.units.size)
@@ -178,7 +176,6 @@ private class FakePlannerRepositories :
                     id = "instruction-$index",
                     order = index + 1,
                     text = instruction.text,
-                    clubReference = instruction.clubReference,
                     repCount = instruction.repCount,
                     ballCount = instruction.ballCount,
                 )
@@ -186,8 +183,6 @@ private class FakePlannerRepositories :
             notes = draft.notes,
             focus = draft.focus,
             defaultClubReference = draft.defaultClubReference,
-            tags = draft.tags,
-            defaultBallCount = draft.defaultBallCount,
             createdAt = Instant.parse("2026-06-15T00:00:00Z"),
             updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
         )
@@ -217,10 +212,11 @@ private class FakePlannerRepositories :
                     id = "session-item-$index",
                     practiceUnitId = item.practiceUnitId,
                     order = index + 1,
+                    repeatCount = item.repeatCount,
+                    clubReference = item.clubReference,
                     notes = item.notes,
                     focusCue = item.focusCue,
                     restSeconds = item.restSeconds,
-                    overrideBallCount = item.overrideBallCount,
                 )
             },
             notes = draft.notes,
@@ -280,6 +276,8 @@ private fun sampleSession(): PracticeSession = PracticeSession(
             id = "session-item-1",
             practiceUnitId = "unit-1",
             order = 1,
+            repeatCount = 2,
+            clubReference = "58*",
             notes = "Start here",
         ),
     ),

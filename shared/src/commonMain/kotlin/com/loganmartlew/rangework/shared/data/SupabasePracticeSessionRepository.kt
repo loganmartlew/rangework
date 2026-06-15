@@ -135,10 +135,11 @@ class SupabasePracticeSessionRepository(
                     practiceSessionId = practiceSessionId,
                     practiceUnitId = item.practiceUnitId,
                     sortOrder = item.order,
+                    repeatCount = item.repeatCount,
+                    clubReference = item.clubReference,
                     notes = item.notes,
                     focusCue = item.focusCue,
                     restSeconds = item.restSeconds,
-                    overrideBallCount = item.overrideBallCount,
                 )
             },
         )
@@ -178,13 +179,15 @@ private data class PracticeSessionItemRow(
     val practiceUnitId: String,
     @SerialName("sort_order")
     val sortOrder: Int,
+    @SerialName("repeat_count")
+    val repeatCount: Int,
+    @SerialName("club_reference")
+    val clubReference: String? = null,
     val notes: String? = null,
     @SerialName("focus_cue")
     val focusCue: String? = null,
     @SerialName("rest_seconds")
     val restSeconds: Int? = null,
-    @SerialName("override_ball_count")
-    val overrideBallCount: Int? = null,
 )
 
 @Serializable
@@ -196,13 +199,15 @@ private data class PracticeSessionItemInsertRow(
     val practiceUnitId: String,
     @SerialName("sort_order")
     val sortOrder: Int,
+    @SerialName("repeat_count")
+    val repeatCount: Int,
+    @SerialName("club_reference")
+    val clubReference: String? = null,
     val notes: String? = null,
     @SerialName("focus_cue")
     val focusCue: String? = null,
     @SerialName("rest_seconds")
     val restSeconds: Int? = null,
-    @SerialName("override_ball_count")
-    val overrideBallCount: Int? = null,
 )
 
 private fun PracticeSessionRow.toModel(
@@ -217,10 +222,11 @@ private fun PracticeSessionRow.toModel(
                 id = row.id,
                 practiceUnitId = row.practiceUnitId,
                 order = row.sortOrder,
+                repeatCount = row.repeatCount,
+                clubReference = row.clubReference,
                 notes = row.notes,
                 focusCue = row.focusCue,
                 restSeconds = row.restSeconds,
-                overrideBallCount = row.overrideBallCount,
             )
         },
     notes = notes,

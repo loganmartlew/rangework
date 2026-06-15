@@ -19,7 +19,6 @@ import kotlinx.coroutines.launch
 data class PracticeInstructionEditorState(
     val order: Int,
     val text: String = "",
-    val clubReference: String = "",
     val repCount: String = "",
     val ballCount: String = "",
 )
@@ -30,8 +29,6 @@ data class PracticeUnitEditorState(
     val notes: String = "",
     val focus: String = "",
     val defaultClubReference: String = "",
-    val tags: String = "",
-    val defaultBallCount: String = "",
     val instructions: List<PracticeInstructionEditorState> = listOf(
         PracticeInstructionEditorState(order = 1),
     ),
@@ -40,10 +37,11 @@ data class PracticeUnitEditorState(
 data class PracticeSessionItemEditorState(
     val order: Int,
     val practiceUnitId: String = "",
+    val repeatCount: String = "1",
+    val clubReference: String = "",
     val notes: String = "",
     val focusCue: String = "",
     val restSeconds: String = "",
-    val overrideBallCount: String = "",
 )
 
 data class PracticeSessionEditorState(
@@ -60,10 +58,10 @@ data class PracticePlannerUiState(
     val isSaving: Boolean = false,
     val units: List<PracticeUnit> = emptyList(),
     val sessions: List<PracticeSession> = emptyList(),
-    val selectedUnitId: String? = null,
-    val selectedSessionId: String? = null,
     val unitEditor: PracticeUnitEditorState = PracticeUnitEditorState(),
     val sessionEditor: PracticeSessionEditorState = PracticeSessionEditorState(),
+    val savedUnitId: String? = null,
+    val savedSessionId: String? = null,
     val statusMessage: String? = if (dataConfigured) null else planningUnavailableMessage(environment),
 ) {
     val isWorking: Boolean
@@ -104,9 +102,7 @@ class PracticePlannerViewModel(
             }
 
             AuthState.Restoring -> {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = true,
-                )
+                _uiState.value = _uiState.value.copy(isLoading = true)
             }
 
             AuthState.SignedOut,
@@ -118,10 +114,10 @@ class PracticePlannerViewModel(
                     isSaving = false,
                     units = emptyList(),
                     sessions = emptyList(),
-                    selectedUnitId = null,
-                    selectedSessionId = null,
                     unitEditor = PracticeUnitEditorState(),
                     sessionEditor = PracticeSessionEditorState(),
+                    savedUnitId = null,
+                    savedSessionId = null,
                     statusMessage = if (dataFoundation == null) {
                         planningUnavailableMessage(environment)
                     } else {
@@ -138,8 +134,8 @@ class PracticePlannerViewModel(
 
     fun beginNewUnit() {
         _uiState.value = _uiState.value.copy(
-            selectedUnitId = null,
             unitEditor = PracticeUnitEditorState(),
+            savedUnitId = null,
             statusMessage = null,
         )
     }
@@ -147,10 +143,14 @@ class PracticePlannerViewModel(
     fun editUnit(unitId: String) {
         val unit = _uiState.value.units.firstOrNull { item -> item.id == unitId } ?: return
         _uiState.value = _uiState.value.copy(
-            selectedUnitId = unit.id,
             unitEditor = unit.toEditorState(),
+            savedUnitId = null,
             statusMessage = "Editing ${unit.title}.",
         )
+    }
+
+    fun consumeSavedUnitId() {
+        _uiState.value = _uiState.value.copy(savedUnitId = null)
     }
 
     fun updateUnitTitle(value: String) = updateUnitEditor { copy(title = value) }
@@ -161,10 +161,6 @@ class PracticePlannerViewModel(
 
     fun updateUnitDefaultClubReference(value: String) = updateUnitEditor { copy(defaultClubReference = value) }
 
-    fun updateUnitTags(value: String) = updateUnitEditor { copy(tags = value) }
-
-    fun updateUnitDefaultBallCount(value: String) = updateUnitEditor { copy(defaultBallCount = value) }
-
     fun addInstruction() = updateUnitEditor {
         copy(
             instructions = reindexedInstructions(
@@ -174,10 +170,6 @@ class PracticePlannerViewModel(
     }
 
     fun updateInstructionText(index: Int, value: String) = updateInstruction(index) { copy(text = value) }
-
-    fun updateInstructionClubReference(index: Int, value: String) = updateInstruction(index) {
-        copy(clubReference = value)
-    }
 
     fun updateInstructionRepCount(index: Int, value: String) = updateInstruction(index) { copy(repCount = value) }
 
@@ -208,43 +200,34 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isSaving = true,
+                savedUnitId = null,
                 statusMessage = null,
             )
 
             try {
+                val draft = _uiState.value.unitEditor.toDraft()
                 val savedUnit = foundation.savePracticeUnitUseCase(
-                    draft = _uiState.value.unitEditor.toDraft(),
-                    unitId = _uiState.value.selectedUnitId,
+                    draft = draft,
+                    unitId = _uiState.value.unitEditor.unitId,
                 )
-                refreshPlanning(
+                val units = foundation.listPracticeUnitsUseCase()
+                val sessions = foundation.listPracticeSessionsUseCase()
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSaving = false,
+                    units = units,
+                    sessions = sessions,
+                    unitEditor = savedUnit.toEditorState(),
+                    sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
+                    savedUnitId = savedUnit.id,
                     statusMessage = "Saved ${savedUnit.title}.",
-                    preferredUnitId = savedUnit.id,
-                    preferredSessionId = _uiState.value.selectedSessionId,
                 )
             } catch (exception: IllegalArgumentException) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Unit save failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Unit save failed.")
             } catch (exception: IllegalStateException) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Unit save failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Unit save failed.")
             } catch (exception: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Unit save failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Unit save failed.")
             }
         }
     }
@@ -257,47 +240,39 @@ class PracticePlannerViewModel(
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSaving = true)
+            _uiState.value = _uiState.value.copy(isSaving = true, savedUnitId = null)
             try {
                 val title = _uiState.value.units.firstOrNull { unit -> unit.id == unitId }?.title ?: "unit"
                 foundation.deletePracticeUnitUseCase(unitId)
-                refreshPlanning(
+                val units = foundation.listPracticeUnitsUseCase()
+                val sessions = foundation.listPracticeSessionsUseCase()
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSaving = false,
+                    units = units,
+                    sessions = sessions,
+                    unitEditor = if (_uiState.value.unitEditor.unitId == unitId) {
+                        PracticeUnitEditorState()
+                    } else {
+                        _uiState.value.unitEditor.resolveWith(units)
+                    },
+                    sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
                     statusMessage = "Deleted $title.",
-                    preferredUnitId = if (_uiState.value.selectedUnitId == unitId) null else _uiState.value.selectedUnitId,
-                    preferredSessionId = _uiState.value.selectedSessionId,
                 )
             } catch (exception: IllegalArgumentException) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Unit delete failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Unit delete failed.")
             } catch (exception: IllegalStateException) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Unit delete failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Unit delete failed.")
             } catch (exception: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Unit delete failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Unit delete failed.")
             }
         }
     }
 
     fun beginNewSession() {
         _uiState.value = _uiState.value.copy(
-            selectedSessionId = null,
             sessionEditor = PracticeSessionEditorState(),
+            savedSessionId = null,
             statusMessage = null,
         )
     }
@@ -305,10 +280,14 @@ class PracticePlannerViewModel(
     fun editSession(sessionId: String) {
         val session = _uiState.value.sessions.firstOrNull { item -> item.id == sessionId } ?: return
         _uiState.value = _uiState.value.copy(
-            selectedSessionId = session.id,
             sessionEditor = session.toEditorState(),
+            savedSessionId = null,
             statusMessage = "Editing ${session.name}.",
         )
+    }
+
+    fun consumeSavedSessionId() {
+        _uiState.value = _uiState.value.copy(savedSessionId = null)
     }
 
     fun updateSessionName(value: String) = updateSessionEditor { copy(name = value) }
@@ -322,6 +301,7 @@ class PracticePlannerViewModel(
                 items + PracticeSessionItemEditorState(
                     order = items.size + 1,
                     practiceUnitId = defaultUnitId,
+                    repeatCount = "1",
                 ),
             ),
         )
@@ -329,6 +309,14 @@ class PracticePlannerViewModel(
 
     fun updateSessionItemUnit(index: Int, practiceUnitId: String) = updateSessionItem(index) {
         copy(practiceUnitId = practiceUnitId)
+    }
+
+    fun updateSessionItemRepeatCount(index: Int, value: String) = updateSessionItem(index) {
+        copy(repeatCount = value)
+    }
+
+    fun updateSessionItemClubReference(index: Int, value: String) = updateSessionItem(index) {
+        copy(clubReference = value)
     }
 
     fun updateSessionItemNotes(index: Int, value: String) = updateSessionItem(index) { copy(notes = value) }
@@ -339,13 +327,15 @@ class PracticePlannerViewModel(
         copy(restSeconds = value)
     }
 
-    fun updateSessionItemOverrideBallCount(index: Int, value: String) = updateSessionItem(index) {
-        copy(overrideBallCount = value)
+    fun moveSessionItem(fromIndex: Int, toIndex: Int) {
+        updateSessionEditor {
+            copy(
+                items = reindexedSessionItems(
+                    items.moveItem(fromIndex, toIndex),
+                ),
+            )
+        }
     }
-
-    fun moveSessionItemUp(index: Int) = moveSessionItem(index, index - 1)
-
-    fun moveSessionItemDown(index: Int) = moveSessionItem(index, index + 1)
 
     fun removeSessionItem(index: Int) = updateSessionEditor {
         copy(
@@ -365,43 +355,34 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isSaving = true,
+                savedSessionId = null,
                 statusMessage = null,
             )
 
             try {
+                val draft = _uiState.value.sessionEditor.toDraft()
                 val savedSession = foundation.savePracticeSessionUseCase(
-                    draft = _uiState.value.sessionEditor.toDraft(),
-                    sessionId = _uiState.value.selectedSessionId,
+                    draft = draft,
+                    sessionId = _uiState.value.sessionEditor.sessionId,
                 )
-                refreshPlanning(
+                val units = foundation.listPracticeUnitsUseCase()
+                val sessions = foundation.listPracticeSessionsUseCase()
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSaving = false,
+                    units = units,
+                    sessions = sessions,
+                    unitEditor = _uiState.value.unitEditor.resolveWith(units),
+                    sessionEditor = savedSession.toEditorState(),
+                    savedSessionId = savedSession.id,
                     statusMessage = "Saved ${savedSession.name}.",
-                    preferredUnitId = _uiState.value.selectedUnitId,
-                    preferredSessionId = savedSession.id,
                 )
             } catch (exception: IllegalArgumentException) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Session save failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Session save failed.")
             } catch (exception: IllegalStateException) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Session save failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Session save failed.")
             } catch (exception: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Session save failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Session save failed.")
             }
         }
     }
@@ -414,48 +395,36 @@ class PracticePlannerViewModel(
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSaving = true)
+            _uiState.value = _uiState.value.copy(isSaving = true, savedSessionId = null)
             try {
                 val name = _uiState.value.sessions.firstOrNull { session -> session.id == sessionId }?.name ?: "session"
                 foundation.deletePracticeSessionUseCase(sessionId)
-                refreshPlanning(
+                val units = foundation.listPracticeUnitsUseCase()
+                val sessions = foundation.listPracticeSessionsUseCase()
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSaving = false,
+                    units = units,
+                    sessions = sessions,
+                    unitEditor = _uiState.value.unitEditor.resolveWith(units),
+                    sessionEditor = if (_uiState.value.sessionEditor.sessionId == sessionId) {
+                        PracticeSessionEditorState()
+                    } else {
+                        _uiState.value.sessionEditor.resolveWith(sessions)
+                    },
                     statusMessage = "Deleted $name.",
-                    preferredUnitId = _uiState.value.selectedUnitId,
-                    preferredSessionId = if (_uiState.value.selectedSessionId == sessionId) null else _uiState.value.selectedSessionId,
                 )
             } catch (exception: IllegalArgumentException) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Session delete failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Session delete failed.")
             } catch (exception: IllegalStateException) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Session delete failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Session delete failed.")
             } catch (exception: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Session delete failed.",
-                    ),
-                )
+                markSaveFailure(exception, "Session delete failed.")
             }
         }
     }
 
-    private fun refreshPlanning(
-        statusMessage: String?,
-        preferredUnitId: String? = _uiState.value.selectedUnitId,
-        preferredSessionId: String? = _uiState.value.selectedSessionId,
-    ) {
+    private fun refreshPlanning(statusMessage: String?) {
         val foundation = dataFoundation ?: return markPlannerUnavailable()
         if (activeUserId == null) {
             markSignedOut()
@@ -467,55 +436,21 @@ class PracticePlannerViewModel(
             try {
                 val units = foundation.listPracticeUnitsUseCase()
                 val sessions = foundation.listPracticeSessionsUseCase()
-                val resolvedUnit = preferredUnitId?.let { selectedId ->
-                    units.firstOrNull { unit -> unit.id == selectedId }
-                }
-                val resolvedSession = preferredSessionId?.let { selectedId ->
-                    sessions.firstOrNull { session -> session.id == selectedId }
-                }
-
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isSaving = false,
                     units = units,
                     sessions = sessions,
-                    selectedUnitId = resolvedUnit?.id,
-                    selectedSessionId = resolvedSession?.id,
-                    unitEditor = resolvedUnit?.toEditorState() ?: _uiState.value.unitEditor.takeIf {
-                        preferredUnitId == null
-                    } ?: PracticeUnitEditorState(),
-                    sessionEditor = resolvedSession?.toEditorState() ?: _uiState.value.sessionEditor.takeIf {
-                        preferredSessionId == null
-                    } ?: PracticeSessionEditorState(),
+                    unitEditor = _uiState.value.unitEditor.resolveWith(units),
+                    sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
                     statusMessage = statusMessage,
                 )
             } catch (exception: IllegalArgumentException) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Planning refresh failed.",
-                    ),
-                )
+                markRefreshFailure(exception, "Planning refresh failed.")
             } catch (exception: IllegalStateException) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Planning refresh failed.",
-                    ),
-                )
+                markRefreshFailure(exception, "Planning refresh failed.")
             } catch (exception: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isSaving = false,
-                    statusMessage = plannerStatusMessage(
-                        exception = exception,
-                        fallback = "Planning refresh failed.",
-                    ),
-                )
+                markRefreshFailure(exception, "Planning refresh failed.")
             }
         }
     }
@@ -536,12 +471,31 @@ class PracticePlannerViewModel(
         )
     }
 
+    private fun markRefreshFailure(exception: Throwable, fallback: String) {
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            isSaving = false,
+            statusMessage = plannerStatusMessage(
+                exception = exception,
+                fallback = fallback,
+            ),
+        )
+    }
+
+    private fun markSaveFailure(exception: Throwable, fallback: String) {
+        _uiState.value = _uiState.value.copy(
+            isSaving = false,
+            statusMessage = plannerStatusMessage(
+                exception = exception,
+                fallback = fallback,
+            ),
+        )
+    }
+
     private fun updateUnitEditor(
         transform: PracticeUnitEditorState.() -> PracticeUnitEditorState,
     ) {
-        _uiState.value = _uiState.value.copy(
-            unitEditor = _uiState.value.unitEditor.transform(),
-        )
+        _uiState.value = _uiState.value.copy(unitEditor = _uiState.value.unitEditor.transform())
     }
 
     private fun updateInstruction(
@@ -563,10 +517,7 @@ class PracticePlannerViewModel(
         }
     }
 
-    private fun moveInstruction(
-        fromIndex: Int,
-        toIndex: Int,
-    ) {
+    private fun moveInstruction(fromIndex: Int, toIndex: Int) {
         updateUnitEditor {
             copy(
                 instructions = reindexedInstructions(
@@ -579,9 +530,7 @@ class PracticePlannerViewModel(
     private fun updateSessionEditor(
         transform: PracticeSessionEditorState.() -> PracticeSessionEditorState,
     ) {
-        _uiState.value = _uiState.value.copy(
-            sessionEditor = _uiState.value.sessionEditor.transform(),
-        )
+        _uiState.value = _uiState.value.copy(sessionEditor = _uiState.value.sessionEditor.transform())
     }
 
     private fun updateSessionItem(
@@ -598,19 +547,6 @@ class PracticePlannerViewModel(
                             item
                         }
                     },
-                ),
-            )
-        }
-    }
-
-    private fun moveSessionItem(
-        fromIndex: Int,
-        toIndex: Int,
-    ) {
-        updateSessionEditor {
-            copy(
-                items = reindexedSessionItems(
-                    items.moveItem(fromIndex, toIndex),
                 ),
             )
         }
@@ -640,7 +576,7 @@ internal fun planningUnavailableMessage(environment: AppEnvironment): String =
     "Planning data needs Supabase configuration. ${missingConfigMessage(environment)}"
 
 internal fun planningSchemaUnavailableMessage(): String =
-    "Practice planning tables are not available in this Supabase project yet. Apply the Phase 3 planning-data migration, then refresh the app."
+    "Practice planning tables are not available in this Supabase project yet. Apply the latest planning-data migrations, then refresh the app."
 
 private fun plannerStatusMessage(
     exception: Throwable,
@@ -659,11 +595,13 @@ private fun Throwable.isPlanningAccessError(): Boolean {
                 message.contains("public.$tableName")
             }
         }
+
         message.contains("permission denied for table") -> {
             planningSchemaTables.any { tableName ->
                 message.contains("permission denied for table $tableName")
             }
         }
+
         else -> false
     }
 }
@@ -676,29 +614,34 @@ private val planningSchemaTables = setOf(
     "user_preferences",
 )
 
+private fun PracticeUnitEditorState.resolveWith(
+    units: List<PracticeUnit>,
+): PracticeUnitEditorState = unitId?.let { currentUnitId ->
+    units.firstOrNull { unit -> unit.id == currentUnitId }?.toEditorState() ?: PracticeUnitEditorState()
+} ?: this
+
+private fun PracticeSessionEditorState.resolveWith(
+    sessions: List<PracticeSession>,
+): PracticeSessionEditorState = sessionId?.let { currentSessionId ->
+    sessions.firstOrNull { session -> session.id == currentSessionId }?.toEditorState() ?: PracticeSessionEditorState()
+} ?: this
+
 private fun PracticeUnit.toEditorState(): PracticeUnitEditorState = PracticeUnitEditorState(
     unitId = id,
     title = title,
     notes = notes.orEmpty(),
     focus = focus.orEmpty(),
     defaultClubReference = defaultClubReference.orEmpty(),
-    tags = tags.joinToString(", "),
-    defaultBallCount = defaultBallCount?.toString().orEmpty(),
     instructions = if (instructions.isEmpty()) {
-        listOf(
-            PracticeInstructionEditorState(order = 1),
-        )
+        listOf(PracticeInstructionEditorState(order = 1))
     } else {
-        instructions.map { instruction ->
-            instruction.toEditorState()
-        }
+        instructions.map { instruction -> instruction.toEditorState() }
     },
 )
 
 private fun PracticeInstruction.toEditorState(): PracticeInstructionEditorState = PracticeInstructionEditorState(
     order = order,
     text = text,
-    clubReference = clubReference.orEmpty(),
     repCount = repCount?.toString().orEmpty(),
     ballCount = ballCount?.toString().orEmpty(),
 )
@@ -713,10 +656,11 @@ private fun PracticeSession.toEditorState(): PracticeSessionEditorState = Practi
 private fun PracticeSessionItem.toEditorState(): PracticeSessionItemEditorState = PracticeSessionItemEditorState(
     order = order,
     practiceUnitId = practiceUnitId,
+    repeatCount = repeatCount.toString(),
+    clubReference = clubReference.orEmpty(),
     notes = notes.orEmpty(),
     focusCue = focusCue.orEmpty(),
     restSeconds = restSeconds?.toString().orEmpty(),
-    overrideBallCount = overrideBallCount?.toString().orEmpty(),
 )
 
 private fun PracticeUnitEditorState.toDraft(): PracticeUnitDraft = PracticeUnitDraft(
@@ -725,7 +669,6 @@ private fun PracticeUnitEditorState.toDraft(): PracticeUnitDraft = PracticeUnitD
         PracticeInstructionDraft(
             order = instruction.order,
             text = instruction.text,
-            clubReference = instruction.clubReference,
             repCount = instruction.repCount.parseOptionalInt("Instruction reps"),
             ballCount = instruction.ballCount.parseOptionalInt("Instruction ball count"),
         )
@@ -733,8 +676,6 @@ private fun PracticeUnitEditorState.toDraft(): PracticeUnitDraft = PracticeUnitD
     notes = notes,
     focus = focus,
     defaultClubReference = defaultClubReference,
-    tags = tags.split(",").map(String::trim).filter(String::isNotEmpty),
-    defaultBallCount = defaultBallCount.parseOptionalInt("Default ball count"),
 )
 
 private fun PracticeSessionEditorState.toDraft(): PracticeSessionDraft = PracticeSessionDraft(
@@ -744,10 +685,11 @@ private fun PracticeSessionEditorState.toDraft(): PracticeSessionDraft = Practic
         PracticeSessionItemDraft(
             practiceUnitId = item.practiceUnitId,
             order = item.order,
+            repeatCount = item.repeatCount.parseRequiredInt("Repeat count"),
+            clubReference = item.clubReference,
             notes = item.notes,
             focusCue = item.focusCue,
             restSeconds = item.restSeconds.parseOptionalInt("Rest seconds"),
-            overrideBallCount = item.overrideBallCount.parseOptionalInt("Override ball count"),
         )
     },
 )
@@ -756,6 +698,15 @@ private fun String.parseOptionalInt(fieldLabel: String): Int? {
     val normalized = trim()
     if (normalized.isEmpty()) {
         return null
+    }
+
+    return normalized.toIntOrNull() ?: throw IllegalArgumentException("$fieldLabel must be a whole number.")
+}
+
+private fun String.parseRequiredInt(fieldLabel: String): Int {
+    val normalized = trim()
+    if (normalized.isEmpty()) {
+        throw IllegalArgumentException("$fieldLabel is required.")
     }
 
     return normalized.toIntOrNull() ?: throw IllegalArgumentException("$fieldLabel must be a whole number.")

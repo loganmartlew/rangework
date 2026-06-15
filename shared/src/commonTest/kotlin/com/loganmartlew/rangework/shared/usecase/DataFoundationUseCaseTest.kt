@@ -5,6 +5,7 @@ import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.PracticeInstructionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
+import com.loganmartlew.rangework.shared.model.PracticeSessionItemDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.model.SpeedUnit
@@ -31,13 +32,11 @@ class DataFoundationUseCaseTest {
                         text = "  Hit 10 balls  ",
                     ),
                 ),
-                tags = listOf(" wedges "),
             ),
             unitId = "  unit-1  ",
         )
 
         assertEquals("Distance wedges", repository.lastDraft?.title)
-        assertEquals(listOf("wedges"), repository.lastDraft?.tags)
         assertEquals("unit-1", repository.lastSavedUnitId)
         assertEquals(listOf(1), repository.lastDraft?.instructions?.map(PracticeInstructionDraft::order))
     }
@@ -49,7 +48,14 @@ class DataFoundationUseCaseTest {
         SavePracticeSessionUseCase(repository).invoke(
             draft = PracticeSessionDraft(
                 name = "  Short game block ",
-                items = emptyList(),
+                items = listOf(
+                    PracticeSessionItemDraft(
+                        practiceUnitId = "  unit-4 ",
+                        order = 9,
+                        repeatCount = 3,
+                        clubReference = "  PW ",
+                    ),
+                ),
                 notes = "  Repeat twice ",
             ),
             sessionId = "  session-7  ",
@@ -57,6 +63,10 @@ class DataFoundationUseCaseTest {
 
         assertEquals("Short game block", repository.lastDraft?.name)
         assertEquals("Repeat twice", repository.lastDraft?.notes)
+        assertEquals(listOf(1), repository.lastDraft?.items?.map { it.order })
+        assertEquals("unit-4", repository.lastDraft?.items?.single()?.practiceUnitId)
+        assertEquals(3, repository.lastDraft?.items?.single()?.repeatCount)
+        assertEquals("PW", repository.lastDraft?.items?.single()?.clubReference)
         assertEquals("session-7", repository.lastSavedSessionId)
     }
 
@@ -97,8 +107,6 @@ private class RecordingPracticeUnitRepository : PracticeUnitRepository {
             notes = draft.notes,
             focus = draft.focus,
             defaultClubReference = draft.defaultClubReference,
-            tags = draft.tags,
-            defaultBallCount = draft.defaultBallCount,
             createdAt = Instant.parse("2026-06-15T00:00:00Z"),
             updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
         )

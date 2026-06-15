@@ -7,7 +7,6 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
         .sortedBy(PracticeInstructionDraft::order)
         .mapIndexed { index, instruction ->
             val normalizedText = instruction.text.trim()
-            val normalizedClubReference = instruction.clubReference.normalizedOptionalText()
 
             if (normalizedText.isEmpty()) {
                 issues += ValidationIssue(
@@ -31,15 +30,10 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
             PracticeInstructionDraft(
                 order = index + 1,
                 text = normalizedText,
-                clubReference = normalizedClubReference,
                 repCount = instruction.repCount,
                 ballCount = instruction.ballCount,
             )
         }
-    val normalizedTags = tags
-        .map(String::trim)
-        .filter(String::isNotEmpty)
-        .distinct()
 
     if (normalizedTitle.isEmpty()) {
         issues += ValidationIssue(
@@ -53,12 +47,6 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
             message = "At least one instruction is required.",
         )
     }
-    if (defaultBallCount != null && defaultBallCount <= 0) {
-        issues += ValidationIssue(
-            field = "defaultBallCount",
-            message = "Default ball count must be greater than zero.",
-        )
-    }
 
     if (issues.isNotEmpty()) {
         throw SharedValidationException(issues)
@@ -70,8 +58,6 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
         notes = notes.normalizedOptionalText(),
         focus = focus.normalizedOptionalText(),
         defaultClubReference = defaultClubReference.normalizedOptionalText(),
-        tags = normalizedTags,
-        defaultBallCount = defaultBallCount,
     )
 }
 
@@ -95,20 +81,21 @@ fun PracticeSessionDraft.validated(): PracticeSessionDraft {
                     message = "Rest seconds must be greater than zero.",
                 )
             }
-            if (item.overrideBallCount != null && item.overrideBallCount <= 0) {
+            if (item.repeatCount <= 0) {
                 issues += ValidationIssue(
-                    field = "items[$index].overrideBallCount",
-                    message = "Override ball count must be greater than zero.",
+                    field = "items[$index].repeatCount",
+                    message = "Repeat count must be greater than zero.",
                 )
             }
 
             PracticeSessionItemDraft(
                 practiceUnitId = normalizedPracticeUnitId,
                 order = index + 1,
+                repeatCount = item.repeatCount,
+                clubReference = item.clubReference.normalizedOptionalText(),
                 notes = item.notes.normalizedOptionalText(),
                 focusCue = item.focusCue.normalizedOptionalText(),
                 restSeconds = item.restSeconds,
-                overrideBallCount = item.overrideBallCount,
             )
         }
 

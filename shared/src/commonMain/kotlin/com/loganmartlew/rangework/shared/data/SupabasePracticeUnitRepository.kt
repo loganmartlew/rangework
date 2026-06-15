@@ -79,8 +79,6 @@ class SupabasePracticeUnitRepository(
                     notes = draft.notes,
                     focus = draft.focus,
                     defaultClubReference = draft.defaultClubReference,
-                    tags = draft.tags,
-                    defaultBallCount = draft.defaultBallCount,
                 ),
             )
         } else {
@@ -90,8 +88,6 @@ class SupabasePracticeUnitRepository(
                     notes = draft.notes,
                     focus = draft.focus,
                     defaultClubReference = draft.defaultClubReference,
-                    tags = draft.tags,
-                    defaultBallCount = draft.defaultBallCount,
                 ),
             ) {
                 filter {
@@ -143,7 +139,6 @@ class SupabasePracticeUnitRepository(
                     practiceUnitId = practiceUnitId,
                     sortOrder = instruction.order,
                     text = instruction.text,
-                    clubReference = instruction.clubReference,
                     repCount = instruction.repCount,
                     ballCount = instruction.ballCount,
                 )
@@ -160,9 +155,6 @@ private data class PracticeUnitRow(
     val focus: String? = null,
     @SerialName("default_club_reference")
     val defaultClubReference: String? = null,
-    val tags: List<String> = emptyList(),
-    @SerialName("default_ball_count")
-    val defaultBallCount: Int? = null,
     @SerialName("created_at")
     val createdAt: Instant,
     @SerialName("updated_at")
@@ -177,9 +169,6 @@ private data class PracticeUnitInsertRow(
     val focus: String? = null,
     @SerialName("default_club_reference")
     val defaultClubReference: String? = null,
-    val tags: List<String> = emptyList(),
-    @SerialName("default_ball_count")
-    val defaultBallCount: Int? = null,
 )
 
 @Serializable
@@ -189,9 +178,6 @@ private data class PracticeUnitUpdateRow(
     val focus: String? = null,
     @SerialName("default_club_reference")
     val defaultClubReference: String? = null,
-    val tags: List<String> = emptyList(),
-    @SerialName("default_ball_count")
-    val defaultBallCount: Int? = null,
 )
 
 @Serializable
@@ -202,8 +188,6 @@ private data class PracticeUnitInstructionRow(
     @SerialName("sort_order")
     val sortOrder: Int,
     val text: String,
-    @SerialName("club_reference")
-    val clubReference: String? = null,
     @SerialName("rep_count")
     val repCount: Int? = null,
     @SerialName("ball_count")
@@ -218,8 +202,6 @@ private data class PracticeUnitInstructionInsertRow(
     @SerialName("sort_order")
     val sortOrder: Int,
     val text: String,
-    @SerialName("club_reference")
-    val clubReference: String? = null,
     @SerialName("rep_count")
     val repCount: Int? = null,
     @SerialName("ball_count")
@@ -238,7 +220,6 @@ private fun PracticeUnitRow.toModel(
                 id = row.id,
                 order = row.sortOrder,
                 text = row.text,
-                clubReference = row.clubReference,
                 repCount = row.repCount,
                 ballCount = row.ballCount,
             )
@@ -246,8 +227,6 @@ private fun PracticeUnitRow.toModel(
     notes = notes,
     focus = focus,
     defaultClubReference = defaultClubReference,
-    tags = tags,
-    defaultBallCount = defaultBallCount,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )

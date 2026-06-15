@@ -9,6 +9,4 @@ data class PracticeUnitDraft(
     val notes: String? = null,
     val focus: String? = null,
     val defaultClubReference: String? = null,
-    val tags: List<String> = emptyList(),
-    val defaultBallCount: Int? = null,
 )

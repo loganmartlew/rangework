@@ -13,7 +13,6 @@ class DraftValidationTest {
                 PracticeInstructionDraft(
                     order = 9,
                     text = "  Hit 10 stock wedges  ",
-                    clubReference = "  56*  ",
                     repCount = 10,
                 ),
                 PracticeInstructionDraft(
@@ -25,18 +24,15 @@ class DraftValidationTest {
             notes = "  Keep tempo steady  ",
             focus = "  Start line  ",
             defaultClubReference = "  GW  ",
-            tags = listOf(" wedges ", "tempo", "wedges"),
-            defaultBallCount = 15,
         ).validated()
 
         assertEquals("Wedge ladder", validated.title)
         assertEquals("Keep tempo steady", validated.notes)
         assertEquals("Start line", validated.focus)
         assertEquals("GW", validated.defaultClubReference)
-        assertEquals(listOf("wedges", "tempo"), validated.tags)
         assertEquals(listOf(1, 2), validated.instructions.map(PracticeInstructionDraft::order))
         assertEquals("Finish with 5 flighted shots", validated.instructions.first().text)
-        assertEquals("56*", validated.instructions.last().clubReference)
+        assertEquals(10, validated.instructions.last().repCount)
     }
 
     @Test
@@ -63,14 +59,16 @@ class DraftValidationTest {
                 PracticeSessionItemDraft(
                     practiceUnitId = "  unit-2  ",
                     order = 8,
+                    repeatCount = 2,
+                    clubReference = "  54*  ",
                     notes = "  Start here  ",
                     focusCue = "  Landing spot  ",
                     restSeconds = 30,
-                    overrideBallCount = 12,
                 ),
                 PracticeSessionItemDraft(
                     practiceUnitId = "unit-2",
                     order = 2,
+                    repeatCount = 1,
                 ),
             ),
         ).validated()
@@ -79,6 +77,8 @@ class DraftValidationTest {
         assertEquals("Alternate tempo work", validated.notes)
         assertEquals(listOf(1, 2), validated.items.map(PracticeSessionItemDraft::order))
         assertEquals(listOf("unit-2", "unit-2"), validated.items.map(PracticeSessionItemDraft::practiceUnitId))
+        assertEquals(listOf(1, 2), validated.items.map(PracticeSessionItemDraft::repeatCount))
+        assertEquals("54*", validated.items.last().clubReference)
         assertEquals("Start here", validated.items.last().notes)
         assertEquals("Landing spot", validated.items.last().focusCue)
     }

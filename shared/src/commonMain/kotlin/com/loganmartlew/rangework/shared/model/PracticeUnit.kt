@@ -11,8 +11,6 @@ data class PracticeUnit(
     val notes: String? = null,
     val focus: String? = null,
     val defaultClubReference: String? = null,
-    val tags: List<String> = emptyList(),
-    val defaultBallCount: Int? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
