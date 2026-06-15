@@ -4,7 +4,9 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -17,12 +19,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,6 +36,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -41,6 +46,8 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,10 +58,12 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,11 +75,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.loganmartlew.rangework.android.R
 import com.loganmartlew.rangework.android.auth.AndroidGoogleIdTokenProvider
 import com.loganmartlew.rangework.android.config.baselineAndroidAppAuthConfig
+import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.android.ui.theme.RangeworkTheme
 import com.loganmartlew.rangework.shared.auth.AuthState
-import com.loganmartlew.rangework.shared.config.AppEnvironment
 import com.loganmartlew.rangework.shared.config.isAuthConfigured
 import com.loganmartlew.rangework.shared.data.createRangeworkFoundation
 import com.loganmartlew.rangework.shared.model.PracticeSession
@@ -154,7 +164,6 @@ fun RangeworkApp(
                     UnauthenticatedEntryScreen(
                         uiState = authUiState,
                         bootstrapMessage = bootstrapMessage,
-                        onRestoreSession = authViewModel::restoreSession,
                         onSignIn = { authViewModel.signInWithGoogle(googleIdTokenProvider) },
                     )
                 }
@@ -207,7 +216,6 @@ fun RangeworkApp(
 private fun UnauthenticatedEntryScreen(
     uiState: AuthUiState,
     bootstrapMessage: AppBootstrapMessage,
-    onRestoreSession: () -> Unit,
     onSignIn: () -> Unit,
 ) {
     Scaffold(
@@ -221,35 +229,17 @@ private fun UnauthenticatedEntryScreen(
         ) {
             Text(
                 text = "Rangework",
-                style = MaterialTheme.typography.headlineLarge,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(
-                text = bootstrapMessage.headline,
-                style = MaterialTheme.typography.titleLarge,
-            )
-            Text(
-                text = bootstrapMessage.detail,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            EntryHighlightCard(
-                title = "Planning workflow",
-                body = "Sign in to create practice units, compose reusable sessions, and keep the planning workflow synced through Supabase.",
-            )
-            ConfigurationStatusCard(
-                environment = uiState.environment,
-                authState = uiState.authState,
+            OnboardingHeroCard(
+                headline = bootstrapMessage.headline,
+                detail = bootstrapMessage.detail,
             )
             SignInActionsCard(
                 uiState = uiState,
-                onRestoreSession = onRestoreSession,
                 onSignIn = onSignIn,
             )
-            uiState.statusMessage?.let { statusMessage ->
-                EntryHighlightCard(
-                    title = "Status",
-                    body = statusMessage,
-                )
-            }
         }
     }
 }
@@ -307,9 +297,20 @@ private fun AuthenticatedAppShell(
     val navBackStackEntry by shellNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: RangeworkRoutes.Overview
     val canNavigateBack = shellNavController.previousBackStackEntry != null && !currentRoute.isTopLevelRoute()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var lastSnackbarMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(plannerUiState.statusMessage, plannerUiState.dataConfigured) {
+        val message = plannerUiState.statusMessage
+        if (message != null && message != lastSnackbarMessage && shouldShowPlannerSnackbar(message, plannerUiState)) {
+            lastSnackbarMessage = message
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -323,11 +324,7 @@ private fun AuthenticatedAppShell(
                             Text("Back")
                         }
                     } else {
-                        Text(
-                            text = "RW",
-                            modifier = Modifier.padding(start = 16.dp),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                        BrandWordmark(modifier = Modifier.padding(start = 12.dp))
                     }
                 },
                 actions = {
@@ -355,7 +352,7 @@ private fun AuthenticatedAppShell(
                                     }
                                 }
                             },
-                            icon = { Text(destination.glyph) },
+                            icon = { Icon(imageVector = destination.icon, contentDescription = null) },
                             label = { Text(destination.label) },
                         )
                     }
@@ -385,7 +382,7 @@ private fun AuthenticatedAppShell(
                                     }
                                 }
                             },
-                            icon = { Text(destination.glyph) },
+                            icon = { Icon(imageVector = destination.icon, contentDescription = null) },
                             label = { Text(destination.label) },
                         )
                     }
@@ -418,6 +415,14 @@ private fun AuthenticatedAppShell(
                             authUiState = authUiState,
                             plannerUiState = plannerUiState,
                             isExpandedLayout = navigationType == RangeworkNavigationType.NavigationRail,
+                            onCreateUnit = {
+                                onBeginNewUnit()
+                                shellNavController.navigate(RangeworkRoutes.UnitCreate)
+                            },
+                            onCreateSession = {
+                                onBeginNewSession()
+                                shellNavController.navigate(RangeworkRoutes.SessionCreate)
+                            },
                         )
                     }
                     composable(RangeworkRoutes.Units) {
@@ -627,23 +632,34 @@ private fun OverviewScreen(
     authUiState: AuthUiState,
     plannerUiState: PracticePlannerUiState,
     isExpandedLayout: Boolean,
+    onCreateUnit: () -> Unit,
+    onCreateSession: () -> Unit,
 ) {
     val signedInState = authUiState.authState as AuthState.SignedIn
-    val summaryCards = listOf(
-        "Practice units" to "${plannerUiState.units.size} saved unit${if (plannerUiState.units.size == 1) "" else "s"} ready for reuse.",
-        "Session templates" to "${plannerUiState.sessions.size} reusable session${if (plannerUiState.sessions.size == 1) "" else "s"} composed from live units.",
-        "Ball totals" to "Session totals are derived from explicit instruction ball counts multiplied by each session item's repeat count.",
-    )
+    val primaryActionLabel = if (plannerUiState.units.isEmpty()) "Create your first unit" else "New unit"
+    val secondaryActionLabel = if (plannerUiState.sessions.isEmpty()) "Start a session template" else "New session"
 
     ScrollableScreen {
-        Text(
-            text = "Welcome back",
-            style = MaterialTheme.typography.headlineMedium,
+        WelcomeHomeCard(
+            signedInLabel = signedInState.userEmail ?: signedInState.userId,
+            body = if (plannerUiState.units.isEmpty()) {
+                "Start by shaping one repeatable practice unit. Once the building blocks are in place, your full range sessions come together fast."
+            } else {
+                "Your planning workspace is ready. Build full sessions from saved units and arrive at the range with structure already mapped out."
+            },
+            primaryActionLabel = primaryActionLabel,
+            onPrimaryAction = onCreateUnit,
+            secondaryActionLabel = secondaryActionLabel,
+            onSecondaryAction = onCreateSession,
+            secondaryEnabled = plannerUiState.dataConfigured && plannerUiState.units.isNotEmpty(),
         )
-        Text(
-            text = signedInState.userEmail ?: signedInState.userId,
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        if (!plannerUiState.dataConfigured) {
+            EntryHighlightCard(
+                title = "Planning unavailable",
+                body = planningUnavailableMessage(plannerUiState.environment),
+            )
+            return@ScrollableScreen
+        }
         if (isExpandedLayout) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -653,34 +669,59 @@ private fun OverviewScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    summaryCards.take(2).forEach { (title, body) ->
-                        EntryHighlightCard(title = title, body = body)
-                    }
+                    SnapshotMetricCard(
+                        label = "Practice units",
+                        value = plannerUiState.units.size.toString(),
+                        body = "Saved building blocks ready to reuse.",
+                    )
+                    SnapshotMetricCard(
+                        label = "Session templates",
+                        value = plannerUiState.sessions.size.toString(),
+                        body = "Structured plans assembled from your live units.",
+                    )
                 }
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    EntryHighlightCard(title = summaryCards.last().first, body = summaryCards.last().second)
-                    ConfigurationStatusCard(
-                        environment = authUiState.environment,
-                        authState = authUiState.authState,
+                    SnapshotMetricCard(
+                        label = "Range rhythm",
+                        value = if (plannerUiState.sessions.isEmpty()) "Draft" else "Live",
+                        body = "Ball totals stay derived from explicit instruction counts and session repeat values.",
+                    )
+                    EntryHighlightCard(
+                        title = "Next move",
+                        body = if (plannerUiState.sessions.isEmpty()) {
+                            "Build a first session template once your units feel solid."
+                        } else {
+                            "Tighten the unit details first, then use sessions to string them into a repeatable practice block."
+                        },
                     )
                 }
             }
         } else {
-            summaryCards.forEach { (title, body) ->
-                EntryHighlightCard(title = title, body = body)
-            }
-            ConfigurationStatusCard(
-                environment = authUiState.environment,
-                authState = authUiState.authState,
+            SnapshotMetricCard(
+                label = "Practice units",
+                value = plannerUiState.units.size.toString(),
+                body = "Saved building blocks ready to reuse.",
             )
-        }
-        plannerUiState.statusMessage?.let { status ->
+            SnapshotMetricCard(
+                label = "Session templates",
+                value = plannerUiState.sessions.size.toString(),
+                body = "Structured plans assembled from your live units.",
+            )
+            SnapshotMetricCard(
+                label = "Range rhythm",
+                value = if (plannerUiState.sessions.isEmpty()) "Draft" else "Live",
+                body = "Ball totals stay derived from explicit instruction counts and session repeat values.",
+            )
             EntryHighlightCard(
-                title = "Status",
-                body = status,
+                title = "Next move",
+                body = if (plannerUiState.sessions.isEmpty()) {
+                    "Build a first session template once your units feel solid."
+                } else {
+                    "Tighten the unit details first, then use sessions to string them into a repeatable practice block."
+                },
             )
         }
     }
@@ -743,12 +784,6 @@ private fun UnitListScreen(
             }
         }
 
-        plannerUiState.statusMessage?.let { status ->
-            EntryHighlightCard(
-                title = "Status",
-                body = status,
-            )
-        }
     }
 }
 
@@ -877,12 +912,6 @@ private fun UnitEditorScreen(
             onRemoveInstruction = onRemoveInstruction,
             onSaveUnit = onSaveUnit,
         )
-        plannerUiState.statusMessage?.let { status ->
-            EntryHighlightCard(
-                title = "Status",
-                body = status,
-            )
-        }
     }
 }
 
@@ -952,12 +981,6 @@ private fun SessionListScreen(
             }
         }
 
-        plannerUiState.statusMessage?.let { status ->
-            EntryHighlightCard(
-                title = "Status",
-                body = status,
-            )
-        }
     }
 }
 
@@ -1207,14 +1230,6 @@ private fun SessionEditorScreen(
                 Text("Save session")
             }
         }
-        plannerUiState.statusMessage?.let { status ->
-            item {
-                EntryHighlightCard(
-                    title = "Status",
-                    body = status,
-                )
-            }
-        }
     }
 }
 
@@ -1223,29 +1238,51 @@ private fun SettingsScreen(
     authUiState: AuthUiState,
     plannerUiState: PracticePlannerUiState,
 ) {
+    val signedInState = authUiState.authState as? AuthState.SignedIn
     ScrollableScreen {
-        Text(
-            text = "Settings",
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        Text(
-            text = "Auth and planner state are wired through the app shell. Measurement preferences can continue to live here.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        ConfigurationStatusCard(
-            environment = authUiState.environment,
-            authState = authUiState.authState,
-        )
-        EntryHighlightCard(
-            title = "Planning summary",
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BrandMarkContainer(size = 72.dp, markSize = 50.dp, twoColor = true)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "Settings",
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    Text(
+                        text = signedInState?.userEmail ?: "Signed in",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = "Account-level controls can live here without exposing the app's internal wiring.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        SnapshotMetricCard(
+            label = "Planning summary",
+            value = "${plannerUiState.units.size}/${plannerUiState.sessions.size}",
             body = "${plannerUiState.units.size} units and ${plannerUiState.sessions.size} sessions are currently loaded.",
         )
-        plannerUiState.statusMessage?.let { status ->
-            EntryHighlightCard(
-                title = "Status",
-                body = status,
-            )
-        }
+        EntryHighlightCard(
+            title = "What belongs here",
+            body = "Measurement preferences and account details fit here naturally while the day-to-day planning stays in units and sessions.",
+        )
     }
 }
 
@@ -1732,33 +1769,48 @@ private fun ScrollableScreen(
 @Composable
 private fun SignInActionsCard(
     uiState: AuthUiState,
-    onRestoreSession: () -> Unit,
     onSignIn: () -> Unit,
 ) {
+    val supportText = when {
+        !uiState.environment.isAuthConfigured -> missingConfigMessage(uiState.environment)
+        uiState.actionInProgress || uiState.authState is AuthState.Restoring ->
+            "Checking your account and preparing the planning workspace."
+
+        uiState.statusMessage == null ||
+            uiState.statusMessage == authStateMessage(AuthState.SignedOut) ||
+            uiState.statusMessage == authStateMessage(AuthState.Restoring) ->
+            "Use the Google account connected to your practice planning workspace."
+
+        else -> uiState.statusMessage
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = "Sign in",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.actionInProgress &&
-                    uiState.environment.supabaseConfig.isConfigured,
-                onClick = onRestoreSession,
+            Badge(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             ) {
-                Text("Restore session")
+                Text("Google sign-in")
             }
+            Text(
+                text = "Pick up where you left off",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                text = supportText.orEmpty(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !uiState.actionInProgress && uiState.environment.isAuthConfigured,
@@ -1774,36 +1826,136 @@ private fun SignInActionsCard(
 }
 
 @Composable
-private fun ConfigurationStatusCard(
-    environment: AppEnvironment,
-    authState: AuthState,
+private fun OnboardingHeroCard(
+    headline: String,
+    detail: String,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            BrandMarkContainer(size = 96.dp, markSize = 72.dp, twoColor = true)
+            Badge(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            ) {
+                Text("Welcome")
+            }
+            Text(
+                text = headline,
+                style = MaterialTheme.typography.headlineLarge,
+            )
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            EntryHighlightCard(
+                title = "What you'll do here",
+                body = "Shape reusable practice units, turn them into session templates, and keep everything ready for your next range block.",
+            )
+        }
+    }
+}
+
+@Composable
+private fun WelcomeHomeCard(
+    signedInLabel: String,
+    body: String,
+    primaryActionLabel: String,
+    onPrimaryAction: () -> Unit,
+    secondaryActionLabel: String,
+    onSecondaryAction: () -> Unit,
+    secondaryEnabled: Boolean,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            BrandWordmark()
+            Text(
+                text = "Welcome back",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = signedInLabel,
+                style = MaterialTheme.typography.headlineMedium,
+            )
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = onPrimaryAction,
+                ) {
+                    Text(primaryActionLabel)
+                }
+                FilledTonalButton(
+                    modifier = Modifier.weight(1f),
+                    enabled = secondaryEnabled,
+                    onClick = onSecondaryAction,
+                ) {
+                    Text(secondaryActionLabel)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SnapshotMetricCard(
+    label: String,
+    value: String,
+    body: String,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                text = "Auth foundation",
-                style = MaterialTheme.typography.titleMedium,
+                text = label.uppercase(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            StatusLine(
-                label = "Supabase URL",
-                value = if (environment.supabaseConfig.hasProjectUrl) "Configured" else "Missing",
+            Text(
+                text = value,
+                style = RangeworkMono.large,
             )
-            StatusLine(
-                label = "Supabase anon key",
-                value = if (environment.supabaseConfig.hasAnonKey) "Configured" else "Missing",
-            )
-            StatusLine(
-                label = "Google web client ID",
-                value = if (environment.googleAuthConfig.isConfigured) "Configured" else "Missing",
-            )
-            StatusLine(
-                label = "Session",
-                value = authStateMessage(authState),
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -1834,15 +1986,64 @@ private fun EntryHighlightCard(
 }
 
 @Composable
-private fun StatusLine(
-    label: String,
-    value: String,
+private fun BrandWordmark(
+    modifier: Modifier = Modifier,
 ) {
-    Text(
-        text = "$label: $value",
-        style = MaterialTheme.typography.bodyMedium,
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BrandMarkContainer(size = 40.dp, markSize = 24.dp, twoColor = false)
+        Text(
+            text = "Rangework",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun BrandMarkContainer(
+    size: androidx.compose.ui.unit.Dp,
+    markSize: androidx.compose.ui.unit.Dp,
+    twoColor: Boolean,
+) {
+    Surface(
+        modifier = Modifier.size(size),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        CenteredBox {
+            Image(
+                painter = painterResource(
+                    if (twoColor) R.drawable.ic_rangework_mark_twocolor else R.drawable.ic_rangework_mark,
+                ),
+                contentDescription = "Rangework mark",
+                modifier = Modifier.size(markSize),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CenteredBox(
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+        content = content,
     )
 }
+
+private fun shouldShowPlannerSnackbar(
+    message: String,
+    plannerUiState: PracticePlannerUiState,
+): Boolean = message != planningUnavailableMessage(plannerUiState.environment) &&
+    message != planningSchemaUnavailableMessage() &&
+    message != "Planning workspace ready." &&
+    !message.startsWith("Editing ")
 
 internal fun titleForRoute(route: String): String = when {
     route == RangeworkRoutes.Overview -> "Overview"

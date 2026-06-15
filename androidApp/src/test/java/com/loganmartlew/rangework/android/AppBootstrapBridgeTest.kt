@@ -6,10 +6,10 @@ import org.junit.Test
 
 class AppBootstrapBridgeTest {
     @Test
-    fun sharedMessageMentionsSupabaseBaseline() {
+    fun sharedMessageUsesProductCopy() {
         val message = AppBootstrapMessageUseCase().invoke()
 
-        assertTrue(message.detail.contains("Supabase"))
-        assertTrue(message.detail.contains("rangeworkGoogleWebClientId"))
+        assertTrue(message.headline.contains("Range-ready planning"))
+        assertTrue(message.detail.contains("plans can sync across devices"))
     }
 }

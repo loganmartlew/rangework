@@ -77,7 +77,10 @@ class AuthViewModelTest {
         advanceUntilIdle()
 
         assertEquals(AuthState.SignedOut, viewModel.uiState.value.authState)
-        assertTrue(viewModel.uiState.value.statusMessage.orEmpty().contains("rangeworkSupabaseUrl"))
+        assertEquals(
+            "Sign-in is not available in this build yet.",
+            viewModel.uiState.value.statusMessage,
+        )
         assertFalse(viewModel.uiState.value.actionInProgress)
     }
 

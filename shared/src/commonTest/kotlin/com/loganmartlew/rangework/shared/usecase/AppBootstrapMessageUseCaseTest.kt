@@ -8,16 +8,15 @@ import kotlin.test.assertTrue
 
 class AppBootstrapMessageUseCaseTest {
     @Test
-    fun detailExplainsMissingLocalAuthConfigurationByDefault() {
+    fun defaultMessageUsesProductFacingCopy() {
         val message = AppBootstrapMessageUseCase().invoke()
 
-        assertTrue(message.detail.contains("Supabase"))
-        assertTrue(message.detail.contains("Google sign-in"))
-        assertTrue(message.detail.contains("rangeworkSupabaseUrl"))
+        assertTrue(message.headline.contains("Range-ready planning"))
+        assertTrue(message.detail.contains("focused practice planning"))
     }
 
     @Test
-    fun configuredEnvironmentReportsReadyState() {
+    fun configuredEnvironmentReportsProductReadyState() {
         val message = AppBootstrapMessageUseCase().invoke(
             baselineEnvironment(
                 supabaseConfig = SupabaseEndpointConfig(
@@ -30,7 +29,7 @@ class AppBootstrapMessageUseCaseTest {
             ),
         )
 
-        assertTrue(message.headline.contains("auth foundation ready"))
-        assertTrue(message.detail.contains("configured"))
+        assertTrue(message.headline.contains("Plan sharper range sessions"))
+        assertTrue(message.detail.contains("pick up the same plan"))
     }
 }
