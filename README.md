@@ -1,6 +1,6 @@
 # Rangework
 
-Phase 5 planning workflow implementation for the Android-first golf practice session planning app described in [baseline-plan.md](baseline-plan.md).
+Phase 6 hardening, tests, and release-readiness implementation for the Android-first golf practice session planning app described in [baseline-plan.md](baseline-plan.md).
 
 ## Modules
 
@@ -13,14 +13,18 @@ Phase 5 planning workflow implementation for the Android-first golf practice ses
 ### Windows PowerShell
 
 ```powershell
-.\gradlew.bat :shared:testDebugUnitTest :androidApp:testDebugUnitTest :androidApp:assembleDebug
+.\gradlew.bat :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease
 ```
 
 ### macOS / Linux
 
 ```bash
-./gradlew :shared:testDebugUnitTest :androidApp:testDebugUnitTest :androidApp:assembleDebug
+./gradlew :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease
 ```
+
+## CI
+
+The baseline GitHub Actions workflow lives in `.github/workflows/android.yml` and runs the same shared and Android unit-test plus assembly path used above for pull requests, pushes to `main`, and manual dispatches.
 
 ## Auth config
 
@@ -43,3 +47,4 @@ The repo-level Supabase CLI scaffold lives in `supabase/config.toml`. Keep the G
 - The shared module now defines serializable models, validation, repository contracts, and Supabase-backed foundations for practice units, session templates, and user measurement preferences.
 - The Android app now has a Material 3 Compose shell with auth-gated navigation plus compact and expanded layout foundations for phone and tablet flows.
 - Practice units and reusable session templates can now be created, edited, deleted, reordered, and composed directly in the Android shell through the shared Supabase-backed planning foundation.
+- Phase 6 hardening adds broader Android/shared unit coverage, release assembly verification, and CI artifact retention for test reports.

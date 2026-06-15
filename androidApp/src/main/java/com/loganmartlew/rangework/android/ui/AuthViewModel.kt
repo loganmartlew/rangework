@@ -86,11 +86,11 @@ class AuthViewModel(
                             ),
                         )
                     } catch (exception: IllegalStateException) {
-                        exception.message ?: "Supabase sign-in could not start."
+                        exception.message ?: "Sign-in could not start."
                     } catch (exception: IllegalArgumentException) {
-                        exception.message ?: "Supabase sign-in was rejected."
+                        exception.message ?: "Sign-in was rejected."
                     } catch (exception: Exception) {
-                        exception.message ?: "Supabase sign-in failed."
+                        exception.message ?: "Sign-in failed."
                     }
                 }
             }
@@ -103,7 +103,7 @@ class AuthViewModel(
         launchAuthAction {
             try {
                 foundation.signOutUseCase()
-                "Signed out of the local Supabase session."
+                "Signed out."
             } catch (exception: IllegalStateException) {
                 exception.message ?: "Sign out failed."
             } catch (exception: Exception) {

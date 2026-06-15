@@ -141,10 +141,10 @@ class PracticePlannerViewModelTest {
     }
 
     @Test
-    fun navigationRefreshPreservesStatusMessage() = runTest {
+    fun signOutClearsLoadedPlanningState() = runTest {
         val repositories = FakePlannerRepositories()
         repositories.units += sampleUnit()
-
+        repositories.sessions += sampleSession()
         val viewModel = PracticePlannerViewModel(
             environment = baselineEnvironment(),
             dataFoundation = repositories.toDataFoundation(),
@@ -157,13 +157,31 @@ class PracticePlannerViewModelTest {
             ),
         )
         advanceUntilIdle()
+        viewModel.editUnit("unit-1")
 
-        viewModel.refreshPlanningOnNavigation()
+        viewModel.onAuthStateChanged(AuthState.SignedOut)
+
+        assertTrue(viewModel.uiState.value.units.isEmpty())
+        assertTrue(viewModel.uiState.value.sessions.isEmpty())
+        assertEquals(PracticeUnitEditorState(), viewModel.uiState.value.unitEditor)
+        assertEquals(PracticeSessionEditorState(), viewModel.uiState.value.sessionEditor)
+        assertEquals(null, viewModel.uiState.value.statusMessage)
+    }
+
+    @Test
+    fun signedOutSaveAttemptPromptsForSignIn() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+
+        viewModel.updateUnitTitle("Distance wedges")
+        viewModel.saveUnit()
         advanceUntilIdle()
 
-        assertEquals("Planning workspace ready.", viewModel.uiState.value.statusMessage)
-        assertEquals(2, repositories.listUnitsCallCount)
-        assertEquals(2, repositories.listSessionsCallCount)
+        assertTrue(repositories.savedUnitDrafts.isEmpty())
+        assertEquals("Sign in before changing practice plans.", viewModel.uiState.value.statusMessage)
     }
 }
 

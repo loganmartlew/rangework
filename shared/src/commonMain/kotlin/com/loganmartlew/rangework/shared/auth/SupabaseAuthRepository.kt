@@ -50,7 +50,7 @@ class SupabaseAuthRepository(
         is SessionStatus.Initializing -> AuthState.Restoring
         is SessionStatus.NotAuthenticated -> AuthState.SignedOut
         is SessionStatus.RefreshFailure -> AuthState.Error(
-            message = "Saved Supabase session refresh failed. Sign in again.",
+            message = "Your saved sign-in expired. Sign in again.",
         )
     }
 }

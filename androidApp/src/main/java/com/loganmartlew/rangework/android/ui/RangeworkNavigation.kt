@@ -1,5 +1,11 @@
 package com.loganmartlew.rangework.android.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.EventNote
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Widgets
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.loganmartlew.rangework.shared.auth.AuthState
 
 internal enum class RangeworkNavigationType {
@@ -10,7 +16,7 @@ internal enum class RangeworkNavigationType {
 internal data class RangeworkDestination(
     val route: String,
     val label: String,
-    val glyph: String,
+    val icon: ImageVector,
 )
 
 internal object RangeworkRoutes {
@@ -40,22 +46,22 @@ internal val topLevelDestinations = listOf(
     RangeworkDestination(
         route = RangeworkRoutes.Overview,
         label = "Overview",
-        glyph = "O",
+        icon = Icons.Rounded.Home,
     ),
     RangeworkDestination(
         route = RangeworkRoutes.Units,
         label = "Units",
-        glyph = "U",
+        icon = Icons.Rounded.Widgets,
     ),
     RangeworkDestination(
         route = RangeworkRoutes.Sessions,
         label = "Sessions",
-        glyph = "S",
+        icon = Icons.AutoMirrored.Rounded.EventNote,
     ),
     RangeworkDestination(
         route = RangeworkRoutes.Settings,
         label = "Settings",
-        glyph = "P",
+        icon = Icons.Rounded.Tune,
     ),
 )
 

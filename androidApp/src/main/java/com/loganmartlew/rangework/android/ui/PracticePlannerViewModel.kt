@@ -587,10 +587,10 @@ class PracticePlannerViewModel(
 }
 
 internal fun planningUnavailableMessage(environment: AppEnvironment): String =
-    "Planning data needs Supabase configuration. ${missingConfigMessage(environment)}"
+    "Practice planning is not available in this build yet."
 
 internal fun planningSchemaUnavailableMessage(): String =
-    "Practice planning tables are not available in this Supabase project yet. Apply the latest planning-data migrations, then refresh the app."
+    "Practice planning is still being prepared for this workspace. Refresh once setup is complete."
 
 private fun plannerStatusMessage(
     exception: Throwable,
