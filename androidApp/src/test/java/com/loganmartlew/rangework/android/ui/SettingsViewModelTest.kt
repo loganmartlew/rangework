@@ -3,13 +3,19 @@ package com.loganmartlew.rangework.android.ui
 import com.loganmartlew.rangework.android.ui.theme.ThemeMode
 import com.loganmartlew.rangework.android.ui.theme.ThemePreferenceStore
 import com.loganmartlew.rangework.shared.auth.AuthState
+import com.loganmartlew.rangework.shared.model.Club
+import com.loganmartlew.rangework.shared.model.ClubCategory
 import com.loganmartlew.rangework.shared.model.DistanceUnit
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.SpeedUnit
 import com.loganmartlew.rangework.shared.model.UnitSystem
+import com.loganmartlew.rangework.shared.repository.ClubRepository
 import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
+import com.loganmartlew.rangework.shared.usecase.GetClubCatalogUseCase
+import com.loganmartlew.rangework.shared.usecase.GetEnabledClubsUseCase
 import com.loganmartlew.rangework.shared.usecase.GetMeasurementPreferencesUseCase
 import com.loganmartlew.rangework.shared.usecase.SaveMeasurementPreferencesUseCase
+import com.loganmartlew.rangework.shared.usecase.SetClubEnabledUseCase
 import com.loganmartlew.rangework.shared.data.DataFoundation
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeUnitUseCase
@@ -25,6 +31,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -123,18 +131,91 @@ class SettingsViewModelTest {
         assertEquals(MeasurementPreferences.Imperial, viewModel.uiState.value.measurementPreferences)
     }
 
+    @Test
+    fun signedInLoadsClubCatalogAndEnabledCodes() = runTest {
+        val clubRepo = FakeClubRepository(
+            catalog = listOf(sampleClub("driver"), sampleClub("putter")),
+            enabledCodes = mutableSetOf("driver"),
+        )
+        val viewModel = createViewModel(clubRepo = clubRepo)
+
+        viewModel.onAuthStateChanged(signedIn())
+        advanceUntilIdle()
+
+        assertEquals(2, viewModel.uiState.value.clubCatalog.size)
+        assertTrue("driver" in viewModel.uiState.value.enabledClubCodes)
+        assertFalse("putter" in viewModel.uiState.value.enabledClubCodes)
+    }
+
+    @Test
+    fun setClubEnabledOptimisticallyUpdatesAndPersists() = runTest {
+        val clubRepo = FakeClubRepository(
+            catalog = listOf(sampleClub("driver"), sampleClub("putter")),
+            enabledCodes = mutableSetOf("driver"),
+        )
+        val viewModel = createViewModel(clubRepo = clubRepo)
+
+        viewModel.onAuthStateChanged(signedIn())
+        advanceUntilIdle()
+
+        viewModel.setClubEnabled("putter", true)
+        advanceUntilIdle()
+
+        assertTrue("putter" in viewModel.uiState.value.enabledClubCodes)
+        assertTrue("putter" in clubRepo.enabledCodes)
+    }
+
+    @Test
+    fun setClubDisabledRemovesFromEnabledSet() = runTest {
+        val clubRepo = FakeClubRepository(
+            catalog = listOf(sampleClub("driver"), sampleClub("putter")),
+            enabledCodes = mutableSetOf("driver", "putter"),
+        )
+        val viewModel = createViewModel(clubRepo = clubRepo)
+
+        viewModel.onAuthStateChanged(signedIn())
+        advanceUntilIdle()
+
+        viewModel.setClubEnabled("driver", false)
+        advanceUntilIdle()
+
+        assertFalse("driver" in viewModel.uiState.value.enabledClubCodes)
+        assertFalse("driver" in clubRepo.enabledCodes)
+    }
+
+    @Test
+    fun signedOutClearsClubs() = runTest {
+        val clubRepo = FakeClubRepository(
+            catalog = listOf(sampleClub("driver")),
+            enabledCodes = mutableSetOf("driver"),
+        )
+        val viewModel = createViewModel(clubRepo = clubRepo)
+
+        viewModel.onAuthStateChanged(signedIn())
+        advanceUntilIdle()
+        viewModel.onAuthStateChanged(AuthState.SignedOut)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.clubCatalog.isEmpty())
+        assertTrue(viewModel.uiState.value.enabledClubCodes.isEmpty())
+    }
+
     private fun createViewModel(
         repo: FakeMeasurementPreferencesRepository = FakeMeasurementPreferencesRepository(),
+        clubRepo: FakeClubRepository = FakeClubRepository(),
         themePreferenceStore: FakeThemePreferenceStore = FakeThemePreferenceStore(),
     ): SettingsViewModel = SettingsViewModel(
-        dataFoundation = fakeDataFoundation(repo),
+        dataFoundation = fakeDataFoundation(repo, clubRepo),
         themePreferenceStore = themePreferenceStore,
     )
 
     private fun signedIn() = AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com")
 }
 
-private fun fakeDataFoundation(repo: MeasurementPreferencesRepository): DataFoundation {
+private fun fakeDataFoundation(
+    repo: MeasurementPreferencesRepository,
+    clubRepo: ClubRepository = FakeClubRepository(),
+): DataFoundation {
     val emptyUnitRepo = object : com.loganmartlew.rangework.shared.repository.PracticeUnitRepository {
         override suspend fun listPracticeUnits() = emptyList<com.loganmartlew.rangework.shared.model.PracticeUnit>()
         override suspend fun getPracticeUnit(unitId: String) = null
@@ -158,8 +239,29 @@ private fun fakeDataFoundation(repo: MeasurementPreferencesRepository): DataFoun
         deletePracticeSessionUseCase = DeletePracticeSessionUseCase(emptySessionRepo),
         getMeasurementPreferencesUseCase = GetMeasurementPreferencesUseCase(repo),
         saveMeasurementPreferencesUseCase = SaveMeasurementPreferencesUseCase(repo),
+        getClubCatalogUseCase = GetClubCatalogUseCase(clubRepo),
+        getEnabledClubsUseCase = GetEnabledClubsUseCase(clubRepo),
+        setClubEnabledUseCase = SetClubEnabledUseCase(clubRepo),
     )
 }
+
+private class FakeClubRepository(
+    val catalog: List<Club> = emptyList(),
+    val enabledCodes: MutableSet<String> = mutableSetOf(),
+) : ClubRepository {
+    override suspend fun listCatalog(): List<Club> = catalog
+    override suspend fun getEnabledClubCodes(): Set<String> = enabledCodes.toSet()
+    override suspend fun setClubEnabled(code: String, enabled: Boolean) {
+        if (enabled) enabledCodes.add(code) else enabledCodes.remove(code)
+    }
+}
+
+private fun sampleClub(code: String) = Club(
+    code = code,
+    displayName = code.replaceFirstChar { it.uppercase() },
+    category = ClubCategory.IRON,
+    sortOrder = 1,
+)
 
 private class FakeMeasurementPreferencesRepository(
     var storedPreferences: MeasurementPreferences = MeasurementPreferences.Imperial,

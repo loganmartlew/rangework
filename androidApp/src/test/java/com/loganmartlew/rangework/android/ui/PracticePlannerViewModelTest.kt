@@ -12,8 +12,11 @@ import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
 import com.loganmartlew.rangework.shared.repository.PracticeSessionRepository
 import com.loganmartlew.rangework.shared.repository.PracticeUnitRepository
+import com.loganmartlew.rangework.shared.repository.ClubRepository
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeUnitUseCase
+import com.loganmartlew.rangework.shared.usecase.GetClubCatalogUseCase
+import com.loganmartlew.rangework.shared.usecase.GetEnabledClubsUseCase
 import com.loganmartlew.rangework.shared.usecase.GetMeasurementPreferencesUseCase
 import com.loganmartlew.rangework.shared.usecase.GetPracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.GetPracticeUnitUseCase
@@ -22,6 +25,7 @@ import com.loganmartlew.rangework.shared.usecase.ListPracticeUnitsUseCase
 import com.loganmartlew.rangework.shared.usecase.SaveMeasurementPreferencesUseCase
 import com.loganmartlew.rangework.shared.usecase.SavePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.SavePracticeUnitUseCase
+import com.loganmartlew.rangework.shared.usecase.SetClubEnabledUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -188,7 +192,8 @@ class PracticePlannerViewModelTest {
 private class FakePlannerRepositories :
     PracticeUnitRepository,
     PracticeSessionRepository,
-    MeasurementPreferencesRepository {
+    MeasurementPreferencesRepository,
+    ClubRepository {
     constructor(
         listUnitsException: Throwable? = null,
     ) {
@@ -289,6 +294,12 @@ private class FakePlannerRepositories :
         preferences: com.loganmartlew.rangework.shared.model.MeasurementPreferences,
     ) = preferences
 
+    override suspend fun listCatalog() = emptyList<com.loganmartlew.rangework.shared.model.Club>()
+
+    override suspend fun getEnabledClubCodes() = emptySet<String>()
+
+    override suspend fun setClubEnabled(code: String, enabled: Boolean) = Unit
+
     fun toDataFoundation(): DataFoundation = DataFoundation(
         listPracticeUnitsUseCase = ListPracticeUnitsUseCase(this),
         getPracticeUnitUseCase = GetPracticeUnitUseCase(this),
@@ -300,6 +311,9 @@ private class FakePlannerRepositories :
         deletePracticeSessionUseCase = DeletePracticeSessionUseCase(this),
         getMeasurementPreferencesUseCase = GetMeasurementPreferencesUseCase(this),
         saveMeasurementPreferencesUseCase = SaveMeasurementPreferencesUseCase(this),
+        getClubCatalogUseCase = GetClubCatalogUseCase(this),
+        getEnabledClubsUseCase = GetEnabledClubsUseCase(this),
+        setClubEnabledUseCase = SetClubEnabledUseCase(this),
     )
 }
 
@@ -327,7 +341,7 @@ private fun sampleSession(): PracticeSession = PracticeSession(
             practiceUnitId = "unit-1",
             order = 1,
             repeatCount = 2,
-            clubReference = "58*",
+            clubReference = "lob_wedge",
             notes = "Start here",
         ),
     ),
