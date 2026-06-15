@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Rangework" parent="Theme.Material3.DayNight.NoActionBar" />
+
+    <style name="Theme.Rangework.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#2A2A28</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.Rangework</item>
+    </style>
+</resources>
