@@ -2311,11 +2311,6 @@ internal fun String.shouldRefreshPlanningOnEnter(): Boolean = when {
     else -> false
 }
 
-private fun String.isTopLevelRoute(): Boolean = this == RangeworkRoutes.Overview ||
-    this == RangeworkRoutes.Units ||
-    this == RangeworkRoutes.Sessions ||
-    this == RangeworkRoutes.Settings
-
 private fun NavDestination?.isRouteSelected(route: String): Boolean = this?.hierarchy?.any { destination ->
     val destinationRoute = destination.route ?: return@any false
     destinationRoute == route || destinationRoute.startsWith("$route/")

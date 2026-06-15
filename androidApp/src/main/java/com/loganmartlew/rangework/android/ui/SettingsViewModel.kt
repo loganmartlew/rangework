@@ -113,18 +113,15 @@ class SettingsViewModel(
 
     private fun saveMeasurementPreferences(preferences: MeasurementPreferences) {
         val foundation = dataFoundation ?: return
+        val previous = _uiState.value.measurementPreferences
+        _uiState.value = _uiState.value.copy(measurementPreferences = preferences)
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isWorking = true)
             try {
                 val saved = foundation.saveMeasurementPreferencesUseCase(preferences)
-                _uiState.value = _uiState.value.copy(
-                    isWorking = false,
-                    measurementPreferences = saved,
-                    statusMessage = "Preferences saved.",
-                )
+                _uiState.value = _uiState.value.copy(measurementPreferences = saved)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
-                    isWorking = false,
+                    measurementPreferences = previous,
                     statusMessage = "Could not save preferences.",
                 )
             }
