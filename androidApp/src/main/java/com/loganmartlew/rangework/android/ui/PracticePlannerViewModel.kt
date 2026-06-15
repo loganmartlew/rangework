@@ -645,24 +645,30 @@ internal fun planningSchemaUnavailableMessage(): String =
 private fun plannerStatusMessage(
     exception: Throwable,
     fallback: String,
-): String = if (exception.isMissingPlanningSchemaError()) {
+): String = if (exception.isPlanningAccessError()) {
     planningSchemaUnavailableMessage()
 } else {
     exception.message ?: fallback
 }
 
-private fun Throwable.isMissingPlanningSchemaError(): Boolean {
+private fun Throwable.isPlanningAccessError(): Boolean {
     val message = message?.lowercase() ?: return false
-    if (!message.contains("could not find the table")) {
-        return false
-    }
-
-    return missingPlanningSchemaTables.any { tableName ->
-        message.contains("public.$tableName")
+    return when {
+        message.contains("could not find the table") -> {
+            planningSchemaTables.any { tableName ->
+                message.contains("public.$tableName")
+            }
+        }
+        message.contains("permission denied for table") -> {
+            planningSchemaTables.any { tableName ->
+                message.contains("permission denied for table $tableName")
+            }
+        }
+        else -> false
     }
 }
 
-private val missingPlanningSchemaTables = setOf(
+private val planningSchemaTables = setOf(
     "practice_units",
     "practice_unit_instructions",
     "practice_sessions",

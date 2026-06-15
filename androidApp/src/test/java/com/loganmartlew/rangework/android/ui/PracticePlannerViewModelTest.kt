@@ -115,6 +115,32 @@ class PracticePlannerViewModelTest {
             viewModel.uiState.value.statusMessage,
         )
     }
+
+    @Test
+    fun planningPermissionDeniedShowsFriendlySetupMessage() = runTest {
+        val repositories = FakePlannerRepositories(
+            listUnitsException = IllegalStateException(
+                "permission denied for table practice_units",
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+
+        viewModel.onAuthStateChanged(
+            AuthState.SignedIn(
+                userId = "user-1",
+                userEmail = "logan@example.com",
+            ),
+        )
+        advanceUntilIdle()
+
+        assertEquals(
+            planningSchemaUnavailableMessage(),
+            viewModel.uiState.value.statusMessage,
+        )
+    }
 }
 
 private class FakePlannerRepositories :
