@@ -6,6 +6,7 @@ import com.loganmartlew.rangework.shared.usecase.ObserveAuthStateUseCase
 import com.loganmartlew.rangework.shared.usecase.RestoreAuthSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.SignInWithGoogleIdTokenUseCase
 import com.loganmartlew.rangework.shared.usecase.SignOutUseCase
+import io.github.jan.supabase.SupabaseClient
 
 data class AuthFoundation(
     val observeAuthStateUseCase: ObserveAuthStateUseCase,
@@ -19,9 +20,13 @@ fun createAuthFoundation(config: SupabaseEndpointConfig): AuthFoundation? {
         return null
     }
 
-    val repository = SupabaseAuthRepository(
+    return createAuthFoundation(
         client = createRangeworkSupabaseClient(config),
     )
+}
+
+fun createAuthFoundation(client: SupabaseClient): AuthFoundation {
+    val repository = SupabaseAuthRepository(client)
 
     return AuthFoundation(
         observeAuthStateUseCase = ObserveAuthStateUseCase(repository),

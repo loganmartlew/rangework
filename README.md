@@ -1,6 +1,6 @@
 # Rangework
 
-Phase 2 auth foundation for the Android-first golf practice session planning app described in [baseline-plan.md](baseline-plan.md).
+Phase 3 shared domain and data foundation for the Android-first golf practice session planning app described in [baseline-plan.md](baseline-plan.md).
 
 ## Modules
 
@@ -38,5 +38,6 @@ The repo-level Supabase CLI scaffold lives in `supabase/config.toml`. Keep the G
 
 - Java 17 is the Gradle toolchain target for Android and shared JVM compilation.
 - The repository is remote-first and leaves room for future Supabase schema work and local persistence.
-- `supabase/migrations` now contains the auth/profile foundation migration used by the Phase 2 scaffold.
+- `supabase/migrations` now contains the auth/profile foundation plus the Phase 3 planning-data schema used by the shared repositories.
 - Android auth/session state is owned by a lifecycle-aware ViewModel so restore/sign-out work survives recomposition and configuration changes cleanly.
+- The shared module now defines serializable models, validation, repository contracts, and Supabase-backed foundations for practice units, session templates, and user measurement preferences.
