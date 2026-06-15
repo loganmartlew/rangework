@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.config.AppEnvironment
 import com.loganmartlew.rangework.shared.data.DataFoundation
+import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
 import com.loganmartlew.rangework.shared.model.PracticeInstructionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSession
@@ -83,6 +84,8 @@ data class PracticePlannerUiState(
     val hasLoaded: Boolean = false,
     val units: List<PracticeUnit> = emptyList(),
     val sessions: List<PracticeSession> = emptyList(),
+    val clubCatalog: List<Club> = emptyList(),
+    val enabledClubCodes: Set<String> = emptySet(),
     val unitEditor: PracticeUnitEditorState = PracticeUnitEditorState(),
     val sessionEditor: PracticeSessionEditorState = PracticeSessionEditorState(),
     val unitEditorBaseline: PracticeUnitEditorState? = null,
@@ -132,6 +135,7 @@ class PracticePlannerViewModel(
                         _uiState.value.statusMessage
                     },
                 )
+                loadClubs()
             }
 
             AuthState.Restoring -> {
@@ -148,6 +152,8 @@ class PracticePlannerViewModel(
                     hasLoaded = false,
                     units = emptyList(),
                     sessions = emptyList(),
+                    clubCatalog = emptyList(),
+                    enabledClubCodes = emptySet(),
                     unitEditor = PracticeUnitEditorState(),
                     sessionEditor = PracticeSessionEditorState(),
                     unitEditorBaseline = null,
@@ -660,6 +666,22 @@ class PracticePlannerViewModel(
         }
     }
 
+    private fun loadClubs() {
+        val foundation = dataFoundation ?: return
+        viewModelScope.launch {
+            try {
+                val catalog = foundation.getClubCatalogUseCase()
+                val enabled = foundation.getEnabledClubsUseCase()
+                _uiState.value = _uiState.value.copy(
+                    clubCatalog = catalog,
+                    enabledClubCodes = enabled,
+                )
+            } catch (e: Exception) {
+                // Club catalog failures are non-fatal; picker will show empty options
+            }
+        }
+    }
+
     companion object {
         fun factory(
             environment: AppEnvironment,
@@ -720,6 +742,8 @@ private val planningSchemaTables = setOf(
     "practice_sessions",
     "practice_session_items",
     "user_preferences",
+    "clubs",
+    "user_enabled_clubs",
 )
 
 private fun PracticeUnitEditorState.resolveWith(
