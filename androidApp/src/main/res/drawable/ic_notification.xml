@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+  android:width="24dp"
+  android:height="24dp"
+  android:viewportWidth="24"
+  android:viewportHeight="24">
+
+  <!-- Ground band — full opacity, heaviest weight, anchors the mark -->
+  <path
+    android:fillColor="#FFFFFF"
+    android:pathData="
+            M3.5,17.5
+            Q3.5,16 5,16
+            L19,16
+            Q20.5,16 20.5,17.5
+            L20.5,20.5
+            Q20.5,22 19,22
+            L5,22
+            Q3.5,22 3.5,20.5
+            Z" />
+
+  <!-- Mid band — 45% opacity, suggests depth without competing with rod -->
+  <path
+    android:fillColor="#FFFFFF"
+    android:fillAlpha="0.45"
+    android:pathData="
+            M3.5,12
+            Q3.5,10.75 5,10.75
+            L19,10.75
+            Q20.5,10.75 20.5,12
+            L20.5,14.25
+            Q20.5,15.5 19,15.5
+            L5,15.5
+            Q3.5,15.5 3.5,14.25
+            Z" />
+
+  <!-- Rod shaft — rises from ground band through mid band -->
+  <path
+    android:fillColor="#FFFFFF"
+    android:pathData="
+            M7,5.5
+            Q7,4 8.5,4
+            L10,4
+            Q11.5,4 11.5,5.5
+            L11.5,18
+            Q11.5,19.5 10,19.5
+            L8.5,19.5
+            Q7,19.5 7,18
+            Z" />
+
+  <!-- Rod cap (tee head) — wider than shaft, defines the T silhouette -->
+  <path
+    android:fillColor="#FFFFFF"
+    android:pathData="
+            M5.5,2.5
+            Q5.5,1 7,1
+            L11.5,1
+            Q13,1 13,2.5
+            L13,5.5
+            Q13,7 11.5,7
+            L7,7
+            Q5.5,7 5.5,5.5
+            Z" />
+
+</vector>
