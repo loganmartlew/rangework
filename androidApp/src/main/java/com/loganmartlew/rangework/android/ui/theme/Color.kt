@@ -76,6 +76,27 @@ val Neutral90 = Color(0xFF161412)
 val Neutral100 = Color(0xFF0A0908)
 
 // ---------------------------------------------------------------------------
+// Neutral tonal palette — additional stops for surface container roles
+// ---------------------------------------------------------------------------
+
+val NeutralSurfaceLowest = Color(0xFFFAFAF8)
+val NeutralSurface4 = Color(0xFFF7F5F1)
+val NeutralSurface6 = Color(0xFFF5F3EF)
+val NeutralSurface8 = Color(0xFFEFEDEA)
+val NeutralSurface10 = Color(0xFFEAE8E4)
+val NeutralSurface12 = Color(0xFFE4E2DE)
+val NeutralSurfaceBright = Color(0xFFF9F7F3)
+val NeutralSurfaceDim = Color(0xFFD5D3CF)
+
+val NeutralDark4 = Color(0xFF161412)
+val NeutralDark6 = Color(0xFF1C1A18)
+val NeutralDark8 = Color(0xFF222020)
+val NeutralDark10 = Color(0xFF282624)
+val NeutralDark12 = Color(0xFF2E2C2A)
+val NeutralDarkBright = Color(0xFF363432)
+val NeutralDarkDim = Color(0xFF161412)
+
+// ---------------------------------------------------------------------------
 // Neutral Variant tonal palette
 // ---------------------------------------------------------------------------
 
@@ -128,6 +149,14 @@ val RangeworkLightColorScheme: ColorScheme = lightColorScheme(
     inversePrimary = Primary30,
     outline = NeutralVariant60,
     outlineVariant = NeutralVariant30,
+    surfaceContainerLowest = NeutralSurface4,
+    surfaceContainerLow = NeutralSurface6,
+    surfaceContainer = NeutralSurface8,
+    surfaceContainerHigh = NeutralSurface10,
+    surfaceContainerHighest = NeutralSurface12,
+    surfaceBright = NeutralSurfaceBright,
+    surfaceDim = NeutralSurfaceDim,
+    surfaceTint = Primary80,
     scrim = Color(0xFF000000),
 )
 
@@ -163,5 +192,13 @@ val RangeworkDarkColorScheme: ColorScheme = darkColorScheme(
     inversePrimary = Primary80,
     outline = NeutralVariant50,
     outlineVariant = NeutralVariant70,
+    surfaceContainerLowest = NeutralDark4,
+    surfaceContainerLow = NeutralDark6,
+    surfaceContainer = NeutralDark8,
+    surfaceContainerHigh = NeutralDark10,
+    surfaceContainerHighest = NeutralDark12,
+    surfaceBright = NeutralDarkBright,
+    surfaceDim = NeutralDarkDim,
+    surfaceTint = Primary30,
     scrim = Color(0xFF000000),
 )
