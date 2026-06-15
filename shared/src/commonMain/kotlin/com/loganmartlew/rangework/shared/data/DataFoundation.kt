@@ -4,6 +4,8 @@ import com.loganmartlew.rangework.shared.auth.AuthFoundation
 import com.loganmartlew.rangework.shared.auth.createAuthFoundation
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeUnitUseCase
+import com.loganmartlew.rangework.shared.usecase.GetClubCatalogUseCase
+import com.loganmartlew.rangework.shared.usecase.GetEnabledClubsUseCase
 import com.loganmartlew.rangework.shared.usecase.GetMeasurementPreferencesUseCase
 import com.loganmartlew.rangework.shared.usecase.GetPracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.GetPracticeUnitUseCase
@@ -12,6 +14,7 @@ import com.loganmartlew.rangework.shared.usecase.ListPracticeUnitsUseCase
 import com.loganmartlew.rangework.shared.usecase.SaveMeasurementPreferencesUseCase
 import com.loganmartlew.rangework.shared.usecase.SavePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.SavePracticeUnitUseCase
+import com.loganmartlew.rangework.shared.usecase.SetClubEnabledUseCase
 import io.github.jan.supabase.SupabaseClient
 
 data class DataFoundation(
@@ -25,6 +28,9 @@ data class DataFoundation(
     val deletePracticeSessionUseCase: DeletePracticeSessionUseCase,
     val getMeasurementPreferencesUseCase: GetMeasurementPreferencesUseCase,
     val saveMeasurementPreferencesUseCase: SaveMeasurementPreferencesUseCase,
+    val getClubCatalogUseCase: GetClubCatalogUseCase,
+    val getEnabledClubsUseCase: GetEnabledClubsUseCase,
+    val setClubEnabledUseCase: SetClubEnabledUseCase,
 )
 
 data class RangeworkFoundation(
@@ -46,6 +52,7 @@ fun createDataFoundation(client: SupabaseClient): DataFoundation {
     val practiceUnitRepository = SupabasePracticeUnitRepository(client)
     val practiceSessionRepository = SupabasePracticeSessionRepository(client)
     val measurementPreferencesRepository = SupabaseMeasurementPreferencesRepository(client)
+    val clubRepository = SupabaseClubRepository(client)
 
     return DataFoundation(
         listPracticeUnitsUseCase = ListPracticeUnitsUseCase(practiceUnitRepository),
@@ -58,6 +65,9 @@ fun createDataFoundation(client: SupabaseClient): DataFoundation {
         deletePracticeSessionUseCase = DeletePracticeSessionUseCase(practiceSessionRepository),
         getMeasurementPreferencesUseCase = GetMeasurementPreferencesUseCase(measurementPreferencesRepository),
         saveMeasurementPreferencesUseCase = SaveMeasurementPreferencesUseCase(measurementPreferencesRepository),
+        getClubCatalogUseCase = GetClubCatalogUseCase(clubRepository),
+        getEnabledClubsUseCase = GetEnabledClubsUseCase(clubRepository),
+        setClubEnabledUseCase = SetClubEnabledUseCase(clubRepository),
     )
 }
 

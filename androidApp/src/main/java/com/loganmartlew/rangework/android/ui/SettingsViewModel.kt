@@ -7,6 +7,7 @@ import com.loganmartlew.rangework.android.ui.theme.ThemeMode
 import com.loganmartlew.rangework.android.ui.theme.ThemePreferenceStore
 import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.data.DataFoundation
+import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.DistanceUnit
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.SpeedUnit
@@ -19,6 +20,8 @@ data class SettingsUiState(
     val dataConfigured: Boolean,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val measurementPreferences: MeasurementPreferences = MeasurementPreferences.Imperial,
+    val clubCatalog: List<Club> = emptyList(),
+    val enabledClubCodes: Set<String> = emptySet(),
     val isWorking: Boolean = false,
     val statusMessage: String? = null,
 )
@@ -30,6 +33,8 @@ class SettingsViewModel(
     private var activeUserId: String? = null
     private val saveMutex = Mutex()
     private var saveToken = 0
+    private val clubMutex = Mutex()
+    private var clubToken = 0
 
     private val _uiState = androidx.compose.runtime.mutableStateOf(
         SettingsUiState(
@@ -51,6 +56,7 @@ class SettingsViewModel(
             is AuthState.SignedIn -> {
                 activeUserId = authState.userId
                 loadMeasurementPreferences()
+                loadClubs()
             }
 
             AuthState.Restoring -> {
@@ -64,6 +70,8 @@ class SettingsViewModel(
                 _uiState.value = _uiState.value.copy(
                     isWorking = false,
                     measurementPreferences = MeasurementPreferences.Imperial,
+                    clubCatalog = emptyList(),
+                    enabledClubCodes = emptySet(),
                     statusMessage = null,
                 )
             }
@@ -94,6 +102,51 @@ class SettingsViewModel(
                 speedUnit = speedUnit,
             ),
         )
+    }
+
+    fun setClubEnabled(code: String, enabled: Boolean) {
+        val foundation = dataFoundation ?: return
+        val previous = _uiState.value.enabledClubCodes
+        val token = ++clubToken
+        _uiState.value = _uiState.value.copy(
+            enabledClubCodes = if (enabled) previous + code else previous - code,
+        )
+        viewModelScope.launch {
+            try {
+                clubMutex.withLock {
+                    foundation.setClubEnabledUseCase(code, enabled)
+                }
+                if (token == clubToken) {
+                    val refreshed = foundation.getEnabledClubsUseCase()
+                    _uiState.value = _uiState.value.copy(enabledClubCodes = refreshed)
+                }
+            } catch (e: Exception) {
+                if (token == clubToken) {
+                    _uiState.value = _uiState.value.copy(
+                        enabledClubCodes = previous,
+                        statusMessage = "Could not save club preference.",
+                    )
+                }
+            }
+        }
+    }
+
+    private fun loadClubs() {
+        val foundation = dataFoundation ?: return
+        viewModelScope.launch {
+            try {
+                val catalog = foundation.getClubCatalogUseCase()
+                val enabled = foundation.getEnabledClubsUseCase()
+                _uiState.value = _uiState.value.copy(
+                    clubCatalog = catalog,
+                    enabledClubCodes = enabled,
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    statusMessage = "Could not load club preferences.",
+                )
+            }
+        }
     }
 
     private fun loadMeasurementPreferences() {

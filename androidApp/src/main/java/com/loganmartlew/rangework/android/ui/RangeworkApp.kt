@@ -54,6 +54,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -93,6 +94,8 @@ import com.loganmartlew.rangework.android.ui.theme.ThemePreferenceStore
 import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.config.isAuthConfigured
 import com.loganmartlew.rangework.shared.data.createRangeworkFoundation
+import com.loganmartlew.rangework.shared.model.Club
+import com.loganmartlew.rangework.shared.model.ClubCategory
 import com.loganmartlew.rangework.shared.model.DistanceUnit
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.PracticeSession
@@ -207,6 +210,7 @@ fun RangeworkApp(
                         onSetThemeMode = settingsViewModel::setThemeMode,
                         onSelectDistanceUnit = settingsViewModel::selectDistanceUnit,
                         onSelectSpeedUnit = settingsViewModel::selectSpeedUnit,
+                        onSetClubEnabled = settingsViewModel::setClubEnabled,
                         onRefreshPlanning = plannerViewModel::refreshPlanning,
                         onRefreshPlanningOnNavigation = plannerViewModel::refreshPlanningOnNavigation,
                         onBeginNewUnit = plannerViewModel::beginNewUnit,
@@ -290,6 +294,7 @@ private fun AuthenticatedAppShell(
     onSetThemeMode: (ThemeMode) -> Unit,
     onSelectDistanceUnit: (DistanceUnit) -> Unit,
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
+    onSetClubEnabled: (String, Boolean) -> Unit,
     onRefreshPlanning: () -> Unit,
     onRefreshPlanningOnNavigation: () -> Unit,
     onBeginNewUnit: () -> Unit,
@@ -665,6 +670,7 @@ private fun AuthenticatedAppShell(
                             onSetThemeMode = onSetThemeMode,
                             onSelectDistanceUnit = onSelectDistanceUnit,
                             onSelectSpeedUnit = onSelectSpeedUnit,
+                            onSetClubEnabled = onSetClubEnabled,
                         )
                     }
                 }
@@ -823,7 +829,10 @@ private fun UnitListScreen(
                         title = unit.title,
                         subtitle = "${unit.instructions.size} instruction${if (unit.instructions.size == 1) "" else "s"}  •  ${ballSummary(unit.derivedBallCount())}",
                         supportingText = buildString {
-                            unit.defaultClubReference?.let { append("$it  •  ") }
+                            unit.defaultClubReference?.takeIf(String::isNotBlank)?.let { code ->
+                                val name = plannerUiState.clubCatalog.firstOrNull { it.code == code }?.displayName ?: code
+                                append("$name  •  ")
+                            }
                             append(unit.instructions.joinToString("  •  ") { instruction -> instruction.text })
                         },
                         onView = { onViewUnit(unit.id) },
@@ -879,7 +888,10 @@ private fun UnitDetailScreen(
                 append("${unit.instructions.size} instruction")
                 if (unit.instructions.size != 1) append("s")
                 append("  •  ${ballSummary(unit.derivedBallCount())}")
-                unit.defaultClubReference?.let { append("  •  Default club: $it") }
+                unit.defaultClubReference?.takeIf(String::isNotBlank)?.let { code ->
+                    val name = plannerUiState.clubCatalog.firstOrNull { it.code == code }?.displayName ?: code
+                    append("  •  Default club: $name")
+                }
             },
         )
         unit.notes?.takeIf(String::isNotBlank)?.let { notes ->
@@ -951,11 +963,13 @@ private fun UnitEditorScreen(
         )
         UnitEditorCard(
             editorState = plannerUiState.unitEditor,
+            clubCatalog = plannerUiState.clubCatalog,
+            enabledClubCodes = plannerUiState.enabledClubCodes,
             isWorking = plannerUiState.isWorking,
             onUpdateTitle = onUpdateTitle,
             onUpdateNotes = onUpdateNotes,
             onUpdateFocus = onUpdateFocus,
-            onUpdateDefaultClubReference = onUpdateDefaultClubReference,
+            onSelectDefaultClub = onUpdateDefaultClubReference,
             onAddInstruction = onAddInstruction,
             onUpdateInstructionText = onUpdateInstructionText,
             onUpdateInstructionRepCount = onUpdateInstructionRepCount,
@@ -1102,6 +1116,7 @@ private fun SessionDetailScreen(
                     SessionItemDetailCard(
                         item = item,
                         unit = unitsById[item.practiceUnitId],
+                        clubCatalog = plannerUiState.clubCatalog,
                     )
                     if (index != session.items.lastIndex) {
                         HorizontalDivider()
@@ -1261,10 +1276,12 @@ private fun SessionEditorScreen(
                 item = item,
                 availableUnits = plannerUiState.units,
                 selectedUnit = unitsById[item.practiceUnitId],
+                clubCatalog = plannerUiState.clubCatalog,
+                enabledClubCodes = plannerUiState.enabledClubCodes,
                 isWorking = plannerUiState.isWorking,
                 onSelectUnit = { onUpdateSessionItemUnit(index, it) },
                 onUpdateRepeatCount = { onUpdateSessionItemRepeatCount(index, it) },
-                onUpdateClubReference = { onUpdateSessionItemClubReference(index, it) },
+                onSelectClub = { onUpdateSessionItemClubReference(index, it) },
                 onUpdateNotes = { onUpdateSessionItemNotes(index, it) },
                 onUpdateFocusCue = { onUpdateSessionItemFocusCue(index, it) },
                 onUpdateRestSeconds = { onUpdateSessionItemRestSeconds(index, it) },
@@ -1302,6 +1319,7 @@ private fun SettingsScreen(
     onSetThemeMode: (ThemeMode) -> Unit,
     onSelectDistanceUnit: (DistanceUnit) -> Unit,
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
+    onSetClubEnabled: (String, Boolean) -> Unit,
 ) {
     val signedInState = authUiState.authState as? AuthState.SignedIn
     var showSignOutDialog by remember { mutableStateOf(false) }
@@ -1458,6 +1476,73 @@ private fun SettingsScreen(
             }
         }
 
+        SettingsSectionHeader("Clubs")
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (!settingsUiState.dataConfigured) {
+                    Text(
+                        text = "Club preferences are not available in this build.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                } else if (settingsUiState.clubCatalog.isEmpty()) {
+                    Text(
+                        text = "Loading clubs…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                } else {
+                    val grouped = settingsUiState.clubCatalog.groupBy(Club::category)
+                    val categoryOrder = listOf(
+                        ClubCategory.WOOD,
+                        ClubCategory.HYBRID,
+                        ClubCategory.IRON,
+                        ClubCategory.WEDGE,
+                        ClubCategory.PUTTER,
+                    )
+                    val categoryLabels = mapOf(
+                        ClubCategory.WOOD to "Woods",
+                        ClubCategory.HYBRID to "Hybrids",
+                        ClubCategory.IRON to "Irons",
+                        ClubCategory.WEDGE to "Wedges",
+                        ClubCategory.PUTTER to "Putter",
+                    )
+                    categoryOrder.forEach { category ->
+                        val clubs = grouped[category] ?: return@forEach
+                        Text(
+                            text = categoryLabels[category] ?: category.name,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
+                        )
+                        clubs.forEach { club ->
+                            val enabled = club.code in settingsUiState.enabledClubCodes
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = club.displayName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Switch(
+                                    checked = enabled,
+                                    onCheckedChange = { onSetClubEnabled(club.code, it) },
+                                    enabled = !settingsUiState.isWorking,
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+
         SettingsSectionHeader("About")
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(
@@ -1469,6 +1554,71 @@ private fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun ClubPickerField(
+    label: String,
+    selectedCode: String?,
+    clubCatalog: List<Club>,
+    enabledClubCodes: Set<String>,
+    enabled: Boolean,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedClub = selectedCode?.let { code -> clubCatalog.firstOrNull { it.code == code } }
+    val disabledSelected = selectedClub != null && selectedCode !in enabledClubCodes
+    val pickerClubs = buildList {
+        if (disabledSelected) add(selectedClub!!)
+        addAll(clubCatalog.filter { it.code in enabledClubCodes })
+    }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(
+            modifier = Modifier.fillMaxWidth(),
+            enabled = enabled,
+            onClick = { expanded = true },
+        ) {
+            Text(
+                text = when {
+                    selectedClub != null && disabledSelected -> "${selectedClub.displayName} (disabled)"
+                    selectedClub != null -> selectedClub.displayName
+                    else -> "Select a club"
+                },
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("None") },
+                onClick = {
+                    onSelect("")
+                    expanded = false
+                },
+            )
+            pickerClubs.forEach { club ->
+                val isDisabled = club.code !in enabledClubCodes
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = if (isDisabled) "${club.displayName} (disabled)" else club.displayName,
+                            color = if (isDisabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        )
+                    },
+                    onClick = {
+                        onSelect(club.code)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+    Text(
+        text = label,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
@@ -1505,11 +1655,13 @@ private fun SettingsReadOnlyRow(label: String, value: String) {
 @Composable
 private fun UnitEditorCard(
     editorState: PracticeUnitEditorState,
+    clubCatalog: List<Club>,
+    enabledClubCodes: Set<String>,
     isWorking: Boolean,
     onUpdateTitle: (String) -> Unit,
     onUpdateNotes: (String) -> Unit,
     onUpdateFocus: (String) -> Unit,
-    onUpdateDefaultClubReference: (String) -> Unit,
+    onSelectDefaultClub: (String) -> Unit,
     onAddInstruction: () -> Unit,
     onUpdateInstructionText: (Int, String) -> Unit,
     onUpdateInstructionRepCount: (Int, String) -> Unit,
@@ -1550,13 +1702,13 @@ private fun UnitEditorCard(
                 enabled = !isWorking,
                 singleLine = true,
             )
-            OutlinedTextField(
-                value = editorState.defaultClubReference,
-                onValueChange = onUpdateDefaultClubReference,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Default club") },
+            ClubPickerField(
+                label = "Default club",
+                selectedCode = editorState.defaultClubReference.ifBlank { null },
+                clubCatalog = clubCatalog,
+                enabledClubCodes = enabledClubCodes,
                 enabled = !isWorking,
-                singleLine = true,
+                onSelect = onSelectDefaultClub,
             )
             Text(
                 text = "Instructions",
@@ -1669,10 +1821,12 @@ private fun SessionItemEditorCard(
     item: PracticeSessionItemEditorState,
     availableUnits: List<PracticeUnit>,
     selectedUnit: PracticeUnit?,
+    clubCatalog: List<Club>,
+    enabledClubCodes: Set<String>,
     isWorking: Boolean,
     onSelectUnit: (String) -> Unit,
     onUpdateRepeatCount: (String) -> Unit,
-    onUpdateClubReference: (String) -> Unit,
+    onSelectClub: (String) -> Unit,
     onUpdateNotes: (String) -> Unit,
     onUpdateFocusCue: (String) -> Unit,
     onUpdateRestSeconds: (String) -> Unit,
@@ -1732,27 +1886,22 @@ private fun SessionItemEditorCard(
                     }
                 }
             }
-            Row(
+            OutlinedTextField(
+                value = item.repeatCount,
+                onValueChange = onUpdateRepeatCount,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedTextField(
-                    value = item.repeatCount,
-                    onValueChange = onUpdateRepeatCount,
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Repeat count") },
-                    enabled = !isWorking,
-                    singleLine = true,
-                )
-                OutlinedTextField(
-                    value = item.clubReference,
-                    onValueChange = onUpdateClubReference,
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Session club") },
-                    enabled = !isWorking,
-                    singleLine = true,
-                )
-            }
+                label = { Text("Repeat count") },
+                enabled = !isWorking,
+                singleLine = true,
+            )
+            ClubPickerField(
+                label = "Session club",
+                selectedCode = item.clubReference.ifBlank { null },
+                clubCatalog = clubCatalog,
+                enabledClubCodes = enabledClubCodes,
+                enabled = !isWorking,
+                onSelect = onSelectClub,
+            )
             OutlinedTextField(
                 value = item.notes,
                 onValueChange = onUpdateNotes,
@@ -1785,11 +1934,12 @@ private fun SessionItemEditorCard(
             Text(
                 text = buildString {
                     append(ballSummary(item.derivedBallCount(selectedUnit)))
-                    val effectiveClub = item.clubReference.ifBlank {
+                    val effectiveCode = item.clubReference.ifBlank {
                         selectedUnit?.defaultClubReference.orEmpty()
                     }
-                    if (effectiveClub.isNotBlank()) {
-                        append("  •  Club: $effectiveClub")
+                    if (effectiveCode.isNotBlank()) {
+                        val displayName = clubCatalog.firstOrNull { it.code == effectiveCode }?.displayName ?: effectiveCode
+                        append("  •  Club: $displayName")
                     }
                 },
                 style = MaterialTheme.typography.bodySmall,
@@ -1811,15 +1961,18 @@ private fun SessionItemEditorCard(
 private fun SessionItemDetailCard(
     item: PracticeSessionItem,
     unit: PracticeUnit?,
+    clubCatalog: List<Club>,
 ) {
+    fun resolveClubName(code: String?): String? = code?.takeIf(String::isNotBlank)?.let { c ->
+        clubCatalog.firstOrNull { it.code == c }?.displayName ?: c
+    }
     DetailListCard(
         title = unit?.title ?: "Missing unit",
         subtitle = buildString {
             append("Repeat ${item.repeatCount}x")
-            item.clubReference?.takeIf(String::isNotBlank)?.let { append("  •  Club: $it") }
-            if (item.clubReference.isNullOrBlank()) {
-                unit?.defaultClubReference?.let { append("  •  Club: $it") }
-            }
+            val effectiveClubName = resolveClubName(item.clubReference)
+                ?: resolveClubName(unit?.defaultClubReference)
+            effectiveClubName?.let { append("  •  Club: $it") }
         },
         supportingText = buildString {
             append(ballSummary(item.derivedBallCount(unit)))
