@@ -78,3 +78,8 @@ internal fun navigationTypeForScreenWidth(screenWidthDp: Int): RangeworkNavigati
     } else {
         RangeworkNavigationType.BottomBar
     }
+
+internal fun String.isTopLevelRoute(): Boolean = this == RangeworkRoutes.Overview ||
+    this == RangeworkRoutes.Units ||
+    this == RangeworkRoutes.Sessions ||
+    this == RangeworkRoutes.Settings
