@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.android.ui
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +27,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -34,6 +36,9 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -78,14 +83,21 @@ import androidx.navigation.compose.rememberNavController
 import com.loganmartlew.rangework.android.R
 import com.loganmartlew.rangework.android.auth.AndroidGoogleIdTokenProvider
 import com.loganmartlew.rangework.android.config.baselineAndroidAppAuthConfig
+import com.loganmartlew.rangework.android.BuildConfig
+import com.loganmartlew.rangework.android.ui.theme.DataStoreThemePreferenceStore
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.android.ui.theme.RangeworkTheme
+import com.loganmartlew.rangework.android.ui.theme.ThemeMode
+import com.loganmartlew.rangework.android.ui.theme.ThemePreferenceStore
 import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.config.isAuthConfigured
 import com.loganmartlew.rangework.shared.data.createRangeworkFoundation
+import com.loganmartlew.rangework.shared.model.DistanceUnit
+import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionItem
 import com.loganmartlew.rangework.shared.model.PracticeUnit
+import com.loganmartlew.rangework.shared.model.SpeedUnit
 import com.loganmartlew.rangework.shared.model.derivedBallCount
 import com.loganmartlew.rangework.shared.usecase.AppBootstrapMessage
 import com.loganmartlew.rangework.shared.usecase.AppBootstrapMessageUseCase
@@ -129,12 +141,23 @@ fun RangeworkApp(
             webClientId = androidAuthConfig.googleWebClientId,
         )
     }
+    val themePreferenceStore = remember(activity) { DataStoreThemePreferenceStore(activity) }
+    val settingsViewModel: SettingsViewModel = viewModel(
+        factory = remember(rangeworkFoundation) {
+            SettingsViewModel.factory(
+                dataFoundation = rangeworkFoundation?.dataFoundation,
+                themePreferenceStore = themePreferenceStore,
+            )
+        },
+    )
+    val settingsUiState by settingsViewModel.uiState
     val rootRoute = remember(authUiState.authState) {
         rootRouteForAuthState(authUiState.authState)
     }
 
     LaunchedEffect(authUiState.authState) {
         plannerViewModel.onAuthStateChanged(authUiState.authState)
+        settingsViewModel.onAuthStateChanged(authUiState.authState)
     }
 
     LaunchedEffect(rootRoute) {
@@ -153,7 +176,14 @@ fun RangeworkApp(
         }
     }
 
-    RangeworkTheme {
+    val systemDark = isSystemInDarkTheme()
+    val darkTheme = when (settingsUiState.themeMode) {
+        ThemeMode.SYSTEM -> systemDark
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+
+    RangeworkTheme(darkTheme = darkTheme) {
         Surface(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = rootNavController,
@@ -171,7 +201,11 @@ fun RangeworkApp(
                     AuthenticatedAppShell(
                         authUiState = authUiState,
                         plannerUiState = plannerUiState,
+                        settingsUiState = settingsUiState,
                         onSignOut = authViewModel::signOut,
+                        onSetThemeMode = settingsViewModel::setThemeMode,
+                        onSelectDistanceUnit = settingsViewModel::selectDistanceUnit,
+                        onSelectSpeedUnit = settingsViewModel::selectSpeedUnit,
                         onRefreshPlanning = plannerViewModel::refreshPlanning,
                         onBeginNewUnit = plannerViewModel::beginNewUnit,
                         onEditUnit = plannerViewModel::editUnit,
@@ -249,7 +283,11 @@ private fun UnauthenticatedEntryScreen(
 private fun AuthenticatedAppShell(
     authUiState: AuthUiState,
     plannerUiState: PracticePlannerUiState,
+    settingsUiState: SettingsUiState,
     onSignOut: () -> Unit,
+    onSetThemeMode: (ThemeMode) -> Unit,
+    onSelectDistanceUnit: (DistanceUnit) -> Unit,
+    onSelectSpeedUnit: (SpeedUnit) -> Unit,
     onRefreshPlanning: () -> Unit,
     onBeginNewUnit: () -> Unit,
     onEditUnit: (String) -> Unit,
@@ -331,9 +369,6 @@ private fun AuthenticatedAppShell(
                     TextButton(onClick = onRefreshPlanning) {
                         Text("Refresh")
                     }
-                    TextButton(onClick = onSignOut) {
-                        Text("Sign out")
-                    }
                 },
             )
         },
@@ -399,7 +434,8 @@ private fun AuthenticatedAppShell(
                     .fillMaxSize()
                     .padding(horizontal = 20.dp, vertical = 16.dp),
             ) {
-                if (plannerUiState.isWorking || authUiState.actionInProgress) {
+                val anyWorking = plannerUiState.isWorking || authUiState.actionInProgress || settingsUiState.isWorking
+                if (anyWorking) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
@@ -408,7 +444,7 @@ private fun AuthenticatedAppShell(
                     startDestination = RangeworkRoutes.Overview,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = if (plannerUiState.isWorking || authUiState.actionInProgress) 12.dp else 0.dp),
+                        .padding(top = if (anyWorking) 12.dp else 0.dp),
                 ) {
                     composable(RangeworkRoutes.Overview) {
                         OverviewScreen(
@@ -618,7 +654,11 @@ private fun AuthenticatedAppShell(
                     composable(RangeworkRoutes.Settings) {
                         SettingsScreen(
                             authUiState = authUiState,
-                            plannerUiState = plannerUiState,
+                            settingsUiState = settingsUiState,
+                            onSignOut = onSignOut,
+                            onSetThemeMode = onSetThemeMode,
+                            onSelectDistanceUnit = onSelectDistanceUnit,
+                            onSelectSpeedUnit = onSelectSpeedUnit,
                         )
                     }
                 }
@@ -1233,55 +1273,211 @@ private fun SessionEditorScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsScreen(
     authUiState: AuthUiState,
-    plannerUiState: PracticePlannerUiState,
+    settingsUiState: SettingsUiState,
+    onSignOut: () -> Unit,
+    onSetThemeMode: (ThemeMode) -> Unit,
+    onSelectDistanceUnit: (DistanceUnit) -> Unit,
+    onSelectSpeedUnit: (SpeedUnit) -> Unit,
 ) {
     val signedInState = authUiState.authState as? AuthState.SignedIn
+    var showSignOutDialog by remember { mutableStateOf(false) }
+
+    if (showSignOutDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignOutDialog = false },
+            title = { Text("Sign out?") },
+            text = { Text("You will need to sign in again to access your planning workspace.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSignOutDialog = false
+                        onSignOut()
+                    },
+                ) {
+                    Text("Sign out")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
     ScrollableScreen {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ),
-        ) {
-            Row(
+        SettingsSectionHeader("Account")
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(horizontal = 16.dp),
             ) {
-                BrandMarkContainer(size = 72.dp, markSize = 50.dp, twoColor = true)
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Settings",
-                        style = MaterialTheme.typography.headlineSmall,
-                    )
-                    Text(
-                        text = signedInState?.userEmail ?: "Signed in",
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    Text(
-                        text = "Account-level controls can live here without exposing the app's internal wiring.",
+                        text = "Signed in as",
                         style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = signedInState?.userEmail ?: "—",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                HorizontalDivider()
+                TextButton(
+                    onClick = { showSignOutDialog = true },
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    enabled = !authUiState.actionInProgress,
+                ) {
+                    Text(
+                        text = "Sign out",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        }
+
+        SettingsSectionHeader("Appearance")
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = "Theme",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val options = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK)
+                    val labels = listOf("System", "Light", "Dark")
+                    options.forEachIndexed { index, mode ->
+                        SegmentedButton(
+                            selected = settingsUiState.themeMode == mode,
+                            onClick = { onSetThemeMode(mode) },
+                            shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                        ) {
+                            Text(labels[index])
+                        }
+                    }
+                }
+            }
+        }
+
+        SettingsSectionHeader("Units")
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = "Distance",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val distOptions = listOf(DistanceUnit.YARDS, DistanceUnit.METERS)
+                    val distLabels = listOf("Yards", "Meters")
+                    distOptions.forEachIndexed { index, unit ->
+                        SegmentedButton(
+                            selected = settingsUiState.measurementPreferences.distanceUnit == unit,
+                            onClick = { onSelectDistanceUnit(unit) },
+                            shape = SegmentedButtonDefaults.itemShape(index, distOptions.size),
+                            enabled = !settingsUiState.isWorking && settingsUiState.dataConfigured,
+                        ) {
+                            Text(distLabels[index])
+                        }
+                    }
+                }
+                Text(
+                    text = "Speed",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val speedOptions = listOf(
+                        SpeedUnit.MILES_PER_HOUR,
+                        SpeedUnit.KILOMETRES_PER_HOUR,
+                        SpeedUnit.METRES_PER_SECOND,
+                    )
+                    val speedLabels = listOf("mph", "km/h", "m/s")
+                    speedOptions.forEachIndexed { index, unit ->
+                        SegmentedButton(
+                            selected = settingsUiState.measurementPreferences.speedUnit == unit,
+                            onClick = { onSelectSpeedUnit(unit) },
+                            shape = SegmentedButtonDefaults.itemShape(index, speedOptions.size),
+                            enabled = !settingsUiState.isWorking && settingsUiState.dataConfigured,
+                        ) {
+                            Text(speedLabels[index])
+                        }
+                    }
+                }
+
+                if (!settingsUiState.dataConfigured) {
+                    Text(
+                        text = "Unit preferences are not available in this build.",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
-        SnapshotMetricCard(
-            label = "Planning summary",
-            value = "${plannerUiState.units.size}/${plannerUiState.sessions.size}",
-            body = "${plannerUiState.units.size} units and ${plannerUiState.sessions.size} sessions are currently loaded.",
+
+        SettingsSectionHeader("About")
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+            ) {
+                SettingsReadOnlyRow(label = "Version", value = BuildConfig.VERSION_NAME)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSectionHeader(title: String) {
+    Text(
+        text = title.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun SettingsReadOnlyRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        EntryHighlightCard(
-            title = "What belongs here",
-            body = "Measurement preferences and account details fit here naturally while the day-to-day planning stays in units and sessions.",
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
         )
     }
 }
