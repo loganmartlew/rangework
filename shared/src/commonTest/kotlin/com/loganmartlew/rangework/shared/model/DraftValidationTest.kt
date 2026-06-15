@@ -84,6 +84,88 @@ class DraftValidationTest {
     }
 
     @Test
+    fun practiceUnitValidationIssuesReturnsFieldIdsForBlankTitle() {
+        val issues = PracticeUnitDraft(
+            title = "   ",
+            instructions = listOf(PracticeInstructionDraft(order = 1, text = "Do something")),
+        ).validationIssues()
+
+        assertEquals(1, issues.size)
+        assertEquals("title", issues.first().field)
+    }
+
+    @Test
+    fun practiceUnitValidationIssuesReturnsFieldIdForEmptyInstructions() {
+        val issues = PracticeUnitDraft(
+            title = "Wedge work",
+            instructions = emptyList(),
+        ).validationIssues()
+
+        assertEquals(1, issues.size)
+        assertEquals("instructions", issues.first().field)
+    }
+
+    @Test
+    fun practiceUnitValidationIssuesReturnsIndexedFieldIdsForInvalidInstructions() {
+        val issues = PracticeUnitDraft(
+            title = "Wedge work",
+            instructions = listOf(
+                PracticeInstructionDraft(order = 1, text = "", repCount = 0, ballCount = 0),
+            ),
+        ).validationIssues()
+
+        val fields = issues.map { it.field }
+        assert(fields.contains("instructions[0].text")) { "Expected instructions[0].text in $fields" }
+        assert(fields.contains("instructions[0].repCount")) { "Expected instructions[0].repCount in $fields" }
+        assert(fields.contains("instructions[0].ballCount")) { "Expected instructions[0].ballCount in $fields" }
+    }
+
+    @Test
+    fun practiceSessionValidationIssuesReturnsFieldIdForBlankName() {
+        val issues = PracticeSessionDraft(
+            name = "  ",
+            items = listOf(
+                PracticeSessionItemDraft(practiceUnitId = "unit-1", order = 1, repeatCount = 1),
+            ),
+        ).validationIssues()
+
+        assertEquals(1, issues.size)
+        assertEquals("name", issues.first().field)
+    }
+
+    @Test
+    fun practiceSessionValidationIssuesReturnsIndexedFieldIdsForMissingUnit() {
+        val issues = PracticeSessionDraft(
+            name = "My session",
+            items = listOf(
+                PracticeSessionItemDraft(practiceUnitId = "  ", order = 1, repeatCount = 1),
+            ),
+        ).validationIssues()
+
+        val fields = issues.map { it.field }
+        assert(fields.contains("items[0].practiceUnitId")) { "Expected items[0].practiceUnitId in $fields" }
+    }
+
+    @Test
+    fun practiceSessionValidationIssuesReturnsIndexedFieldIdsForNonPositiveCounts() {
+        val issues = PracticeSessionDraft(
+            name = "My session",
+            items = listOf(
+                PracticeSessionItemDraft(
+                    practiceUnitId = "unit-1",
+                    order = 1,
+                    repeatCount = 0,
+                    restSeconds = 0,
+                ),
+            ),
+        ).validationIssues()
+
+        val fields = issues.map { it.field }
+        assert(fields.contains("items[0].repeatCount")) { "Expected items[0].repeatCount in $fields" }
+        assert(fields.contains("items[0].restSeconds")) { "Expected items[0].restSeconds in $fields" }
+    }
+
+    @Test
     fun measurementPreferencesValidationAppliesSystemDefaults() {
         assertEquals(
             MeasurementPreferences.Imperial,

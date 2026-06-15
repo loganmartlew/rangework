@@ -1,14 +1,13 @@
 package com.loganmartlew.rangework.shared.model
 
-fun PracticeUnitDraft.validated(): PracticeUnitDraft {
+fun PracticeUnitDraft.validationIssues(): List<ValidationIssue> {
     val issues = mutableListOf<ValidationIssue>()
     val normalizedTitle = title.trim()
-    val normalizedInstructions = instructions
-        .sortedBy(PracticeInstructionDraft::order)
-        .mapIndexed { index, instruction ->
-            val normalizedText = instruction.text.trim()
 
-            if (normalizedText.isEmpty()) {
+    instructions
+        .sortedBy(PracticeInstructionDraft::order)
+        .forEachIndexed { index, instruction ->
+            if (instruction.text.trim().isEmpty()) {
                 issues += ValidationIssue(
                     field = "instructions[$index].text",
                     message = "Instruction text cannot be blank.",
@@ -26,13 +25,6 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
                     message = "Ball count must be greater than zero.",
                 )
             }
-
-            PracticeInstructionDraft(
-                order = index + 1,
-                text = normalizedText,
-                repCount = instruction.repCount,
-                ballCount = instruction.ballCount,
-            )
         }
 
     if (normalizedTitle.isEmpty()) {
@@ -41,12 +33,30 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
             message = "Title cannot be blank.",
         )
     }
-    if (normalizedInstructions.isEmpty()) {
+    if (instructions.isEmpty()) {
         issues += ValidationIssue(
             field = "instructions",
             message = "At least one instruction is required.",
         )
     }
+
+    return issues
+}
+
+fun PracticeUnitDraft.validated(): PracticeUnitDraft {
+    val issues = validationIssues()
+
+    val normalizedTitle = title.trim()
+    val normalizedInstructions = instructions
+        .sortedBy(PracticeInstructionDraft::order)
+        .mapIndexed { index, instruction ->
+            PracticeInstructionDraft(
+                order = index + 1,
+                text = instruction.text.trim(),
+                repCount = instruction.repCount,
+                ballCount = instruction.ballCount,
+            )
+        }
 
     if (issues.isNotEmpty()) {
         throw SharedValidationException(issues)
@@ -61,15 +71,14 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
     )
 }
 
-fun PracticeSessionDraft.validated(): PracticeSessionDraft {
+fun PracticeSessionDraft.validationIssues(): List<ValidationIssue> {
     val issues = mutableListOf<ValidationIssue>()
     val normalizedName = name.trim()
-    val normalizedItems = items
-        .sortedBy(PracticeSessionItemDraft::order)
-        .mapIndexed { index, item ->
-            val normalizedPracticeUnitId = item.practiceUnitId.trim()
 
-            if (normalizedPracticeUnitId.isEmpty()) {
+    items
+        .sortedBy(PracticeSessionItemDraft::order)
+        .forEachIndexed { index, item ->
+            if (item.practiceUnitId.trim().isEmpty()) {
                 issues += ValidationIssue(
                     field = "items[$index].practiceUnitId",
                     message = "Every session item must reference a practice unit.",
@@ -87,16 +96,6 @@ fun PracticeSessionDraft.validated(): PracticeSessionDraft {
                     message = "Repeat count must be greater than zero.",
                 )
             }
-
-            PracticeSessionItemDraft(
-                practiceUnitId = normalizedPracticeUnitId,
-                order = index + 1,
-                repeatCount = item.repeatCount,
-                clubReference = item.clubReference.normalizedOptionalText(),
-                notes = item.notes.normalizedOptionalText(),
-                focusCue = item.focusCue.normalizedOptionalText(),
-                restSeconds = item.restSeconds,
-            )
         }
 
     if (normalizedName.isEmpty()) {
@@ -105,6 +104,27 @@ fun PracticeSessionDraft.validated(): PracticeSessionDraft {
             message = "Session name cannot be blank.",
         )
     }
+
+    return issues
+}
+
+fun PracticeSessionDraft.validated(): PracticeSessionDraft {
+    val issues = validationIssues()
+
+    val normalizedName = name.trim()
+    val normalizedItems = items
+        .sortedBy(PracticeSessionItemDraft::order)
+        .mapIndexed { index, item ->
+            PracticeSessionItemDraft(
+                practiceUnitId = item.practiceUnitId.trim(),
+                order = index + 1,
+                repeatCount = item.repeatCount,
+                clubReference = item.clubReference.normalizedOptionalText(),
+                notes = item.notes.normalizedOptionalText(),
+                focusCue = item.focusCue.normalizedOptionalText(),
+                restSeconds = item.restSeconds,
+            )
+        }
 
     if (issues.isNotEmpty()) {
         throw SharedValidationException(issues)
