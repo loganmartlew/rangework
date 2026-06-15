@@ -139,6 +139,32 @@ class PracticePlannerViewModelTest {
             viewModel.uiState.value.statusMessage,
         )
     }
+
+    @Test
+    fun navigationRefreshPreservesStatusMessage() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+
+        viewModel.onAuthStateChanged(
+            AuthState.SignedIn(
+                userId = "user-1",
+                userEmail = "logan@example.com",
+            ),
+        )
+        advanceUntilIdle()
+
+        viewModel.refreshPlanningOnNavigation()
+        advanceUntilIdle()
+
+        assertEquals("Planning workspace ready.", viewModel.uiState.value.statusMessage)
+        assertEquals(2, repositories.listUnitsCallCount)
+        assertEquals(2, repositories.listSessionsCallCount)
+    }
 }
 
 private class FakePlannerRepositories :
@@ -155,8 +181,11 @@ private class FakePlannerRepositories :
     val units = mutableListOf<PracticeUnit>()
     val sessions = mutableListOf<PracticeSession>()
     val savedUnitDrafts = mutableListOf<PracticeUnitDraft>()
+    var listUnitsCallCount = 0
+    var listSessionsCallCount = 0
 
     override suspend fun listPracticeUnits(): List<PracticeUnit> {
+        listUnitsCallCount += 1
         listUnitsException?.let { throw it }
         return units.toList()
     }
@@ -195,7 +224,10 @@ private class FakePlannerRepositories :
         units.removeAll { unit -> unit.id == unitId }
     }
 
-    override suspend fun listPracticeSessions(): List<PracticeSession> = sessions.toList()
+    override suspend fun listPracticeSessions(): List<PracticeSession> {
+        listSessionsCallCount += 1
+        return sessions.toList()
+    }
 
     override suspend fun getPracticeSession(sessionId: String): PracticeSession? =
         sessions.firstOrNull { session -> session.id == sessionId }
