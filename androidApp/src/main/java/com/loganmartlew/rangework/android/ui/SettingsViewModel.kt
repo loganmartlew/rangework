@@ -12,6 +12,9 @@ import com.loganmartlew.rangework.shared.model.DistanceUnit
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.SpeedUnit
 import com.loganmartlew.rangework.shared.model.UnitSystem
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -36,12 +39,12 @@ class SettingsViewModel(
     private val clubMutex = Mutex()
     private var clubToken = 0
 
-    private val _uiState = androidx.compose.runtime.mutableStateOf(
+    private val _uiState = MutableStateFlow(
         SettingsUiState(
             dataConfigured = dataFoundation != null,
         ),
     )
-    val uiState: androidx.compose.runtime.State<SettingsUiState> = _uiState
+    val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {

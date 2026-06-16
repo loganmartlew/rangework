@@ -17,6 +17,9 @@ import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.model.ValidationIssue
 import com.loganmartlew.rangework.shared.model.validationIssues
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -91,7 +94,7 @@ data class PracticePlannerUiState(
     val savedUnitId: String? = null,
     val savedSessionId: String? = null,
     val duplicatedSessionId: String? = null,
-    val statusMessage: String? = if (dataConfigured) null else planningUnavailableMessage(environment),
+    val status: PlannerStatus? = if (dataConfigured) null else PlannerStatus.Unavailable,
 ) {
     val isWorking: Boolean
         get() = isLoading || isSaving
@@ -112,13 +115,13 @@ class PracticePlannerViewModel(
     private val operationMutex = Mutex()
     private var operationToken = 0
 
-    private val _uiState = androidx.compose.runtime.mutableStateOf(
+    private val _uiState = MutableStateFlow(
         PracticePlannerUiState(
             environment = environment,
             dataConfigured = dataFoundation != null,
         ),
     )
-    val uiState: androidx.compose.runtime.State<PracticePlannerUiState> = _uiState
+    val uiState: StateFlow<PracticePlannerUiState> = _uiState.asStateFlow()
 
     fun onAuthStateChanged(authState: AuthState) {
         when (authState) {
@@ -126,15 +129,15 @@ class PracticePlannerViewModel(
                 activeUserId = authState.userId
                 if (dataFoundation == null) {
                     _uiState.value = _uiState.value.copy(
-                        statusMessage = planningUnavailableMessage(environment),
+                        status = PlannerStatus.Unavailable,
                     )
                     return
                 }
                 refreshPlanning(
-                    statusMessage = if (_uiState.value.units.isEmpty() && _uiState.value.sessions.isEmpty()) {
-                        "Planning workspace ready."
+                    status = if (_uiState.value.units.isEmpty() && _uiState.value.sessions.isEmpty()) {
+                        PlannerStatus.Info("Planning workspace ready.")
                     } else {
-                        _uiState.value.statusMessage
+                        _uiState.value.status
                     },
                 )
                 loadClubs()
@@ -163,8 +166,8 @@ class PracticePlannerViewModel(
                     savedUnitId = null,
                     savedSessionId = null,
                     duplicatedSessionId = null,
-                    statusMessage = if (dataFoundation == null) {
-                        planningUnavailableMessage(environment)
+                    status = if (dataFoundation == null) {
+                        PlannerStatus.Unavailable
                     } else {
                         null
                     },
@@ -174,12 +177,12 @@ class PracticePlannerViewModel(
     }
 
     fun refreshPlanning() {
-        refreshPlanning(statusMessage = "Planning data refreshed.")
+        refreshPlanning(status = PlannerStatus.Notification("Planning data refreshed."))
     }
 
     fun refreshPlanningOnNavigation() {
         refreshPlanning(
-            statusMessage = _uiState.value.statusMessage,
+            status = _uiState.value.status,
             skipIfWorking = true,
         )
     }
@@ -190,7 +193,7 @@ class PracticePlannerViewModel(
             unitEditor = freshEditor,
             unitEditorBaseline = freshEditor,
             savedUnitId = null,
-            statusMessage = null,
+            status = null,
         )
     }
 
@@ -201,7 +204,7 @@ class PracticePlannerViewModel(
             unitEditor = editorState,
             unitEditorBaseline = editorState,
             savedUnitId = null,
-            statusMessage = "Editing ${unit.title}.",
+            status = PlannerStatus.Info("Editing ${unit.title}."),
         )
     }
 
@@ -258,7 +261,7 @@ class PracticePlannerViewModel(
         if (issues.isNotEmpty()) {
             _uiState.value = _uiState.value.copy(
                 unitEditor = editor.withErrors(issues),
-                statusMessage = issues.joinToString(" ") { it.message },
+                status = PlannerStatus.Notification(issues.joinToString(" ") { it.message }),
             )
             return
         }
@@ -269,7 +272,7 @@ class PracticePlannerViewModel(
                 _uiState.value = _uiState.value.copy(
                     isSaving = true,
                     savedUnitId = null,
-                    statusMessage = null,
+                    status = null,
                 )
 
                 try {
@@ -289,7 +292,7 @@ class PracticePlannerViewModel(
                             unitEditorBaseline = null,
                             sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
                             savedUnitId = savedUnit.id,
-                            statusMessage = "Saved ${savedUnit.title}.",
+                            status = PlannerStatus.Notification("Saved ${savedUnit.title}."),
                         )
                     } else {
                         _uiState.value = _uiState.value.copy(isSaving = false)
@@ -333,7 +336,7 @@ class PracticePlannerViewModel(
                                 _uiState.value.unitEditor.resolveWith(units)
                             },
                             sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
-                            statusMessage = "Deleted $title.",
+                            status = PlannerStatus.Notification("Deleted $title."),
                         )
                     } else {
                         _uiState.value = _uiState.value.copy(isSaving = false)
@@ -362,7 +365,7 @@ class PracticePlannerViewModel(
             sessionEditor = freshEditor,
             sessionEditorBaseline = freshEditor,
             savedSessionId = null,
-            statusMessage = null,
+            status = null,
         )
     }
 
@@ -373,7 +376,7 @@ class PracticePlannerViewModel(
             sessionEditor = editorState,
             sessionEditorBaseline = editorState,
             savedSessionId = null,
-            statusMessage = "Editing ${session.name}.",
+            status = PlannerStatus.Info("Editing ${session.name}."),
         )
     }
 
@@ -454,7 +457,7 @@ class PracticePlannerViewModel(
         if (parseIssues.isNotEmpty()) {
             _uiState.value = _uiState.value.copy(
                 sessionEditor = editor.withErrors(parseIssues),
-                statusMessage = parseIssues.joinToString(" ") { it.message },
+                status = PlannerStatus.Notification(parseIssues.joinToString(" ") { it.message }),
             )
             return
         }
@@ -465,7 +468,7 @@ class PracticePlannerViewModel(
         if (issues.isNotEmpty()) {
             _uiState.value = _uiState.value.copy(
                 sessionEditor = editor.withErrors(issues),
-                statusMessage = issues.joinToString(" ") { it.message },
+                status = PlannerStatus.Notification(issues.joinToString(" ") { it.message }),
             )
             return
         }
@@ -476,7 +479,7 @@ class PracticePlannerViewModel(
                 _uiState.value = _uiState.value.copy(
                     isSaving = true,
                     savedSessionId = null,
-                    statusMessage = null,
+                    status = null,
                 )
 
                 try {
@@ -496,7 +499,7 @@ class PracticePlannerViewModel(
                             sessionEditor = savedSession.toEditorState(),
                             sessionEditorBaseline = null,
                             savedSessionId = savedSession.id,
-                            statusMessage = "Saved ${savedSession.name}.",
+                            status = PlannerStatus.Notification("Saved ${savedSession.name}."),
                         )
                     } else {
                         _uiState.value = _uiState.value.copy(isSaving = false)
@@ -540,7 +543,7 @@ class PracticePlannerViewModel(
                             } else {
                                 _uiState.value.sessionEditor.resolveWith(sessions)
                             },
-                            statusMessage = "Deleted $name.",
+                            status = PlannerStatus.Notification("Deleted $name."),
                         )
                     } else {
                         _uiState.value = _uiState.value.copy(isSaving = false)
@@ -573,7 +576,7 @@ class PracticePlannerViewModel(
                     isSaving = false,
                     sessions = sessions,
                     duplicatedSessionId = duplicated.id,
-                    statusMessage = "Duplicated ${duplicated.name}.",
+                    status = PlannerStatus.Notification("Duplicated ${duplicated.name}."),
                 )
             } catch (exception: Exception) {
                 markSaveFailure(exception, "Session duplicate failed.")
@@ -593,7 +596,7 @@ class PracticePlannerViewModel(
     }
 
     private fun refreshPlanning(
-        statusMessage: String?,
+        status: PlannerStatus?,
         skipIfWorking: Boolean = false,
     ) {
         val foundation = dataFoundation ?: return markPlannerUnavailable()
@@ -622,7 +625,7 @@ class PracticePlannerViewModel(
                             sessions = sessions,
                             unitEditor = _uiState.value.unitEditor.resolveWith(units),
                             sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
-                            statusMessage = statusMessage,
+                            status = status,
                         )
                     } else {
                         _uiState.value = _uiState.value.copy(isLoading = false)
@@ -642,7 +645,7 @@ class PracticePlannerViewModel(
         _uiState.value = _uiState.value.copy(
             isLoading = false,
             isSaving = false,
-            statusMessage = planningUnavailableMessage(environment),
+            status = PlannerStatus.Unavailable,
         )
     }
 
@@ -650,7 +653,7 @@ class PracticePlannerViewModel(
         _uiState.value = _uiState.value.copy(
             isLoading = false,
             isSaving = false,
-            statusMessage = "Sign in before changing practice plans.",
+            status = PlannerStatus.Notification("Sign in before changing practice plans."),
         )
     }
 
@@ -658,20 +661,14 @@ class PracticePlannerViewModel(
         _uiState.value = _uiState.value.copy(
             isLoading = false,
             isSaving = false,
-            statusMessage = plannerStatusMessage(
-                exception = exception,
-                fallback = fallback,
-            ),
+            status = plannerStatus(exception = exception, fallback = fallback),
         )
     }
 
     private fun markSaveFailure(exception: Throwable, fallback: String) {
         _uiState.value = _uiState.value.copy(
             isSaving = false,
-            statusMessage = plannerStatusMessage(
-                exception = exception,
-                fallback = fallback,
-            ),
+            status = plannerStatus(exception = exception, fallback = fallback),
         )
     }
 
@@ -771,19 +768,13 @@ class PracticePlannerViewModel(
     }
 }
 
-internal fun planningUnavailableMessage(environment: AppEnvironment): String =
-    "Practice planning is not available in this build yet."
-
-internal fun planningSchemaUnavailableMessage(): String =
-    "Practice planning is still being prepared for this workspace. Refresh once setup is complete."
-
-private fun plannerStatusMessage(
+private fun plannerStatus(
     exception: Throwable,
     fallback: String,
-): String = if (exception.isPlanningAccessError()) {
-    planningSchemaUnavailableMessage()
+): PlannerStatus = if (exception.isPlanningAccessError()) {
+    PlannerStatus.SchemaNotReady
 } else {
-    fallback
+    PlannerStatus.Notification(fallback)
 }
 
 private fun Throwable.isForeignKeyViolation(): Boolean {
