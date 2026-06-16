@@ -6,6 +6,5 @@ import kotlinx.serialization.Serializable
 data class PracticeInstructionDraft(
     val order: Int,
     val text: String,
-    val repCount: Int? = null,
     val ballCount: Int? = null,
 )

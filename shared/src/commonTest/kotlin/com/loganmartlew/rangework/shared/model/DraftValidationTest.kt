@@ -13,7 +13,6 @@ class DraftValidationTest {
                 PracticeInstructionDraft(
                     order = 9,
                     text = "  Hit 10 stock wedges  ",
-                    repCount = 10,
                 ),
                 PracticeInstructionDraft(
                     order = 3,
@@ -32,7 +31,7 @@ class DraftValidationTest {
         assertEquals("GW", validated.defaultClubReference)
         assertEquals(listOf(1, 2), validated.instructions.map(PracticeInstructionDraft::order))
         assertEquals("Finish with 5 flighted shots", validated.instructions.first().text)
-        assertEquals(10, validated.instructions.last().repCount)
+        assertEquals(5, validated.instructions.first().ballCount)
     }
 
     @Test
@@ -63,7 +62,6 @@ class DraftValidationTest {
                     clubReference = "  54*  ",
                     notes = "  Start here  ",
                     focusCue = "  Landing spot  ",
-                    restSeconds = 30,
                 ),
                 PracticeSessionItemDraft(
                     practiceUnitId = "unit-2",
@@ -110,13 +108,12 @@ class DraftValidationTest {
         val issues = PracticeUnitDraft(
             title = "Wedge work",
             instructions = listOf(
-                PracticeInstructionDraft(order = 1, text = "", repCount = 0, ballCount = 0),
+                PracticeInstructionDraft(order = 1, text = "", ballCount = 0),
             ),
         ).validationIssues()
 
         val fields = issues.map { it.field }
         assert(fields.contains("instructions[0].text")) { "Expected instructions[0].text in $fields" }
-        assert(fields.contains("instructions[0].repCount")) { "Expected instructions[0].repCount in $fields" }
         assert(fields.contains("instructions[0].ballCount")) { "Expected instructions[0].ballCount in $fields" }
     }
 
@@ -155,14 +152,12 @@ class DraftValidationTest {
                     practiceUnitId = "unit-1",
                     order = 1,
                     repeatCount = 0,
-                    restSeconds = 0,
                 ),
             ),
         ).validationIssues()
 
         val fields = issues.map { it.field }
         assert(fields.contains("items[0].repeatCount")) { "Expected items[0].repeatCount in $fields" }
-        assert(fields.contains("items[0].restSeconds")) { "Expected items[0].restSeconds in $fields" }
     }
 
     @Test

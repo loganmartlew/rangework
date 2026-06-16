@@ -22,13 +22,11 @@ import kotlinx.coroutines.launch
 data class PracticeInstructionEditorState(
     val order: Int,
     val text: String = "",
-    val repCount: String = "",
     val ballCount: String = "",
     val textError: String? = null,
-    val repCountError: String? = null,
     val ballCountError: String? = null,
 ) {
-    fun withoutErrors() = copy(textError = null, repCountError = null, ballCountError = null)
+    fun withoutErrors() = copy(textError = null, ballCountError = null)
 }
 
 data class PracticeUnitEditorState(
@@ -55,12 +53,10 @@ data class PracticeSessionItemEditorState(
     val clubReference: String = "",
     val notes: String = "",
     val focusCue: String = "",
-    val restSeconds: String = "",
     val unitError: String? = null,
     val repeatCountError: String? = null,
-    val restSecondsError: String? = null,
 ) {
-    fun withoutErrors() = copy(unitError = null, repeatCountError = null, restSecondsError = null)
+    fun withoutErrors() = copy(unitError = null, repeatCountError = null)
 }
 
 data class PracticeSessionEditorState(
@@ -223,8 +219,6 @@ class PracticePlannerViewModel(
     }
 
     fun updateInstructionText(index: Int, value: String) = updateInstruction(index) { copy(text = value, textError = null) }
-
-    fun updateInstructionRepCount(index: Int, value: String) = updateInstruction(index) { copy(repCount = value, repCountError = null) }
 
     fun updateInstructionBallCount(index: Int, value: String) = updateInstruction(index) {
         copy(ballCount = value, ballCountError = null)
@@ -392,9 +386,6 @@ class PracticePlannerViewModel(
 
     fun updateSessionItemFocusCue(index: Int, value: String) = updateSessionItem(index) { copy(focusCue = value) }
 
-    fun updateSessionItemRestSeconds(index: Int, value: String) = updateSessionItem(index) {
-        copy(restSeconds = value, restSecondsError = null)
-    }
 
     fun moveSessionItem(fromIndex: Int, toIndex: Int) {
         updateSessionEditor {
@@ -714,7 +705,7 @@ private fun plannerStatusMessage(
 ): String = if (exception.isPlanningAccessError()) {
     planningSchemaUnavailableMessage()
 } else {
-    exception.message ?: fallback
+    fallback
 }
 
 private fun Throwable.isPlanningAccessError(): Boolean {
@@ -774,7 +765,6 @@ private fun PracticeUnit.toEditorState(): PracticeUnitEditorState = PracticeUnit
 private fun PracticeInstruction.toEditorState(): PracticeInstructionEditorState = PracticeInstructionEditorState(
     order = order,
     text = text,
-    repCount = repCount?.toString().orEmpty(),
     ballCount = ballCount?.toString().orEmpty(),
 )
 
@@ -792,7 +782,6 @@ private fun PracticeSessionItem.toEditorState(): PracticeSessionItemEditorState 
     clubReference = clubReference.orEmpty(),
     notes = notes.orEmpty(),
     focusCue = focusCue.orEmpty(),
-    restSeconds = restSeconds?.toString().orEmpty(),
 )
 
 private fun PracticeUnitEditorState.toDraft(): PracticeUnitDraft = PracticeUnitDraft(
@@ -801,7 +790,6 @@ private fun PracticeUnitEditorState.toDraft(): PracticeUnitDraft = PracticeUnitD
         PracticeInstructionDraft(
             order = instruction.order,
             text = instruction.text,
-            repCount = instruction.repCount.parseOptionalInt("Instruction reps"),
             ballCount = instruction.ballCount.parseOptionalInt("Instruction ball count"),
         )
     },
@@ -821,7 +809,6 @@ private fun PracticeSessionEditorState.toDraft(): PracticeSessionDraft = Practic
             clubReference = item.clubReference,
             notes = item.notes,
             focusCue = item.focusCue,
-            restSeconds = item.restSeconds.parseOptionalInt("Rest seconds"),
         )
     },
 )
@@ -885,10 +872,6 @@ private fun PracticeUnitEditorState.withErrors(issues: List<ValidationIssue>): P
                 updated = updated.copy(instructions = updated.instructions.mapIndexed { i, instr ->
                     if (i == idx) instr.copy(textError = issue.message) else instr
                 })
-            idx != null && issue.field.endsWith("].repCount") ->
-                updated = updated.copy(instructions = updated.instructions.mapIndexed { i, instr ->
-                    if (i == idx) instr.copy(repCountError = issue.message) else instr
-                })
             idx != null && issue.field.endsWith("].ballCount") ->
                 updated = updated.copy(instructions = updated.instructions.mapIndexed { i, instr ->
                     if (i == idx) instr.copy(ballCountError = issue.message) else instr
@@ -911,10 +894,6 @@ private fun PracticeSessionEditorState.withErrors(issues: List<ValidationIssue>)
             idx != null && issue.field.endsWith("].repeatCount") ->
                 updated = updated.copy(items = updated.items.mapIndexed { i, item ->
                     if (i == idx) item.copy(repeatCountError = issue.message) else item
-                })
-            idx != null && issue.field.endsWith("].restSeconds") ->
-                updated = updated.copy(items = updated.items.mapIndexed { i, item ->
-                    if (i == idx) item.copy(restSecondsError = issue.message) else item
                 })
         }
     }

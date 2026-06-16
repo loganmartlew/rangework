@@ -302,7 +302,6 @@ private class FakePlannerRepositories :
                     id = "instruction-$index",
                     order = index + 1,
                     text = instruction.text,
-                    repCount = instruction.repCount,
                     ballCount = instruction.ballCount,
                 )
             },
@@ -345,7 +344,6 @@ private class FakePlannerRepositories :
                     clubReference = item.clubReference,
                     notes = item.notes,
                     focusCue = item.focusCue,
-                    restSeconds = item.restSeconds,
                 )
             },
             notes = draft.notes,

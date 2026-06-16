@@ -13,12 +13,6 @@ fun PracticeUnitDraft.validationIssues(): List<ValidationIssue> {
                     message = "Instruction text cannot be blank.",
                 )
             }
-            if (instruction.repCount != null && instruction.repCount <= 0) {
-                issues += ValidationIssue(
-                    field = "instructions[$index].repCount",
-                    message = "Repetition count must be greater than zero.",
-                )
-            }
             if (instruction.ballCount != null && instruction.ballCount <= 0) {
                 issues += ValidationIssue(
                     field = "instructions[$index].ballCount",
@@ -53,7 +47,6 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
             PracticeInstructionDraft(
                 order = index + 1,
                 text = instruction.text.trim(),
-                repCount = instruction.repCount,
                 ballCount = instruction.ballCount,
             )
         }
@@ -82,12 +75,6 @@ fun PracticeSessionDraft.validationIssues(): List<ValidationIssue> {
                 issues += ValidationIssue(
                     field = "items[$index].practiceUnitId",
                     message = "Every session item must reference a practice unit.",
-                )
-            }
-            if (item.restSeconds != null && item.restSeconds <= 0) {
-                issues += ValidationIssue(
-                    field = "items[$index].restSeconds",
-                    message = "Rest seconds must be greater than zero.",
                 )
             }
             if (item.repeatCount <= 0) {
@@ -122,7 +109,6 @@ fun PracticeSessionDraft.validated(): PracticeSessionDraft {
                 clubReference = item.clubReference.normalizedOptionalText(),
                 notes = item.notes.normalizedOptionalText(),
                 focusCue = item.focusCue.normalizedOptionalText(),
-                restSeconds = item.restSeconds,
             )
         }
 

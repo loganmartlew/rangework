@@ -139,7 +139,6 @@ class SupabasePracticeUnitRepository(
                     practiceUnitId = practiceUnitId,
                     sortOrder = instruction.order,
                     text = instruction.text,
-                    repCount = instruction.repCount,
                     ballCount = instruction.ballCount,
                 )
             },
@@ -188,8 +187,6 @@ private data class PracticeUnitInstructionRow(
     @SerialName("sort_order")
     val sortOrder: Int,
     val text: String,
-    @SerialName("rep_count")
-    val repCount: Int? = null,
     @SerialName("ball_count")
     val ballCount: Int? = null,
 )
@@ -202,8 +199,6 @@ private data class PracticeUnitInstructionInsertRow(
     @SerialName("sort_order")
     val sortOrder: Int,
     val text: String,
-    @SerialName("rep_count")
-    val repCount: Int? = null,
     @SerialName("ball_count")
     val ballCount: Int? = null,
 )
@@ -220,7 +215,6 @@ private fun PracticeUnitRow.toModel(
                 id = row.id,
                 order = row.sortOrder,
                 text = row.text,
-                repCount = row.repCount,
                 ballCount = row.ballCount,
             )
         },

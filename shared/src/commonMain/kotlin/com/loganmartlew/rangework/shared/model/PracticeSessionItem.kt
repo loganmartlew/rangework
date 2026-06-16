@@ -11,5 +11,4 @@ data class PracticeSessionItem(
     val clubReference: String? = null,
     val notes: String? = null,
     val focusCue: String? = null,
-    val restSeconds: Int? = null,
 )

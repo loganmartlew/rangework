@@ -11,7 +11,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
@@ -29,15 +28,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.rounded.Widgets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
@@ -48,6 +51,8 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -75,19 +80,19 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -240,7 +245,6 @@ fun RangeworkApp(
                         onUpdateUnitDefaultClubReference = plannerViewModel::updateUnitDefaultClubReference,
                         onAddInstruction = plannerViewModel::addInstruction,
                         onUpdateInstructionText = plannerViewModel::updateInstructionText,
-                        onUpdateInstructionRepCount = plannerViewModel::updateInstructionRepCount,
                         onUpdateInstructionBallCount = plannerViewModel::updateInstructionBallCount,
                         onMoveInstructionUp = plannerViewModel::moveInstructionUp,
                         onMoveInstructionDown = plannerViewModel::moveInstructionDown,
@@ -258,7 +262,6 @@ fun RangeworkApp(
                         onUpdateSessionItemClubReference = plannerViewModel::updateSessionItemClubReference,
                         onUpdateSessionItemNotes = plannerViewModel::updateSessionItemNotes,
                         onUpdateSessionItemFocusCue = plannerViewModel::updateSessionItemFocusCue,
-                        onUpdateSessionItemRestSeconds = plannerViewModel::updateSessionItemRestSeconds,
                         onMoveSessionItem = plannerViewModel::moveSessionItem,
                         onRemoveSessionItem = plannerViewModel::removeSessionItem,
                         onSaveSession = plannerViewModel::saveSession,
@@ -325,7 +328,6 @@ private fun AuthenticatedAppShell(
     onUpdateUnitDefaultClubReference: (String) -> Unit,
     onAddInstruction: () -> Unit,
     onUpdateInstructionText: (Int, String) -> Unit,
-    onUpdateInstructionRepCount: (Int, String) -> Unit,
     onUpdateInstructionBallCount: (Int, String) -> Unit,
     onMoveInstructionUp: (Int) -> Unit,
     onMoveInstructionDown: (Int) -> Unit,
@@ -343,7 +345,6 @@ private fun AuthenticatedAppShell(
     onUpdateSessionItemClubReference: (Int, String) -> Unit,
     onUpdateSessionItemNotes: (Int, String) -> Unit,
     onUpdateSessionItemFocusCue: (Int, String) -> Unit,
-    onUpdateSessionItemRestSeconds: (Int, String) -> Unit,
     onMoveSessionItem: (Int, Int) -> Unit,
     onRemoveSessionItem: (Int) -> Unit,
     onSaveSession: () -> Unit,
@@ -578,6 +579,10 @@ private fun AuthenticatedAppShell(
                         UnitListScreen(
                             plannerUiState = plannerUiState,
                             onRefresh = onRefreshPlanning,
+                            onCreateUnit = {
+                                onBeginNewUnit()
+                                shellNavController.navigate(RangeworkRoutes.UnitCreate)
+                            },
                             onViewUnit = { unitId ->
                                 shellNavController.navigate(RangeworkRoutes.unitDetail(unitId))
                             },
@@ -610,7 +615,6 @@ private fun AuthenticatedAppShell(
                             onUpdateDefaultClubReference = onUpdateUnitDefaultClubReference,
                             onAddInstruction = onAddInstruction,
                             onUpdateInstructionText = onUpdateInstructionText,
-                            onUpdateInstructionRepCount = onUpdateInstructionRepCount,
                             onUpdateInstructionBallCount = onUpdateInstructionBallCount,
                             onMoveInstructionUp = onMoveInstructionUp,
                             onMoveInstructionDown = onMoveInstructionDown,
@@ -659,7 +663,6 @@ private fun AuthenticatedAppShell(
                             onUpdateDefaultClubReference = onUpdateUnitDefaultClubReference,
                             onAddInstruction = onAddInstruction,
                             onUpdateInstructionText = onUpdateInstructionText,
-                            onUpdateInstructionRepCount = onUpdateInstructionRepCount,
                             onUpdateInstructionBallCount = onUpdateInstructionBallCount,
                             onMoveInstructionUp = onMoveInstructionUp,
                             onMoveInstructionDown = onMoveInstructionDown,
@@ -670,6 +673,10 @@ private fun AuthenticatedAppShell(
                         SessionListScreen(
                             plannerUiState = plannerUiState,
                             onRefresh = onRefreshPlanning,
+                            onCreateSession = {
+                                onBeginNewSession()
+                                shellNavController.navigate(RangeworkRoutes.SessionCreate)
+                            },
                             onViewSession = { sessionId ->
                                 shellNavController.navigate(RangeworkRoutes.sessionDetail(sessionId))
                             },
@@ -704,7 +711,6 @@ private fun AuthenticatedAppShell(
                             onUpdateSessionItemClubReference = onUpdateSessionItemClubReference,
                             onUpdateSessionItemNotes = onUpdateSessionItemNotes,
                             onUpdateSessionItemFocusCue = onUpdateSessionItemFocusCue,
-                            onUpdateSessionItemRestSeconds = onUpdateSessionItemRestSeconds,
                             onMoveSessionItem = onMoveSessionItem,
                             onRemoveSessionItem = onRemoveSessionItem,
                         )
@@ -753,7 +759,6 @@ private fun AuthenticatedAppShell(
                             onUpdateSessionItemClubReference = onUpdateSessionItemClubReference,
                             onUpdateSessionItemNotes = onUpdateSessionItemNotes,
                             onUpdateSessionItemFocusCue = onUpdateSessionItemFocusCue,
-                            onUpdateSessionItemRestSeconds = onUpdateSessionItemRestSeconds,
                             onMoveSessionItem = onMoveSessionItem,
                             onRemoveSessionItem = onRemoveSessionItem,
                         )
@@ -832,11 +837,6 @@ private fun OverviewScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    SnapshotMetricCard(
-                        label = "Range rhythm",
-                        value = if (plannerUiState.sessions.isEmpty()) "Draft" else "Live",
-                        body = "Ball totals stay derived from explicit instruction counts and session repeat values.",
-                    )
                     EntryHighlightCard(
                         title = "Next move",
                         body = if (plannerUiState.sessions.isEmpty()) {
@@ -858,11 +858,6 @@ private fun OverviewScreen(
                 value = plannerUiState.sessions.size.toString(),
                 body = "Structured plans assembled from your live units.",
             )
-            SnapshotMetricCard(
-                label = "Range rhythm",
-                value = if (plannerUiState.sessions.isEmpty()) "Draft" else "Live",
-                body = "Ball totals stay derived from explicit instruction counts and session repeat values.",
-            )
             EntryHighlightCard(
                 title = "Next move",
                 body = if (plannerUiState.sessions.isEmpty()) {
@@ -879,6 +874,7 @@ private fun OverviewScreen(
 private fun UnitListScreen(
     plannerUiState: PracticePlannerUiState,
     onRefresh: () -> Unit,
+    onCreateUnit: () -> Unit,
     onViewUnit: (String) -> Unit,
     onEditUnit: (String) -> Unit,
     onDeleteUnit: (String) -> Unit,
@@ -891,15 +887,6 @@ private fun UnitListScreen(
             }
         },
     ) {
-        Text(
-            text = "Practice units",
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        Text(
-            text = "Reusable drills with ordered instructions, explicit ball counts, and a unit-level default club.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-
         if (!plannerUiState.dataConfigured) {
             EntryHighlightCard(
                 title = "Planning unavailable",
@@ -908,9 +895,12 @@ private fun UnitListScreen(
         } else if (!plannerUiState.hasLoaded && plannerUiState.isLoading) {
             SkeletonList()
         } else if (plannerUiState.units.isEmpty()) {
-            EntryHighlightCard(
+            EmptyStateCard(
+                icon = Icons.Rounded.Widgets,
                 title = "No units yet",
-                body = "Tap + to start building reusable drills.",
+                body = "Build a reusable drill with ordered steps and a ball count, then combine units into sessions.",
+                actionLabel = "Create your first unit",
+                onAction = onCreateUnit,
             )
         } else {
             plannerUiState.units.forEachIndexed { index, unit ->
@@ -1003,13 +993,11 @@ private fun UnitDetailScreen(
                         title = "Instruction ${instruction.order}",
                         subtitle = instruction.text,
                         supportingText = buildString {
-                            instruction.repCount?.let { append("Reps: $it") }
                             instruction.ballCount?.let {
-                                if (isNotEmpty()) append("  •  ")
                                 append("Balls: $it")
                             }
                             if (isEmpty()) {
-                                append("No explicit reps or ball count")
+                                append("No ball count set")
                             }
                         },
                     )
@@ -1033,7 +1021,6 @@ private fun UnitEditorScreen(
     onUpdateDefaultClubReference: (String) -> Unit,
     onAddInstruction: () -> Unit,
     onUpdateInstructionText: (Int, String) -> Unit,
-    onUpdateInstructionRepCount: (Int, String) -> Unit,
     onUpdateInstructionBallCount: (Int, String) -> Unit,
     onMoveInstructionUp: (Int) -> Unit,
     onMoveInstructionDown: (Int) -> Unit,
@@ -1043,10 +1030,6 @@ private fun UnitEditorScreen(
         Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium,
-        )
-        Text(
-            text = "Units no longer store tags, default balls, or per-instruction club selections.",
-            style = MaterialTheme.typography.bodyLarge,
         )
         UnitEditorCard(
             editorState = plannerUiState.unitEditor,
@@ -1059,7 +1042,6 @@ private fun UnitEditorScreen(
             onSelectDefaultClub = onUpdateDefaultClubReference,
             onAddInstruction = onAddInstruction,
             onUpdateInstructionText = onUpdateInstructionText,
-            onUpdateInstructionRepCount = onUpdateInstructionRepCount,
             onUpdateInstructionBallCount = onUpdateInstructionBallCount,
             onMoveInstructionUp = onMoveInstructionUp,
             onMoveInstructionDown = onMoveInstructionDown,
@@ -1073,6 +1055,7 @@ private fun UnitEditorScreen(
 private fun SessionListScreen(
     plannerUiState: PracticePlannerUiState,
     onRefresh: () -> Unit,
+    onCreateSession: () -> Unit,
     onViewSession: (String) -> Unit,
     onEditSession: (String) -> Unit,
     onDeleteSession: (String) -> Unit,
@@ -1088,15 +1071,6 @@ private fun SessionListScreen(
             }
         },
     ) {
-        Text(
-            text = "Session templates",
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        Text(
-            text = "Compose sessions from live unit references, repeat counts, session-specific clubs, and drag-and-drop ordering.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-
         if (!plannerUiState.dataConfigured) {
             EntryHighlightCard(
                 title = "Planning unavailable",
@@ -1104,34 +1078,36 @@ private fun SessionListScreen(
             )
         } else if (!plannerUiState.hasLoaded && plannerUiState.isLoading) {
             SkeletonList()
+        } else if (plannerUiState.units.isEmpty()) {
+            EmptyStateCard(
+                icon = Icons.AutoMirrored.Rounded.EventNote,
+                title = "Create a unit first",
+                body = "Sessions are assembled from units. Build at least one unit before creating a session.",
+                actionLabel = "Go to Units",
+                onAction = { /* navigate handled by FAB/nav */ },
+            )
+        } else if (plannerUiState.sessions.isEmpty()) {
+            EmptyStateCard(
+                icon = Icons.AutoMirrored.Rounded.EventNote,
+                title = "No sessions yet",
+                body = "String your units together into a full practice session.",
+                actionLabel = "Create your first session",
+                onAction = onCreateSession,
+            )
         } else {
-            if (plannerUiState.units.isEmpty()) {
-                EntryHighlightCard(
-                    title = "Create a unit first",
-                    body = "Sessions are built from live unit references, so add at least one unit before creating a session.",
+            plannerUiState.sessions.forEachIndexed { index, session ->
+                SummaryEntityCard(
+                    title = session.name,
+                    subtitle = "${session.items.size} item${if (session.items.size == 1) "" else "s"}  •  ${ballSummary(session.derivedBallCount(unitsById))}",
+                    supportingText = session.items.joinToString("  •  ") { item ->
+                        unitsById[item.practiceUnitId]?.title ?: "Missing unit"
+                    }.ifBlank { "No items yet." },
+                    onView = { onViewSession(session.id) },
+                    onEdit = { onEditSession(session.id) },
+                    onDelete = { onDeleteSession(session.id) },
                 )
-            }
-
-            if (plannerUiState.sessions.isEmpty() && plannerUiState.units.isNotEmpty()) {
-                EntryHighlightCard(
-                    title = "No sessions yet",
-                    body = "Tap + to create a session template once you have units ready.",
-                )
-            } else {
-                plannerUiState.sessions.forEachIndexed { index, session ->
-                    SummaryEntityCard(
-                        title = session.name,
-                        subtitle = "${session.items.size} item${if (session.items.size == 1) "" else "s"}  •  ${ballSummary(session.derivedBallCount(unitsById))}",
-                        supportingText = session.items.joinToString("  •  ") { item ->
-                            unitsById[item.practiceUnitId]?.title ?: "Missing unit"
-                        }.ifBlank { "No items yet." },
-                        onView = { onViewSession(session.id) },
-                        onEdit = { onEditSession(session.id) },
-                        onDelete = { onDeleteSession(session.id) },
-                    )
-                    if (index != plannerUiState.sessions.lastIndex) {
-                        HorizontalDivider()
-                    }
+                if (index != plannerUiState.sessions.lastIndex) {
+                    HorizontalDivider()
                 }
             }
         }
@@ -1220,141 +1196,75 @@ private fun SessionEditorScreen(
     onUpdateSessionItemClubReference: (Int, String) -> Unit,
     onUpdateSessionItemNotes: (Int, String) -> Unit,
     onUpdateSessionItemFocusCue: (Int, String) -> Unit,
-    onUpdateSessionItemRestSeconds: (Int, String) -> Unit,
     onMoveSessionItem: (Int, Int) -> Unit,
     onRemoveSessionItem: (Int) -> Unit,
 ) {
     val unitsById = remember(plannerUiState.units) {
         plannerUiState.units.associateBy(PracticeUnit::id)
     }
-    val listState = rememberLazyListState()
-    var draggingIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    val sessionItemStartIndex = if (plannerUiState.units.isEmpty()) 4 else 3
 
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineMedium,
-            )
-        }
-        item {
-            Text(
-                text = "Session item ordering uses drag and drop. Ball totals come from explicit instruction ball counts multiplied by repeat count.",
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        }
+    ScrollableScreen(modifier = Modifier.fillMaxSize()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineMedium,
+        )
         if (plannerUiState.units.isEmpty()) {
-            item {
-                EntryHighlightCard(
-                    title = "Create a unit first",
-                    body = "Sessions need at least one unit before you can add items.",
-                )
-            }
+            EntryHighlightCard(
+                title = "Create a unit first",
+                body = "Sessions need at least one unit before you can add items.",
+            )
         }
-        item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedTextField(
+                    value = plannerUiState.sessionEditor.name,
+                    onValueChange = onUpdateSessionName,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Name") },
+                    enabled = !plannerUiState.isWorking,
+                    singleLine = true,
+                    isError = plannerUiState.sessionEditor.nameError != null,
+                    supportingText = plannerUiState.sessionEditor.nameError?.let { { Text(it) } },
+                )
+                OutlinedTextField(
+                    value = plannerUiState.sessionEditor.notes,
+                    onValueChange = onUpdateSessionNotes,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Session notes") },
+                    enabled = !plannerUiState.isWorking,
+                    minLines = 3,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    OutlinedTextField(
-                        value = plannerUiState.sessionEditor.name,
-                        onValueChange = onUpdateSessionName,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Name") },
-                        enabled = !plannerUiState.isWorking,
-                        singleLine = true,
-                        isError = plannerUiState.sessionEditor.nameError != null,
-                        supportingText = plannerUiState.sessionEditor.nameError?.let { { Text(it) } },
+                    Text(
+                        text = "Session items",
+                        style = MaterialTheme.typography.titleMedium,
                     )
-                    OutlinedTextField(
-                        value = plannerUiState.sessionEditor.notes,
-                        onValueChange = onUpdateSessionNotes,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Session notes") },
-                        enabled = !plannerUiState.isWorking,
-                        minLines = 3,
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                    FilledTonalButton(
+                        enabled = !plannerUiState.isWorking && plannerUiState.units.isNotEmpty(),
+                        onClick = onAddSessionItem,
                     ) {
-                        Text(
-                            text = "Session items",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        FilledTonalButton(
-                            enabled = !plannerUiState.isWorking && plannerUiState.units.isNotEmpty(),
-                            onClick = onAddSessionItem,
-                        ) {
-                            Text("Add item")
-                        }
+                        Text("Add item")
                     }
-                    if (plannerUiState.sessionEditor.items.isEmpty()) {
-                        Text(
-                            text = "No session items yet.",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+                }
+                if (plannerUiState.sessionEditor.items.isEmpty()) {
+                    Text(
+                        text = "No session items yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
         }
-        itemsIndexed(
-            items = plannerUiState.sessionEditor.items,
-            key = { _, item -> "${item.order}-${item.practiceUnitId}-${item.notes}" },
-        ) { index, item ->
-            val isDragging = draggingIndex == index
+        plannerUiState.sessionEditor.items.forEachIndexed { index, item ->
             SessionItemEditorCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        translationY = if (isDragging) dragOffsetY else 0f
-                    }
-                    .pointerInput(plannerUiState.sessionEditor.items.size, plannerUiState.isWorking) {
-                        if (!plannerUiState.isWorking) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = {
-                                    draggingIndex = index
-                                    dragOffsetY = 0f
-                                },
-                                onDragCancel = {
-                                    draggingIndex = null
-                                    dragOffsetY = 0f
-                                },
-                                onDragEnd = {
-                                    draggingIndex = null
-                                    dragOffsetY = 0f
-                                },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    val currentIndex = draggingIndex ?: return@detectDragGesturesAfterLongPress
-                                    val currentListIndex = sessionItemStartIndex + currentIndex
-                                    dragOffsetY += dragAmount.y
-                                    val currentItemInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
-                                        info.index == currentListIndex
-                                    } ?: return@detectDragGesturesAfterLongPress
-                                    val currentMidpoint = currentItemInfo.offset + currentItemInfo.size / 2f + dragOffsetY
-                                    val targetItemInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
-                                        info.index != currentListIndex &&
-                                            info.index in sessionItemStartIndex until (sessionItemStartIndex + plannerUiState.sessionEditor.items.size) &&
-                                            currentMidpoint in info.offset.toFloat()..(info.offset + info.size).toFloat()
-                                    } ?: return@detectDragGesturesAfterLongPress
-                                    val targetIndex = targetItemInfo.index - sessionItemStartIndex
-                                    onMoveSessionItem(currentIndex, targetIndex)
-                                    draggingIndex = targetIndex
-                                    dragOffsetY -= (targetItemInfo.offset - currentItemInfo.offset).toFloat()
-                                },
-                            )
-                        }
-                    },
+                modifier = Modifier.fillMaxWidth(),
                 item = item,
                 availableUnits = plannerUiState.units,
                 selectedUnit = unitsById[item.practiceUnitId],
@@ -1366,7 +1276,6 @@ private fun SessionEditorScreen(
                 onSelectClub = { onUpdateSessionItemClubReference(index, it) },
                 onUpdateNotes = { onUpdateSessionItemNotes(index, it) },
                 onUpdateFocusCue = { onUpdateSessionItemFocusCue(index, it) },
-                onUpdateRestSeconds = { onUpdateSessionItemRestSeconds(index, it) },
                 onMoveUp = { onMoveSessionItem(index, index - 1) },
                 onMoveDown = { onMoveSessionItem(index, index + 1) },
                 onRemove = { onRemoveSessionItem(index) },
@@ -1374,20 +1283,18 @@ private fun SessionEditorScreen(
                 canMoveDown = index < plannerUiState.sessionEditor.items.lastIndex,
             )
         }
-        item {
-            EntryHighlightCard(
-                title = "Derived balls",
-                body = "${ballSummary(plannerUiState.sessionEditor.items.sumOf { item -> item.derivedBallCount(unitsById[item.practiceUnitId]) ?: 0 })}. Drag and drop items to reorder them.",
-            )
-        }
-        item {
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !plannerUiState.isWorking,
-                onClick = onSaveSession,
-            ) {
-                Text("Save session")
-            }
+        EntryHighlightCard(
+            title = "Derived balls",
+            body = ballSummary(plannerUiState.sessionEditor.items.sumOf { item ->
+                item.derivedBallCount(unitsById[item.practiceUnitId]) ?: 0
+            }),
+        )
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !plannerUiState.isWorking,
+            onClick = onSaveSession,
+        ) {
+            Text("Save session")
         }
     }
 }
@@ -1638,6 +1545,7 @@ private fun SettingsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ClubPickerField(
     label: String,
@@ -1654,21 +1562,26 @@ private fun ClubPickerField(
         if (disabledSelected) add(selectedClub!!)
         addAll(clubCatalog.filter { it.code in enabledClubCodes })
     }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedButton(
-            modifier = Modifier.fillMaxWidth(),
+    val displayValue = when {
+        selectedClub != null && disabledSelected -> "${selectedClub.displayName} (disabled)"
+        selectedClub != null -> selectedClub.displayName
+        else -> ""
+    }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (enabled) expanded = it },
+    ) {
+        OutlinedTextField(
+            modifier = Modifier.fillMaxWidth().menuAnchor(),
+            readOnly = true,
+            value = displayValue,
+            onValueChange = {},
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             enabled = enabled,
-            onClick = { expanded = true },
-        ) {
-            Text(
-                text = when {
-                    selectedClub != null && disabledSelected -> "${selectedClub.displayName} (disabled)"
-                    selectedClub != null -> selectedClub.displayName
-                    else -> "Select a club"
-                },
-            )
-        }
-        DropdownMenu(
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+        )
+        ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
@@ -1696,11 +1609,6 @@ private fun ClubPickerField(
             }
         }
     }
-    Text(
-        text = label,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 }
 
 @Composable
@@ -1746,7 +1654,6 @@ private fun UnitEditorCard(
     onSelectDefaultClub: (String) -> Unit,
     onAddInstruction: () -> Unit,
     onUpdateInstructionText: (Int, String) -> Unit,
-    onUpdateInstructionRepCount: (Int, String) -> Unit,
     onUpdateInstructionBallCount: (Int, String) -> Unit,
     onMoveInstructionUp: (Int) -> Unit,
     onMoveInstructionDown: (Int) -> Unit,
@@ -1803,7 +1710,6 @@ private fun UnitEditorCard(
                     instruction = instruction,
                     isWorking = isWorking,
                     onUpdateText = { onUpdateInstructionText(index, it) },
-                    onUpdateRepCount = { onUpdateInstructionRepCount(index, it) },
                     onUpdateBallCount = { onUpdateInstructionBallCount(index, it) },
                     onMoveUp = { onMoveInstructionUp(index) },
                     onMoveDown = { onMoveInstructionDown(index) },
@@ -1834,7 +1740,6 @@ private fun InstructionEditorCard(
     instruction: PracticeInstructionEditorState,
     isWorking: Boolean,
     onUpdateText: (String) -> Unit,
-    onUpdateRepCount: (String) -> Unit,
     onUpdateBallCount: (String) -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
@@ -1868,33 +1773,17 @@ private fun InstructionEditorCard(
                 isError = instruction.textError != null,
                 supportingText = instruction.textError?.let { { Text(it) } },
             )
-            Row(
+            OutlinedTextField(
+                value = instruction.ballCount,
+                onValueChange = { onUpdateBallCount(it.filter(Char::isDigit)) },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedTextField(
-                    value = instruction.repCount,
-                    onValueChange = { onUpdateRepCount(it.filter(Char::isDigit)) },
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Reps") },
-                    enabled = !isWorking,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    isError = instruction.repCountError != null,
-                    supportingText = instruction.repCountError?.let { { Text(it) } },
-                )
-                OutlinedTextField(
-                    value = instruction.ballCount,
-                    onValueChange = { onUpdateBallCount(it.filter(Char::isDigit)) },
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Balls") },
-                    enabled = !isWorking,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    isError = instruction.ballCountError != null,
-                    supportingText = instruction.ballCountError?.let { { Text(it) } },
-                )
-            }
+                label = { Text("Ball count") },
+                enabled = !isWorking,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = instruction.ballCountError != null,
+                supportingText = instruction.ballCountError?.let { { Text(it) } },
+            )
             ReorderButtons(
                 isWorking = isWorking,
                 canMoveUp = canMoveUp,
@@ -1907,6 +1796,7 @@ private fun InstructionEditorCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SessionItemEditorCard(
     modifier: Modifier = Modifier,
@@ -1921,7 +1811,6 @@ private fun SessionItemEditorCard(
     onSelectClub: (String) -> Unit,
     onUpdateNotes: (String) -> Unit,
     onUpdateFocusCue: (String) -> Unit,
-    onUpdateRestSeconds: (String) -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onRemove: () -> Unit,
@@ -1946,29 +1835,23 @@ private fun SessionItemEditorCard(
                 text = "Session item ${item.order}",
                 style = MaterialTheme.typography.titleSmall,
             )
-            Text(
-                text = "Long press and drag to reorder",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = "Practice unit",
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Box {
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
+            ExposedDropdownMenuBox(
+                expanded = unitMenuExpanded,
+                onExpandedChange = { if (!isWorking) unitMenuExpanded = it },
+            ) {
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                    readOnly = true,
+                    value = selectedUnit?.title ?: "",
+                    onValueChange = {},
+                    label = { Text("Practice unit") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = unitMenuExpanded) },
                     enabled = !isWorking,
-                    onClick = { unitMenuExpanded = true },
-                    colors = if (item.unitError != null) {
-                        ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    } else {
-                        ButtonDefaults.outlinedButtonColors()
-                    },
-                ) {
-                    Text(selectedUnit?.title ?: "Select a unit")
-                }
-                DropdownMenu(
+                    isError = item.unitError != null,
+                    supportingText = item.unitError?.let { { Text(it) } },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                )
+                ExposedDropdownMenu(
                     expanded = unitMenuExpanded,
                     onDismissRequest = { unitMenuExpanded = false },
                 ) {
@@ -1982,13 +1865,6 @@ private fun SessionItemEditorCard(
                         )
                     }
                 }
-            }
-            if (item.unitError != null) {
-                Text(
-                    text = item.unitError,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
             }
             OutlinedTextField(
                 value = item.repeatCount,
@@ -2017,30 +1893,14 @@ private fun SessionItemEditorCard(
                 enabled = !isWorking,
                 minLines = 2,
             )
-            Row(
+            OutlinedTextField(
+                value = item.focusCue,
+                onValueChange = onUpdateFocusCue,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedTextField(
-                    value = item.focusCue,
-                    onValueChange = onUpdateFocusCue,
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Focus cue") },
-                    enabled = !isWorking,
-                    singleLine = true,
-                )
-                OutlinedTextField(
-                    value = item.restSeconds,
-                    onValueChange = { onUpdateRestSeconds(it.filter(Char::isDigit)) },
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Rest seconds") },
-                    enabled = !isWorking,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    isError = item.restSecondsError != null,
-                    supportingText = item.restSecondsError?.let { { Text(it) } },
-                )
-            }
+                label = { Text("Focus cue") },
+                enabled = !isWorking,
+                singleLine = true,
+            )
             Text(
                 text = buildString {
                     append(ballSummary(item.derivedBallCount(selectedUnit)))
@@ -2087,7 +1947,6 @@ private fun SessionItemDetailCard(
         supportingText = buildString {
             append(ballSummary(item.derivedBallCount(unit)))
             item.focusCue?.takeIf(String::isNotBlank)?.let { append("  •  Focus: $it") }
-            item.restSeconds?.let { append("  •  Rest: ${it}s") }
             item.notes?.takeIf(String::isNotBlank)?.let { append("  •  $it") }
         },
     )
@@ -2104,25 +1963,29 @@ private fun ReorderButtons(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.End,
     ) {
-        TextButton(
+        IconButton(
             enabled = !isWorking && canMoveUp,
             onClick = onMoveUp,
         ) {
-            Text("Move up")
+            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up")
         }
-        TextButton(
+        IconButton(
             enabled = !isWorking && canMoveDown,
             onClick = onMoveDown,
         ) {
-            Text("Move down")
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down")
         }
-        TextButton(
+        IconButton(
             enabled = !isWorking,
             onClick = onRemove,
         ) {
-            Text("Remove")
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = "Remove",
+                tint = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }
@@ -2137,6 +2000,7 @@ private fun SummaryEntityCard(
     onDelete: () -> Unit,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
 
     if (showDeleteDialog) {
         DeleteConfirmationDialog(
@@ -2149,7 +2013,7 @@ private fun SummaryEntityCard(
         )
     }
 
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(
@@ -2157,34 +2021,52 @@ private fun SummaryEntityCard(
                 shape = CardDefaults.shape,
             )
             .clickable(onClick = onView)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
+        verticalAlignment = Alignment.Top,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            text = supportingText,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            TextButton(onClick = onView) {
-                Text("View")
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = supportingText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = "More options")
             }
-            TextButton(onClick = onEdit) {
-                Text("Edit")
-            }
-            TextButton(onClick = { showDeleteDialog = true }) {
-                Text("Delete", color = MaterialTheme.colorScheme.error)
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Edit") },
+                    onClick = {
+                        menuExpanded = false
+                        onEdit()
+                    },
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        showDeleteDialog = true
+                    },
+                )
             }
         }
     }
@@ -2263,15 +2145,66 @@ private fun ActionRow(
 }
 
 @Composable
+private fun EmptyStateCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    body: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            FilledTonalButton(onClick = onAction) {
+                Text(actionLabel)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ScrollableScreen(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        content = content,
-    )
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 600.dp)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            content = content,
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -2414,18 +2347,20 @@ private fun WelcomeHomeCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            BrandWordmark()
             Text(
                 text = "Welcome back",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.titleLarge,
             )
             Text(
                 text = signedInLabel,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = body,
                 style = MaterialTheme.typography.bodyLarge,

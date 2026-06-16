@@ -139,7 +139,6 @@ class SupabasePracticeSessionRepository(
                     clubReference = item.clubReference,
                     notes = item.notes,
                     focusCue = item.focusCue,
-                    restSeconds = item.restSeconds,
                 )
             },
         )
@@ -186,8 +185,6 @@ private data class PracticeSessionItemRow(
     val notes: String? = null,
     @SerialName("focus_cue")
     val focusCue: String? = null,
-    @SerialName("rest_seconds")
-    val restSeconds: Int? = null,
 )
 
 @Serializable
@@ -206,8 +203,6 @@ private data class PracticeSessionItemInsertRow(
     val notes: String? = null,
     @SerialName("focus_cue")
     val focusCue: String? = null,
-    @SerialName("rest_seconds")
-    val restSeconds: Int? = null,
 )
 
 private fun PracticeSessionRow.toModel(
@@ -226,7 +221,6 @@ private fun PracticeSessionRow.toModel(
                 clubReference = row.clubReference,
                 notes = row.notes,
                 focusCue = row.focusCue,
-                restSeconds = row.restSeconds,
             )
         },
     notes = notes,
