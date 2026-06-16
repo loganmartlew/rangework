@@ -27,6 +27,7 @@ import com.loganmartlew.rangework.shared.usecase.SaveMeasurementPreferencesUseCa
 import com.loganmartlew.rangework.shared.usecase.SavePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.SavePracticeUnitUseCase
 import com.loganmartlew.rangework.shared.usecase.SetClubEnabledUseCase
+import com.loganmartlew.rangework.android.ui.PlannerStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -62,7 +63,8 @@ class PracticePlannerViewModelTest {
 
         assertEquals(1, viewModel.uiState.value.units.size)
         assertEquals(1, viewModel.uiState.value.sessions.size)
-        assertEquals("Planning workspace ready.", viewModel.uiState.value.statusMessage)
+        val status = viewModel.uiState.value.status
+        assertTrue("Expected Info status with 'ready'", status is PlannerStatus.Info && status.text.contains("ready"))
     }
 
     @Test
@@ -89,7 +91,8 @@ class PracticePlannerViewModelTest {
 
         assertEquals("Distance wedges", repositories.savedUnitDrafts.single().title)
         assertEquals(10, repositories.savedUnitDrafts.single().instructions.single().ballCount)
-        assertTrue(viewModel.uiState.value.statusMessage.orEmpty().contains("Saved"))
+        val saveStatus = viewModel.uiState.value.status
+        assertTrue("Expected Notification with 'Saved'", saveStatus is PlannerStatus.Notification && saveStatus.text.contains("Saved"))
         assertEquals(1, viewModel.uiState.value.units.size)
     }
 
@@ -114,8 +117,8 @@ class PracticePlannerViewModelTest {
         advanceUntilIdle()
 
         assertEquals(
-            planningSchemaUnavailableMessage(),
-            viewModel.uiState.value.statusMessage,
+            PlannerStatus.SchemaNotReady,
+            viewModel.uiState.value.status,
         )
     }
 
@@ -140,8 +143,8 @@ class PracticePlannerViewModelTest {
         advanceUntilIdle()
 
         assertEquals(
-            planningSchemaUnavailableMessage(),
-            viewModel.uiState.value.statusMessage,
+            PlannerStatus.SchemaNotReady,
+            viewModel.uiState.value.status,
         )
     }
 
@@ -170,7 +173,7 @@ class PracticePlannerViewModelTest {
         assertTrue(viewModel.uiState.value.sessions.isEmpty())
         assertEquals(PracticeUnitEditorState(), viewModel.uiState.value.unitEditor)
         assertEquals(PracticeSessionEditorState(), viewModel.uiState.value.sessionEditor)
-        assertEquals(null, viewModel.uiState.value.statusMessage)
+        assertEquals(null, viewModel.uiState.value.status)
     }
 
     @Test
@@ -186,7 +189,11 @@ class PracticePlannerViewModelTest {
         advanceUntilIdle()
 
         assertTrue(repositories.savedUnitDrafts.isEmpty())
-        assertEquals("Sign in before changing practice plans.", viewModel.uiState.value.statusMessage)
+        val signedOutStatus = viewModel.uiState.value.status
+        assertEquals(
+            "Sign in before changing practice plans.",
+            (signedOutStatus as? PlannerStatus.Notification)?.text,
+        )
     }
 
     @Test
