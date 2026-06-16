@@ -19,6 +19,7 @@ import kotlinx.coroutines.sync.withLock
 data class SettingsUiState(
     val dataConfigured: Boolean,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val dynamicColor: Boolean = false,
     val measurementPreferences: MeasurementPreferences = MeasurementPreferences.Imperial,
     val clubCatalog: List<Club> = emptyList(),
     val enabledClubCodes: Set<String> = emptySet(),
@@ -47,6 +48,11 @@ class SettingsViewModel(
         viewModelScope.launch {
             themePreferenceStore.themeMode.collect { mode ->
                 _uiState.value = _uiState.value.copy(themeMode = mode)
+            }
+        }
+        viewModelScope.launch {
+            themePreferenceStore.dynamicColor.collect { enabled ->
+                _uiState.value = _uiState.value.copy(dynamicColor = enabled)
             }
         }
     }
@@ -81,6 +87,12 @@ class SettingsViewModel(
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
             themePreferenceStore.setThemeMode(mode)
+        }
+    }
+
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch {
+            themePreferenceStore.setDynamicColor(enabled)
         }
     }
 

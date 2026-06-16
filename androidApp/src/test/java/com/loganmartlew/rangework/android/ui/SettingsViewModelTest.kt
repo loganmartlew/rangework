@@ -18,6 +18,7 @@ import com.loganmartlew.rangework.shared.usecase.SaveMeasurementPreferencesUseCa
 import com.loganmartlew.rangework.shared.usecase.SetClubEnabledUseCase
 import com.loganmartlew.rangework.shared.data.DataFoundation
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeSessionUseCase
+import com.loganmartlew.rangework.shared.usecase.DuplicatePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeUnitUseCase
 import com.loganmartlew.rangework.shared.usecase.GetPracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.GetPracticeUnitUseCase
@@ -237,6 +238,10 @@ private fun fakeDataFoundation(
         getPracticeSessionUseCase = GetPracticeSessionUseCase(emptySessionRepo),
         savePracticeSessionUseCase = SavePracticeSessionUseCase(emptySessionRepo),
         deletePracticeSessionUseCase = DeletePracticeSessionUseCase(emptySessionRepo),
+        duplicatePracticeSessionUseCase = DuplicatePracticeSessionUseCase(
+            getPracticeSessionUseCase = GetPracticeSessionUseCase(emptySessionRepo),
+            savePracticeSessionUseCase = SavePracticeSessionUseCase(emptySessionRepo),
+        ),
         getMeasurementPreferencesUseCase = GetMeasurementPreferencesUseCase(repo),
         saveMeasurementPreferencesUseCase = SaveMeasurementPreferencesUseCase(repo),
         getClubCatalogUseCase = GetClubCatalogUseCase(clubRepo),
@@ -278,10 +283,17 @@ private class FakeThemePreferenceStore : ThemePreferenceStore {
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     override val themeMode: Flow<ThemeMode> = _themeMode
 
+    private val _dynamicColor = MutableStateFlow(false)
+    override val dynamicColor: Flow<Boolean> = _dynamicColor
+
     var lastSet: ThemeMode? = null
 
     override suspend fun setThemeMode(mode: ThemeMode) {
         lastSet = mode
         _themeMode.value = mode
+    }
+
+    override suspend fun setDynamicColor(enabled: Boolean) {
+        _dynamicColor.value = enabled
     }
 }

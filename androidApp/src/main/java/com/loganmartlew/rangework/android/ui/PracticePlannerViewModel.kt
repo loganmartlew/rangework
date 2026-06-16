@@ -88,6 +88,7 @@ data class PracticePlannerUiState(
     val sessionEditorBaseline: PracticeSessionEditorState? = null,
     val savedUnitId: String? = null,
     val savedSessionId: String? = null,
+    val duplicatedSessionId: String? = null,
     val statusMessage: String? = if (dataConfigured) null else planningUnavailableMessage(environment),
 ) {
     val isWorking: Boolean
@@ -156,6 +157,7 @@ class PracticePlannerViewModel(
                     sessionEditorBaseline = null,
                     savedUnitId = null,
                     savedSessionId = null,
+                    duplicatedSessionId = null,
                     statusMessage = if (dataFoundation == null) {
                         planningUnavailableMessage(environment)
                     } else {
@@ -512,6 +514,35 @@ class PracticePlannerViewModel(
                 markSaveFailure(exception, "Session delete failed.")
             }
         }
+    }
+
+    fun duplicateSession(sessionId: String) {
+        val foundation = dataFoundation ?: return markPlannerUnavailable()
+        if (activeUserId == null) {
+            markSignedOut()
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSaving = true, duplicatedSessionId = null)
+            try {
+                val duplicated = foundation.duplicatePracticeSessionUseCase(sessionId)
+                val sessions = foundation.listPracticeSessionsUseCase()
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSaving = false,
+                    sessions = sessions,
+                    duplicatedSessionId = duplicated.id,
+                    statusMessage = "Duplicated ${duplicated.name}.",
+                )
+            } catch (exception: Exception) {
+                markSaveFailure(exception, "Session duplicate failed.")
+            }
+        }
+    }
+
+    fun clearDuplicatedSessionId() {
+        _uiState.value = _uiState.value.copy(duplicatedSessionId = null)
     }
 
     fun clearEditorBaselines() {

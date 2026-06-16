@@ -1,5 +1,8 @@
 package com.loganmartlew.rangework.android.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
@@ -42,6 +45,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.rounded.Widgets
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -87,7 +92,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -208,7 +216,7 @@ fun RangeworkApp(
         ThemeMode.DARK -> true
     }
 
-    RangeworkTheme(darkTheme = darkTheme) {
+    RangeworkTheme(darkTheme = darkTheme, allowDynamicColor = settingsUiState.dynamicColor) {
         Surface(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = rootNavController,
@@ -229,6 +237,7 @@ fun RangeworkApp(
                         settingsUiState = settingsUiState,
                         onSignOut = authViewModel::signOut,
                         onSetThemeMode = settingsViewModel::setThemeMode,
+                        onSetDynamicColor = settingsViewModel::setDynamicColor,
                         onSelectDistanceUnit = settingsViewModel::selectDistanceUnit,
                         onSelectSpeedUnit = settingsViewModel::selectSpeedUnit,
                         onSetClubEnabled = settingsViewModel::setClubEnabled,
@@ -253,7 +262,9 @@ fun RangeworkApp(
                         onBeginNewSession = plannerViewModel::beginNewSession,
                         onEditSession = plannerViewModel::editSession,
                         onDeleteSession = plannerViewModel::deleteSession,
+                        onDuplicateSession = plannerViewModel::duplicateSession,
                         onConsumeSavedSessionId = plannerViewModel::consumeSavedSessionId,
+                        onClearDuplicatedSessionId = plannerViewModel::clearDuplicatedSessionId,
                         onUpdateSessionName = plannerViewModel::updateSessionName,
                         onUpdateSessionNotes = plannerViewModel::updateSessionNotes,
                         onAddSessionItem = plannerViewModel::addSessionItem,
@@ -312,6 +323,7 @@ private fun AuthenticatedAppShell(
     settingsUiState: SettingsUiState,
     onSignOut: () -> Unit,
     onSetThemeMode: (ThemeMode) -> Unit,
+    onSetDynamicColor: (Boolean) -> Unit,
     onSelectDistanceUnit: (DistanceUnit) -> Unit,
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
     onSetClubEnabled: (String, Boolean) -> Unit,
@@ -336,7 +348,9 @@ private fun AuthenticatedAppShell(
     onBeginNewSession: () -> Unit,
     onEditSession: (String) -> Unit,
     onDeleteSession: (String) -> Unit,
+    onDuplicateSession: (String) -> Unit,
     onConsumeSavedSessionId: () -> Unit,
+    onClearDuplicatedSessionId: () -> Unit,
     onUpdateSessionName: (String) -> Unit,
     onUpdateSessionNotes: (String) -> Unit,
     onAddSessionItem: () -> Unit,
@@ -370,6 +384,13 @@ private fun AuthenticatedAppShell(
         if (message != null && message != lastSnackbarMessage && shouldShowPlannerSnackbar(message, plannerUiState)) {
             lastSnackbarMessage = message
             snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(plannerUiState.duplicatedSessionId) {
+        plannerUiState.duplicatedSessionId?.let { sessionId ->
+            onClearDuplicatedSessionId()
+            shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
         }
     }
 
@@ -473,7 +494,7 @@ private fun AuthenticatedAppShell(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(text = titleForRoute(currentRoute))
+                    Text(text = titleForRoute(currentRoute, plannerUiState))
                 },
                 navigationIcon = {
                     if (canNavigateBack) {
@@ -685,6 +706,7 @@ private fun AuthenticatedAppShell(
                                 shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
                             },
                             onDeleteSession = onDeleteSession,
+                            onDuplicateSession = onDuplicateSession,
                         )
                     }
                     composable(RangeworkRoutes.SessionCreate) {
@@ -769,6 +791,7 @@ private fun AuthenticatedAppShell(
                             settingsUiState = settingsUiState,
                             onSignOut = onSignOut,
                             onSetThemeMode = onSetThemeMode,
+                            onSetDynamicColor = onSetDynamicColor,
                             onSelectDistanceUnit = onSelectDistanceUnit,
                             onSelectSpeedUnit = onSelectSpeedUnit,
                             onSetClubEnabled = onSetClubEnabled,
@@ -1059,6 +1082,7 @@ private fun SessionListScreen(
     onViewSession: (String) -> Unit,
     onEditSession: (String) -> Unit,
     onDeleteSession: (String) -> Unit,
+    onDuplicateSession: (String) -> Unit,
 ) {
     val unitsById = remember(plannerUiState.units) {
         plannerUiState.units.associateBy(PracticeUnit::id)
@@ -1105,6 +1129,7 @@ private fun SessionListScreen(
                     onView = { onViewSession(session.id) },
                     onEdit = { onEditSession(session.id) },
                     onDelete = { onDeleteSession(session.id) },
+                    onDuplicate = { onDuplicateSession(session.id) },
                 )
                 if (index != plannerUiState.sessions.lastIndex) {
                     HorizontalDivider()
@@ -1284,7 +1309,7 @@ private fun SessionEditorScreen(
             )
         }
         EntryHighlightCard(
-            title = "Derived balls",
+            title = "Balls",
             body = ballSummary(plannerUiState.sessionEditor.items.sumOf { item ->
                 item.derivedBallCount(unitsById[item.practiceUnitId]) ?: 0
             }),
@@ -1306,12 +1331,16 @@ private fun SettingsScreen(
     settingsUiState: SettingsUiState,
     onSignOut: () -> Unit,
     onSetThemeMode: (ThemeMode) -> Unit,
+    onSetDynamicColor: (Boolean) -> Unit,
     onSelectDistanceUnit: (DistanceUnit) -> Unit,
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
     onSetClubEnabled: (String, Boolean) -> Unit,
 ) {
     val signedInState = authUiState.authState as? AuthState.SignedIn
     var showSignOutDialog by remember { mutableStateOf(false) }
+    var showHelpSheet by remember { mutableStateOf(false) }
+    var showPrivacySheet by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     if (showSignOutDialog) {
         AlertDialog(
@@ -1399,6 +1428,23 @@ private fun SettingsScreen(
                         ) {
                             Text(labels[index])
                         }
+                    }
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    HorizontalDivider()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Dynamic color",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Switch(
+                            checked = settingsUiState.dynamicColor,
+                            onCheckedChange = onSetDynamicColor,
+                        )
                     }
                 }
             }
@@ -1540,6 +1586,75 @@ private fun SettingsScreen(
                     .padding(horizontal = 16.dp),
             ) {
                 SettingsReadOnlyRow(label = "Version", value = BuildConfig.VERSION_NAME)
+                HorizontalDivider()
+                SettingsActionRow(label = "Help", onClick = { showHelpSheet = true })
+                HorizontalDivider()
+                SettingsActionRow(
+                    label = "Feedback",
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:support@rangework.app")
+                            putExtra(Intent.EXTRA_SUBJECT, "Rangework Feedback")
+                        }
+                        context.startActivity(intent)
+                    },
+                )
+                HorizontalDivider()
+                SettingsActionRow(label = "Privacy", onClick = { showPrivacySheet = true })
+            }
+        }
+    }
+
+    if (showHelpSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showHelpSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Help", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    text = "Rangework helps you plan focused golf practice sessions. Build reusable units — each with ordered instructions and a ball count — then combine them into sessions. Use the Overview screen to review your plan at a glance.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "For additional support, use the Feedback option in Settings to reach us by email.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+
+    if (showPrivacySheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showPrivacySheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Privacy", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    text = "Rangework stores your practice data securely in Supabase, associated with your Google account. Your data is not sold or shared with third parties. Sign out at any time to stop syncing.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "A full privacy policy will be available at launch.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -1637,6 +1752,23 @@ private fun SettingsReadOnlyRow(label: String, value: String) {
         )
         Text(
             text = value,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+@Composable
+private fun SettingsActionRow(label: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
             style = MaterialTheme.typography.bodyMedium,
         )
     }
@@ -1961,19 +2093,26 @@ private fun ReorderButtons(
     onMoveDown: () -> Unit,
     onRemove: () -> Unit,
 ) {
+    val haptic = LocalHapticFeedback.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End,
     ) {
         IconButton(
             enabled = !isWorking && canMoveUp,
-            onClick = onMoveUp,
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onMoveUp()
+            },
         ) {
             Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up")
         }
         IconButton(
             enabled = !isWorking && canMoveDown,
-            onClick = onMoveDown,
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onMoveDown()
+            },
         ) {
             Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down")
         }
@@ -1998,6 +2137,7 @@ private fun SummaryEntityCard(
     onView: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onDuplicate: (() -> Unit)? = null,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
@@ -2058,6 +2198,15 @@ private fun SummaryEntityCard(
                         onEdit()
                     },
                 )
+                if (onDuplicate != null) {
+                    DropdownMenuItem(
+                        text = { Text("Duplicate") },
+                        onClick = {
+                            menuExpanded = false
+                            onDuplicate()
+                        },
+                    )
+                }
                 DropdownMenuItem(
                     text = {
                         Text("Delete", color = MaterialTheme.colorScheme.error)
@@ -2272,11 +2421,17 @@ private fun SignInActionsCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(
+            OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !uiState.actionInProgress && uiState.environment.isAuthConfigured,
                 onClick = onSignIn,
             ) {
+                Image(
+                    painter = painterResource(com.loganmartlew.rangework.android.R.drawable.ic_google_logo),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text("Sign in with Google")
             }
             if (uiState.actionInProgress || uiState.authState is AuthState.Restoring) {
@@ -2526,6 +2681,18 @@ internal fun titleForRoute(route: String): String = when {
     else -> "Rangework"
 }
 
+internal fun titleForRoute(route: String, plannerUiState: PracticePlannerUiState): String {
+    if (route.startsWith("sessions/") && !route.endsWith("/edit")) {
+        val id = route.removePrefix("sessions/")
+        plannerUiState.sessions.firstOrNull { it.id == id }?.name?.let { return it }
+    }
+    if (route.startsWith("units/") && !route.endsWith("/edit")) {
+        val id = route.removePrefix("units/")
+        plannerUiState.units.firstOrNull { it.id == id }?.title?.let { return it }
+    }
+    return titleForRoute(route)
+}
+
 internal fun String.shouldRefreshPlanningOnEnter(): Boolean = when {
     this == RangeworkRoutes.Overview -> true
     this == RangeworkRoutes.Units -> true
@@ -2550,9 +2717,9 @@ private fun PracticeSessionItemEditorState.derivedBallCount(unit: PracticeUnit?)
 
 private fun ballSummary(ballCount: Int?): String = when (ballCount) {
     null -> "Ball total unavailable"
-    0 -> "0 derived balls"
-    1 -> "1 derived ball"
-    else -> "$ballCount derived balls"
+    0 -> "0 balls"
+    1 -> "1 ball"
+    else -> "$ballCount balls"
 }
 
 @Composable
