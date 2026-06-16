@@ -1,15 +1,17 @@
 package com.loganmartlew.rangework.shared.data
 
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
-import com.loganmartlew.rangework.shared.model.PracticeInstructionDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.repository.PracticeUnitRepository
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.rpc
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -70,37 +72,24 @@ class SupabasePracticeUnitRepository(
         unitId: String?,
     ): PracticeUnit {
         val resolvedUnitId = unitId ?: Uuid.random().toString()
-
-        if (unitId == null) {
-            client.postgrest[PRACTICE_UNITS_TABLE].insert(
-                PracticeUnitInsertRow(
-                    id = resolvedUnitId,
-                    title = draft.title,
-                    notes = draft.notes,
-                    focus = draft.focus,
-                    defaultClubReference = draft.defaultClubReference,
-                ),
-            )
-        } else {
-            client.postgrest[PRACTICE_UNITS_TABLE].update(
-                PracticeUnitUpdateRow(
-                    title = draft.title,
-                    notes = draft.notes,
-                    focus = draft.focus,
-                    defaultClubReference = draft.defaultClubReference,
-                ),
-            ) {
-                filter {
-                    eq("id", resolvedUnitId)
-                }
-            }
-        }
-
-        replaceInstructions(
-            practiceUnitId = resolvedUnitId,
-            instructions = draft.instructions,
+        val params = SavePracticeUnitParams(
+            unitId = resolvedUnitId,
+            title = draft.title,
+            notes = draft.notes,
+            focus = draft.focus,
+            defaultClubReference = draft.defaultClubReference,
+            instructions = draft.instructions.map { instruction ->
+                InstructionParam(
+                    order = instruction.order,
+                    text = instruction.text,
+                    ballCount = instruction.ballCount,
+                )
+            },
         )
-
+        client.postgrest.rpc(
+            "save_practice_unit",
+            Json.encodeToJsonElement(SavePracticeUnitParams.serializer(), params).jsonObject,
+        )
         return requireNotNull(getPracticeUnit(resolvedUnitId)) {
             "Practice unit $resolvedUnitId could not be loaded after save."
         }
@@ -117,33 +106,6 @@ class SupabasePracticeUnitRepository(
         }
     }
 
-    @OptIn(ExperimentalUuidApi::class)
-    private suspend fun replaceInstructions(
-        practiceUnitId: String,
-        instructions: List<PracticeInstructionDraft>,
-    ) {
-        client.postgrest[PRACTICE_UNIT_INSTRUCTIONS_TABLE].delete {
-            filter {
-                eq("practice_unit_id", practiceUnitId)
-            }
-        }
-
-        if (instructions.isEmpty()) {
-            return
-        }
-
-        client.postgrest[PRACTICE_UNIT_INSTRUCTIONS_TABLE].insert(
-            instructions.map { instruction ->
-                PracticeUnitInstructionInsertRow(
-                    id = Uuid.random().toString(),
-                    practiceUnitId = practiceUnitId,
-                    sortOrder = instruction.order,
-                    text = instruction.text,
-                    ballCount = instruction.ballCount,
-                )
-            },
-        )
-    }
 }
 
 @Serializable
@@ -161,25 +123,6 @@ private data class PracticeUnitRow(
 )
 
 @Serializable
-private data class PracticeUnitInsertRow(
-    val id: String,
-    val title: String,
-    val notes: String? = null,
-    val focus: String? = null,
-    @SerialName("default_club_reference")
-    val defaultClubReference: String? = null,
-)
-
-@Serializable
-private data class PracticeUnitUpdateRow(
-    val title: String,
-    val notes: String? = null,
-    val focus: String? = null,
-    @SerialName("default_club_reference")
-    val defaultClubReference: String? = null,
-)
-
-@Serializable
 private data class PracticeUnitInstructionRow(
     val id: String,
     @SerialName("practice_unit_id")
@@ -192,15 +135,20 @@ private data class PracticeUnitInstructionRow(
 )
 
 @Serializable
-private data class PracticeUnitInstructionInsertRow(
-    val id: String,
-    @SerialName("practice_unit_id")
-    val practiceUnitId: String,
-    @SerialName("sort_order")
-    val sortOrder: Int,
-    val text: String,
-    @SerialName("ball_count")
-    val ballCount: Int? = null,
+private data class SavePracticeUnitParams(
+    @SerialName("p_unit_id") val unitId: String,
+    @SerialName("p_title") val title: String,
+    @SerialName("p_notes") val notes: String?,
+    @SerialName("p_focus") val focus: String?,
+    @SerialName("p_default_club_reference") val defaultClubReference: String?,
+    @SerialName("p_instructions") val instructions: List<InstructionParam>,
+)
+
+@Serializable
+private data class InstructionParam(
+    @SerialName("order") val order: Int,
+    @SerialName("text") val text: String,
+    @SerialName("ball_count") val ballCount: Int? = null,
 )
 
 private fun PracticeUnitRow.toModel(
