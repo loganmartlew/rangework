@@ -33,9 +33,11 @@ class SupabaseClubRepository(
 
     override suspend fun setClubEnabled(code: String, enabled: Boolean) {
         if (enabled) {
-            client.postgrest[USER_ENABLED_CLUBS_TABLE].insert(
+            client.postgrest[USER_ENABLED_CLUBS_TABLE].upsert(
                 UserEnabledClubInsertRow(clubCode = code),
-            )
+            ) {
+                onConflict = "user_id,club_code"
+            }
         } else {
             client.postgrest[USER_ENABLED_CLUBS_TABLE].delete {
                 filter {

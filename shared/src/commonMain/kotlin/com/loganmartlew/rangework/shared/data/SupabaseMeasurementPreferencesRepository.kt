@@ -25,33 +25,15 @@ class SupabaseMeasurementPreferencesRepository(
     override suspend fun saveMeasurementPreferences(
         preferences: MeasurementPreferences,
     ): MeasurementPreferences {
-        val existing = client.postgrest[USER_PREFERENCES_TABLE]
-            .select()
-            .decodeList<UserPreferencesRow>()
-            .firstOrNull()
-
-        if (existing == null) {
-            client.postgrest[USER_PREFERENCES_TABLE].insert(
-                UserPreferencesInsertRow(
-                    unitSystem = preferences.unitSystem,
-                    distanceUnit = preferences.distanceUnit,
-                    speedUnit = preferences.speedUnit,
-                ),
-            )
-        } else {
-            client.postgrest[USER_PREFERENCES_TABLE].update(
-                UserPreferencesUpdateRow(
-                    unitSystem = preferences.unitSystem,
-                    distanceUnit = preferences.distanceUnit,
-                    speedUnit = preferences.speedUnit,
-                ),
-            ) {
-                filter {
-                    eq("user_id", existing.userId)
-                }
-            }
+        client.postgrest[USER_PREFERENCES_TABLE].upsert(
+            UserPreferencesInsertRow(
+                unitSystem = preferences.unitSystem,
+                distanceUnit = preferences.distanceUnit,
+                speedUnit = preferences.speedUnit,
+            ),
+        ) {
+            onConflict = "user_id"
         }
-
         return getMeasurementPreferences()
     }
 }
@@ -70,16 +52,7 @@ private data class UserPreferencesRow(
 
 @Serializable
 private data class UserPreferencesInsertRow(
-    @SerialName("unit_system")
-    val unitSystem: UnitSystem,
-    @SerialName("distance_unit")
-    val distanceUnit: DistanceUnit,
-    @SerialName("speed_unit")
-    val speedUnit: SpeedUnit,
-)
-
-@Serializable
-private data class UserPreferencesUpdateRow(
+    @SerialName("user_id") val userId: String? = null,
     @SerialName("unit_system")
     val unitSystem: UnitSystem,
     @SerialName("distance_unit")
