@@ -283,17 +283,10 @@ private class FakeThemePreferenceStore : ThemePreferenceStore {
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     override val themeMode: Flow<ThemeMode> = _themeMode
 
-    private val _dynamicColor = MutableStateFlow(false)
-    override val dynamicColor: Flow<Boolean> = _dynamicColor
-
     var lastSet: ThemeMode? = null
 
     override suspend fun setThemeMode(mode: ThemeMode) {
         lastSet = mode
         _themeMode.value = mode
-    }
-
-    override suspend fun setDynamicColor(enabled: Boolean) {
-        _dynamicColor.value = enabled
     }
 }

@@ -2,7 +2,6 @@ package com.loganmartlew.rangework.android.ui
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
@@ -216,7 +215,7 @@ fun RangeworkApp(
         ThemeMode.DARK -> true
     }
 
-    RangeworkTheme(darkTheme = darkTheme, allowDynamicColor = settingsUiState.dynamicColor) {
+    RangeworkTheme(darkTheme = darkTheme) {
         Surface(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = rootNavController,
@@ -237,7 +236,6 @@ fun RangeworkApp(
                         settingsUiState = settingsUiState,
                         onSignOut = authViewModel::signOut,
                         onSetThemeMode = settingsViewModel::setThemeMode,
-                        onSetDynamicColor = settingsViewModel::setDynamicColor,
                         onSelectDistanceUnit = settingsViewModel::selectDistanceUnit,
                         onSelectSpeedUnit = settingsViewModel::selectSpeedUnit,
                         onSetClubEnabled = settingsViewModel::setClubEnabled,
@@ -323,7 +321,6 @@ private fun AuthenticatedAppShell(
     settingsUiState: SettingsUiState,
     onSignOut: () -> Unit,
     onSetThemeMode: (ThemeMode) -> Unit,
-    onSetDynamicColor: (Boolean) -> Unit,
     onSelectDistanceUnit: (DistanceUnit) -> Unit,
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
     onSetClubEnabled: (String, Boolean) -> Unit,
@@ -791,7 +788,6 @@ private fun AuthenticatedAppShell(
                             settingsUiState = settingsUiState,
                             onSignOut = onSignOut,
                             onSetThemeMode = onSetThemeMode,
-                            onSetDynamicColor = onSetDynamicColor,
                             onSelectDistanceUnit = onSelectDistanceUnit,
                             onSelectSpeedUnit = onSelectSpeedUnit,
                             onSetClubEnabled = onSetClubEnabled,
@@ -1331,7 +1327,6 @@ private fun SettingsScreen(
     settingsUiState: SettingsUiState,
     onSignOut: () -> Unit,
     onSetThemeMode: (ThemeMode) -> Unit,
-    onSetDynamicColor: (Boolean) -> Unit,
     onSelectDistanceUnit: (DistanceUnit) -> Unit,
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
     onSetClubEnabled: (String, Boolean) -> Unit,
@@ -1428,23 +1423,6 @@ private fun SettingsScreen(
                         ) {
                             Text(labels[index])
                         }
-                    }
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    HorizontalDivider()
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "Dynamic color",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Switch(
-                            checked = settingsUiState.dynamicColor,
-                            onCheckedChange = onSetDynamicColor,
-                        )
                     }
                 }
             }
