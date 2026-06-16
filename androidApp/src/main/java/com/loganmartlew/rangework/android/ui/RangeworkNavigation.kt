@@ -83,3 +83,17 @@ internal fun String.isTopLevelRoute(): Boolean = this == RangeworkRoutes.Overvie
     this == RangeworkRoutes.Units ||
     this == RangeworkRoutes.Sessions ||
     this == RangeworkRoutes.Settings
+
+internal enum class EditorType { Unit, Session }
+
+internal fun String.isEditorRoute(): Boolean = editorType() != null
+
+internal fun String.editorType(): EditorType? = when {
+    this == RangeworkRoutes.UnitCreate ||
+    this == RangeworkRoutes.UnitEdit ||
+    (startsWith("units/") && endsWith("/edit")) -> EditorType.Unit
+    this == RangeworkRoutes.SessionCreate ||
+    this == RangeworkRoutes.SessionEdit ||
+    (startsWith("sessions/") && endsWith("/edit")) -> EditorType.Session
+    else -> null
+}
