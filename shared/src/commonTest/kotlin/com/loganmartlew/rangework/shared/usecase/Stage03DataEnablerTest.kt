@@ -14,6 +14,7 @@ import com.loganmartlew.rangework.shared.model.RecentItem
 import com.loganmartlew.rangework.shared.model.estimateSessionDurationMinutes
 import com.loganmartlew.rangework.shared.model.recentItems
 import com.loganmartlew.rangework.shared.model.resolveNextMoveState
+import com.loganmartlew.rangework.shared.model.sessionsUsingUnit
 import com.loganmartlew.rangework.shared.repository.PracticeUnitRepository
 import kotlinx.datetime.Instant
 import kotlin.test.Test
@@ -184,6 +185,48 @@ class Stage03DataEnablerTest {
     fun recentItemsReturnsEmptyWhenNoUnitsOrSessions() {
         val result = recentItems(emptyList(), emptyList())
         assertTrue(result.isEmpty())
+    }
+
+    // ── sessionsUsingUnit ───────────────────────────────────────────────────
+
+    @Test
+    fun sessionsUsingUnitReturnsSessionsReferencingUnit() {
+        val unit = makeUnit(id = "unit-target")
+        val sessions = listOf(
+            makeSession(id = "session-1", items = listOf(makeSessionItem(unitId = unit.id))),
+            makeSession(id = "session-2", items = listOf(makeSessionItem(unitId = "other-unit"))),
+            makeSession(id = "session-3", items = listOf(makeSessionItem(unitId = unit.id))),
+        )
+
+        val result = sessionsUsingUnit(unit.id, sessions)
+
+        assertEquals(listOf("session-1", "session-3"), result.map { it.id })
+    }
+
+    @Test
+    fun sessionsUsingUnitReturnsEmptyWhenUnitIsUnused() {
+        val sessions = listOf(
+            makeSession(id = "session-1", items = listOf(makeSessionItem(unitId = "other-unit"))),
+        )
+
+        val result = sessionsUsingUnit("unit-target", sessions)
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun sessionsUsingUnitReturnsSessionOnceForMultipleReferences() {
+        val session = makeSession(
+            id = "session-1",
+            items = listOf(
+                makeSessionItem(unitId = "unit-target"),
+                makeSessionItem(unitId = "unit-target"),
+            ),
+        )
+
+        val result = sessionsUsingUnit("unit-target", listOf(session))
+
+        assertEquals(listOf("session-1"), result.map { it.id })
     }
 
     // ── resolveNextMoveState ─────────────────────────────────────────────────

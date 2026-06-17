@@ -348,6 +348,31 @@ class PracticePlannerViewModelTest {
     }
 
     @Test
+    fun moveInstructionReordersToArbitraryIndex() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit().copy(
+            instructions = listOf(
+                PracticeInstruction(id = "instruction-1", order = 1, text = "First", ballCount = 5),
+                PracticeInstruction(id = "instruction-2", order = 2, text = "Second", ballCount = 10),
+                PracticeInstruction(id = "instruction-3", order = 3, text = "Third", ballCount = 15),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.editUnit("unit-1")
+        viewModel.moveInstruction(0, 2)
+
+        val instructions = viewModel.uiState.value.unitEditor.instructions
+        assertEquals(listOf("Second", "Third", "First"), instructions.map { it.text })
+        assertEquals(listOf(1, 2, 3), instructions.map { it.order })
+    }
+
+    @Test
     fun intRepeatCountStepperUpdatesSessionItemAndPersistsOnSave() = runTest {
         val repositories = FakePlannerRepositories()
         repositories.units += sampleUnit()

@@ -29,10 +29,8 @@ import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.theme.RangeworkTheme
 
 /**
- * A row that combines a drag-handle icon (visual affordance — gesture not yet wired),
+ * A row that combines a drag-handle icon,
  * a [content] slot, and ↑/↓ chevron buttons as the accessible reorder mechanism.
- *
- * Drag-to-reorder gesture is deferred (R3 toolchain spike required).
  */
 @Composable
 internal fun ReorderableItemRow(
@@ -44,6 +42,7 @@ internal fun ReorderableItemRow(
     moveUpContentDescription: String = "Move up",
     moveDownContentDescription: String = "Move down",
     deleteContentDescription: String = "Delete",
+    dragHandleModifier: Modifier = Modifier,
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -59,7 +58,7 @@ internal fun ReorderableItemRow(
                 imageVector = Icons.Default.DragHandle,
                 contentDescription = "Drag to reorder",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
+                modifier = dragHandleModifier.size(24.dp),
             )
             Row(
                 modifier = Modifier.weight(1f),

@@ -207,5 +207,14 @@ private fun SessionItemDetailRow(
                 modifier = Modifier.padding(start = 40.dp),
             )
         }
+
+        item.notes?.takeIf(String::isNotBlank)?.let { notes ->
+            Text(
+                text = notes,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 40.dp),
+            )
+        }
     }
 }

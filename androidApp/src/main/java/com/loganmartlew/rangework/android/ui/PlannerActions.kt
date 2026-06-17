@@ -21,6 +21,7 @@ data class UnitEditorActions(
     val onUpdateInstructionBallCount: (Int, Int) -> Unit,
     val onMoveInstructionUp: (Int) -> Unit,
     val onMoveInstructionDown: (Int) -> Unit,
+    val onMoveInstruction: (Int, Int) -> Unit,
     val onRemoveInstruction: (Int) -> Unit,
     val onSave: () -> Unit,
 )

@@ -6,6 +6,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
@@ -38,6 +39,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,11 +49,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.LinkInteractionListener
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -77,6 +83,7 @@ import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
 import com.loganmartlew.rangework.android.ui.components.showUndoSnackbar
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeUnit
+import com.loganmartlew.rangework.shared.model.sessionsUsingUnit
 import com.loganmartlew.rangework.android.ui.screens.OverviewScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionDetailScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionEditorScreen
@@ -195,6 +202,7 @@ fun RangeworkApp(
             onUpdateInstructionBallCount = { i, v -> plannerViewModel.updateInstructionBallCount(i, v) },
             onMoveInstructionUp = plannerViewModel::moveInstructionUp,
             onMoveInstructionDown = plannerViewModel::moveInstructionDown,
+            onMoveInstruction = plannerViewModel::moveInstruction,
             onRemoveInstruction = plannerViewModel::removeInstruction,
             onSave = plannerViewModel::saveUnit,
         )
@@ -285,7 +293,7 @@ private fun UnauthenticatedEntryScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.weight(1.2f))
-            BrandMarkContainer(size = 84.dp, markSize = 60.dp, twoColor = true)
+            BrandMarkContainer(size = 84.dp, markSize = 60.dp, twoColor = true, contentDescription = null)
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = bootstrapMessage.headline,
@@ -321,28 +329,29 @@ private fun UnauthenticatedEntryScreen(
 private fun LegalLine() {
     val linkColor = MaterialTheme.colorScheme.primary
     val textColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val linkStyle = SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)
+    val noop = LinkInteractionListener { /* URLs wired when policies are published */ }
     val text = buildAnnotatedString {
         withStyle(SpanStyle(color = textColor)) {
             append("By continuing you agree to the ")
         }
-        pushStringAnnotation("TERMS", "terms")
-        withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
-            append("Terms")
+        withLink(LinkAnnotation.Clickable(tag = "TERMS", linkInteractionListener = noop)) {
+            withStyle(linkStyle) {
+                append("Terms")
+            }
         }
-        pop()
         withStyle(SpanStyle(color = textColor)) {
             append(" & ")
         }
-        pushStringAnnotation("PRIVACY", "privacy")
-        withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
-            append("Privacy Policy")
+        withLink(LinkAnnotation.Clickable(tag = "PRIVACY", linkInteractionListener = noop)) {
+            withStyle(linkStyle) {
+                append("Privacy Policy")
+            }
         }
-        pop()
     }
-    ClickableText(
+    Text(
         text = text,
         style = MaterialTheme.typography.bodySmall.copy(textAlign = TextAlign.Center),
-        onClick = { /* Terms and Privacy URLs to be wired when policies are published */ },
     )
 }
 
@@ -437,6 +446,12 @@ private fun AuthenticatedAppShell(
     val currentSessionId: String? = if (currentRoute.startsWith("sessions/") && !currentRoute.endsWith("/edit")) {
         navBackStackEntry?.arguments?.getString(SessionIdArg)
     } else null
+    val isDetailRoute = (currentUnitId != null) || (currentSessionId != null)
+    val scrollBehavior = if (isDetailRoute) {
+        TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    } else {
+        TopAppBarDefaults.pinnedScrollBehavior()
+    }
 
     val isOnEditorRoute = currentRoute.isEditorRoute()
     val isCurrentEditorDirty = when (currentRoute.editorType()) {
@@ -463,8 +478,16 @@ private fun AuthenticatedAppShell(
     }
 
     if (showUnitDeleteDialog) {
+        val usedCount = pendingDeleteUnit?.let { unit ->
+            sessionsUsingUnit(unit.id, plannerUiState.sessions).size
+        } ?: 0
         DeleteConfirmationDialog(
             itemName = pendingDeleteUnit?.title ?: "unit",
+            warning = if (usedCount > 0) {
+                "This unit is used in $usedCount session${if (usedCount == 1) "" else "s"}. Those sessions will lose this unit."
+            } else {
+                null
+            },
             onConfirm = {
                 showUnitDeleteDialog = false
                 val unit = pendingDeleteUnit
@@ -534,6 +557,7 @@ private fun AuthenticatedAppShell(
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.safeDrawing,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
@@ -581,73 +605,86 @@ private fun AuthenticatedAppShell(
             }
         },
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(text = titleForRoute(currentRoute, plannerUiState))
-                },
-                navigationIcon = {
-                    if (canNavigateBack) {
-                        IconButton(onClick = { attemptLeave { shellNavController.popBackStack() } }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                            )
-                        }
-                    } else {
-                        BrandWordmark(modifier = Modifier.padding(start = 12.dp))
+            val titleContent: @Composable () -> Unit = {
+                Text(text = titleForRoute(currentRoute, plannerUiState))
+            }
+            val navigationIconContent: @Composable () -> Unit = {
+                if (canNavigateBack) {
+                    IconButton(onClick = { attemptLeave { shellNavController.popBackStack() } }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                        )
                     }
-                },
-                actions = {
-                    currentUnitId?.let { unitId ->
-                        val unit = plannerUiState.units.firstOrNull { it.id == unitId }
-                        IconButton(
-                            onClick = {
-                                unitActions.onEdit(unitId)
-                                shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
+                } else {
+                    BrandWordmark(modifier = Modifier.padding(start = 12.dp))
+                }
+            }
+            val actionsContent: @Composable RowScope.() -> Unit = {
+                currentUnitId?.let { unitId ->
+                    val unit = plannerUiState.units.firstOrNull { it.id == unitId }
+                    IconButton(
+                        onClick = {
+                            unitActions.onEdit(unitId)
+                            shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit ${unit?.title ?: "unit"}",
+                        )
+                    }
+                    Box {
+                        OverflowMenu(
+                            contentDescription = "More options for ${unit?.title ?: "unit"}",
+                            onDuplicate = { unitActions.onDuplicate(unitId) },
+                            onDelete = {
+                                pendingDeleteUnit = unit
+                                showUnitDeleteDialog = true
                             },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit ${unit?.title ?: "unit"}",
-                            )
-                        }
-                        Box {
-                            OverflowMenu(
-                                contentDescription = "More options for ${unit?.title ?: "unit"}",
-                                onDuplicate = { unitActions.onDuplicate(unitId) },
-                                onDelete = {
-                                    pendingDeleteUnit = unit
-                                    showUnitDeleteDialog = true
-                                },
-                            )
-                        }
+                        )
                     }
-                    currentSessionId?.let { sessionId ->
-                        val session = plannerUiState.sessions.firstOrNull { it.id == sessionId }
-                        IconButton(
-                            onClick = {
-                                sessionActions.onEdit(sessionId)
-                                shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
+                }
+                currentSessionId?.let { sessionId ->
+                    val session = plannerUiState.sessions.firstOrNull { it.id == sessionId }
+                    IconButton(
+                        onClick = {
+                            sessionActions.onEdit(sessionId)
+                            shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit ${session?.name ?: "session"}",
+                        )
+                    }
+                    Box {
+                        OverflowMenu(
+                            contentDescription = "More options for ${session?.name ?: "session"}",
+                            onDuplicate = { sessionActions.onDuplicate(sessionId) },
+                            onDelete = {
+                                pendingDeleteSession = session
+                                showSessionDeleteDialog = true
                             },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit ${session?.name ?: "session"}",
-                            )
-                        }
-                        Box {
-                            OverflowMenu(
-                                contentDescription = "More options for ${session?.name ?: "session"}",
-                                onDuplicate = { sessionActions.onDuplicate(sessionId) },
-                                onDelete = {
-                                    pendingDeleteSession = session
-                                    showSessionDeleteDialog = true
-                                },
-                            )
-                        }
+                        )
                     }
-                },
-            )
+                }
+            }
+            if (isDetailRoute) {
+                MediumTopAppBar(
+                    title = titleContent,
+                    navigationIcon = navigationIconContent,
+                    actions = actionsContent,
+                    scrollBehavior = scrollBehavior,
+                )
+            } else {
+                CenterAlignedTopAppBar(
+                    title = titleContent,
+                    navigationIcon = navigationIconContent,
+                    actions = actionsContent,
+                    scrollBehavior = scrollBehavior,
+                )
+            }
         },
         bottomBar = {
             if (navigationType == RangeworkNavigationType.BottomBar) {
@@ -811,6 +848,7 @@ private fun AuthenticatedAppShell(
                             onUpdateInstructionBallCount = unitActions.onUpdateInstructionBallCount,
                             onMoveInstructionUp = unitActions.onMoveInstructionUp,
                             onMoveInstructionDown = unitActions.onMoveInstructionDown,
+                            onMoveInstruction = unitActions.onMoveInstruction,
                             onRemoveInstruction = unitActions.onRemoveInstruction,
                         )
                     }
@@ -826,6 +864,9 @@ private fun AuthenticatedAppShell(
                             onEditUnit = {
                                 unitActions.onEdit(unitId)
                                 shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
+                            },
+                            onViewSession = { sessionId ->
+                                shellNavController.navigate(RangeworkRoutes.sessionDetail(sessionId))
                             },
                         )
                     }
@@ -855,6 +896,7 @@ private fun AuthenticatedAppShell(
                             onUpdateInstructionBallCount = unitActions.onUpdateInstructionBallCount,
                             onMoveInstructionUp = unitActions.onMoveInstructionUp,
                             onMoveInstructionDown = unitActions.onMoveInstructionDown,
+                            onMoveInstruction = unitActions.onMoveInstruction,
                             onRemoveInstruction = unitActions.onRemoveInstruction,
                         )
                     }

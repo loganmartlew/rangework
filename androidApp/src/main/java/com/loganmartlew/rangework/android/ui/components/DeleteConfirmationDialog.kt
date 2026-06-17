@@ -1,5 +1,7 @@
 package com.loganmartlew.rangework.android.ui.components
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,13 +21,25 @@ import com.loganmartlew.rangework.android.ui.theme.RangeworkTheme
 @Composable
 internal fun DeleteConfirmationDialog(
     itemName: String,
+    warning: String? = null,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Delete \"$itemName\"?") },
-        text = { Text("This will permanently remove \"$itemName\". This action cannot be undone.") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("This will permanently remove \"$itemName\". This action cannot be undone.")
+                warning?.let { message ->
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        },
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Icon(

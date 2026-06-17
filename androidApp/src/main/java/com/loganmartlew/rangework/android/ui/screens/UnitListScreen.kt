@@ -1,14 +1,29 @@
 package com.loganmartlew.rangework.android.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.rounded.Widgets
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PlannerStatus
@@ -23,7 +38,9 @@ import com.loganmartlew.rangework.android.ui.components.PlanningListContent
 import com.loganmartlew.rangework.android.ui.components.RefreshableScrollableScreen
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.derivedBallCount
+import com.loganmartlew.rangework.shared.model.sessionsUsingUnit
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun UnitListScreen(
     plannerUiState: PracticePlannerUiState,
@@ -37,8 +54,14 @@ internal fun UnitListScreen(
     var pendingDeleteUnit by remember { mutableStateOf<PracticeUnit?>(null) }
 
     pendingDeleteUnit?.let { unit ->
+        val usedCount = sessionsUsingUnit(unit.id, plannerUiState.sessions).size
         DeleteConfirmationDialog(
             itemName = unit.title,
+            warning = if (usedCount > 0) {
+                "This unit is used in $usedCount session${if (usedCount == 1) "" else "s"}. Those sessions will lose this unit."
+            } else {
+                null
+            },
             onConfirm = {
                 onDeleteUnit(unit.id)
                 pendingDeleteUnit = null
@@ -77,29 +100,88 @@ internal fun UnitListScreen(
                     )
                 } else {
                     plannerUiState.units.forEach { unit ->
-                        val clubName = unit.defaultClubReference
-                            ?.takeIf(String::isNotBlank)
-                            ?.let { code ->
-                                plannerUiState.clubCatalog.firstOrNull { it.code == code }?.displayName ?: code
+                        key(unit.id) {
+                            val dismissState = rememberSwipeToDismissBoxState(
+                                confirmValueChange = { value ->
+                                    when (value) {
+                                        SwipeToDismissBoxValue.EndToStart -> {
+                                            pendingDeleteUnit = unit
+                                            false
+                                        }
+                                        SwipeToDismissBoxValue.StartToEnd -> {
+                                            onEditUnit(unit.id)
+                                            false
+                                        }
+                                        SwipeToDismissBoxValue.Settled -> false
+                                    }
+                                },
+                            )
+                            val clubName = unit.defaultClubReference
+                                ?.takeIf(String::isNotBlank)
+                                ?.let { code ->
+                                    plannerUiState.clubCatalog.firstOrNull { it.code == code }?.displayName ?: code
+                                }
+                            val instructionCount = unit.instructions.size
+                            SwipeToDismissBox(
+                                state = dismissState,
+                                backgroundContent = {
+                                    SwipeActionBackground(dismissState.dismissDirection)
+                                },
+                            ) {
+                                ListEntryCard(
+                                    title = unit.title,
+                                    subtitle = "$instructionCount instruction${if (instructionCount == 1) "" else "s"}  •  ${ballSummary(unit.derivedBallCount())}",
+                                    supportingText = unit.instructions.joinToString("  •  ") { it.text }.ifBlank { "No instructions." },
+                                    metadataRow = if (clubName != null) {
+                                        { ClubChip(name = clubName) }
+                                    } else null,
+                                    onClick = { onViewUnit(unit.id) },
+                                    onEdit = { onEditUnit(unit.id) },
+                                    onDelete = { pendingDeleteUnit = unit },
+                                    onDuplicate = { onDuplicateUnit(unit.id) },
+                                    overflowContentDescription = "More options for ${unit.title}",
+                                )
                             }
-                        val instructionCount = unit.instructions.size
-                        ListEntryCard(
-                            title = unit.title,
-                            subtitle = "$instructionCount instruction${if (instructionCount == 1) "" else "s"}  •  ${ballSummary(unit.derivedBallCount())}",
-                            supportingText = unit.instructions.joinToString("  •  ") { it.text }.ifBlank { "No instructions." },
-                            metadataRow = if (clubName != null) {
-                                { ClubChip(name = clubName) }
-                            } else null,
-                            onClick = { onViewUnit(unit.id) },
-                            onEdit = { onEditUnit(unit.id) },
-                            onDelete = { pendingDeleteUnit = unit },
-                            onDuplicate = { onDuplicateUnit(unit.id) },
-                            overflowContentDescription = "More options for ${unit.title}",
-                        )
+                        }
                     }
                     Spacer(modifier = Modifier.height(96.dp))
                 }
             },
+        )
+    }
+}
+
+@Composable
+private fun SwipeActionBackground(direction: SwipeToDismissBoxValue) {
+    val isDelete = direction == SwipeToDismissBoxValue.EndToStart
+    val alignment = when (direction) {
+        SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+        SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
+        SwipeToDismissBoxValue.Settled -> Alignment.Center
+    }
+    val containerColor = if (isDelete) {
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        MaterialTheme.colorScheme.secondaryContainer
+    }
+    val contentColor = if (isDelete) {
+        MaterialTheme.colorScheme.onErrorContainer
+    } else {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(containerColor)
+            .padding(horizontal = 24.dp),
+        contentAlignment = alignment,
+    ) {
+        Icon(
+            imageVector = if (isDelete) Icons.Default.Delete else Icons.Default.Edit,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(28.dp),
         )
     }
 }

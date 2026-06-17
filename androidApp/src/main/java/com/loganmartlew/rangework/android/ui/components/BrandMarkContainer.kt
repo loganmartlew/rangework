@@ -25,6 +25,7 @@ internal fun BrandMarkContainer(
     size: Dp,
     markSize: Dp,
     twoColor: Boolean,
+    contentDescription: String? = "Rangework mark",
 ) {
     Surface(
         modifier = Modifier.size(size),
@@ -36,7 +37,7 @@ internal fun BrandMarkContainer(
                 painter = painterResource(
                     if (twoColor) R.drawable.ic_rangework_mark_twocolor else R.drawable.ic_rangework_mark,
                 ),
-                contentDescription = "Rangework mark",
+                contentDescription = contentDescription,
                 modifier = Modifier.size(markSize),
             )
         }

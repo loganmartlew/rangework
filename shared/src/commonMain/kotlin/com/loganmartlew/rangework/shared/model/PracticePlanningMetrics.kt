@@ -16,6 +16,13 @@ fun PracticeSession.derivedBallCount(unitsById: Map<String, PracticeUnit>): Int 
 // Tune SECONDS_PER_BALL if timing data suggests a different value.
 const val SECONDS_PER_BALL = 15
 
+fun sessionsUsingUnit(
+    unitId: String,
+    sessions: List<PracticeSession>,
+): List<PracticeSession> = sessions.filter { session ->
+    session.items.any { it.practiceUnitId == unitId }
+}
+
 fun estimateSessionDurationMinutes(session: PracticeSession, unitsById: Map<String, PracticeUnit>): Int {
     val totalBalls = session.derivedBallCount(unitsById)
     if (totalBalls == 0) return 0

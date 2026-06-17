@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,6 +41,8 @@ import com.loganmartlew.rangework.android.ui.components.MoreOptionsExpander
 import com.loganmartlew.rangework.android.ui.components.NumberBadge
 import com.loganmartlew.rangework.android.ui.components.ReorderableItemRow
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +59,7 @@ internal fun UnitEditorScreen(
     onUpdateInstructionBallCount: (Int, Int) -> Unit,
     onMoveInstructionUp: (Int) -> Unit,
     onMoveInstructionDown: (Int) -> Unit,
+    onMoveInstruction: (Int, Int) -> Unit,
     onRemoveInstruction: (Int) -> Unit,
 ) {
     val editor = plannerUiState.unitEditor
@@ -65,6 +69,11 @@ internal fun UnitEditorScreen(
     val totalBalls = editor.instructions.sumOf { it.ballCount.toIntOrNull() ?: 0 }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val lazyListState = rememberLazyListState()
+    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        val headerCount = 4
+        onMoveInstruction(from.index - headerCount, to.index - headerCount)
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -78,6 +87,7 @@ internal fun UnitEditorScreen(
         },
     ) { innerPadding ->
         LazyColumn(
+            state = lazyListState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
@@ -147,18 +157,21 @@ internal fun UnitEditorScreen(
                 items = editor.instructions,
                 key = { _, instruction -> instruction.order },
             ) { index, instruction ->
-                InstructionEditorRow(
-                    instruction = instruction,
-                    number = index + 1,
-                    isWorking = isWorking,
-                    onUpdateText = { onUpdateInstructionText(index, it) },
-                    onUpdateBallCount = { onUpdateInstructionBallCount(index, it) },
-                    onMoveUp = { onMoveInstructionUp(index) },
-                    onMoveDown = { onMoveInstructionDown(index) },
-                    onRemove = { onRemoveInstruction(index) },
-                    canMoveUp = index > 0,
-                    canMoveDown = index < editor.instructions.lastIndex,
-                )
+                ReorderableItem(reorderableState, key = instruction.order) { _ ->
+                    InstructionEditorRow(
+                        instruction = instruction,
+                        number = index + 1,
+                        isWorking = isWorking,
+                        dragHandleModifier = Modifier.draggableHandle(),
+                        onUpdateText = { onUpdateInstructionText(index, it) },
+                        onUpdateBallCount = { onUpdateInstructionBallCount(index, it) },
+                        onMoveUp = { onMoveInstructionUp(index) },
+                        onMoveDown = { onMoveInstructionDown(index) },
+                        onRemove = { onRemoveInstruction(index) },
+                        canMoveUp = index > 0,
+                        canMoveDown = index < editor.instructions.lastIndex,
+                    )
+                }
             }
 
             item {
@@ -206,6 +219,7 @@ private fun InstructionEditorRow(
     instruction: PracticeInstructionEditorState,
     number: Int,
     isWorking: Boolean,
+    dragHandleModifier: Modifier = Modifier,
     onUpdateText: (String) -> Unit,
     onUpdateBallCount: (Int) -> Unit,
     onMoveUp: () -> Unit,
@@ -231,6 +245,7 @@ private fun InstructionEditorRow(
             moveUpContentDescription = "Move instruction $number up",
             moveDownContentDescription = "Move instruction $number down",
             deleteContentDescription = "Delete instruction $number",
+            dragHandleModifier = dragHandleModifier,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
             NumberBadge(

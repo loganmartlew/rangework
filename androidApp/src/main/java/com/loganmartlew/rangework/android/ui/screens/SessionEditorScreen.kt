@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -62,6 +63,8 @@ import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.derivedBallCount
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -95,6 +98,11 @@ internal fun SessionEditorScreen(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val lazyListState = rememberLazyListState()
+    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        val headerCount = 2
+        onMoveSessionItem(from.index - headerCount, to.index - headerCount)
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -108,6 +116,7 @@ internal fun SessionEditorScreen(
         },
     ) { innerPadding ->
         LazyColumn(
+            state = lazyListState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
@@ -184,28 +193,31 @@ internal fun SessionEditorScreen(
                 items = editor.items,
                 key = { _, item -> item.order },
             ) { index, item ->
-                SessionItemEditorCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    item = item,
-                    number = index + 1,
-                    availableUnits = plannerUiState.units,
-                    selectedUnit = unitsById[item.practiceUnitId],
-                    clubCatalog = plannerUiState.clubCatalog,
-                    enabledClubCodes = plannerUiState.enabledClubCodes,
-                    isWorking = isWorking,
-                    onSelectUnit = { onUpdateSessionItemUnit(index, it) },
-                    onUpdateRepeatCount = { onUpdateSessionItemRepeatCount(index, it) },
-                    onSelectClub = { onUpdateSessionItemClubReference(index, it) },
-                    onUpdateNotes = { onUpdateSessionItemNotes(index, it) },
-                    onUpdateFocusCue = { onUpdateSessionItemFocusCue(index, it) },
-                    onMoveUp = { onMoveSessionItem(index, index - 1) },
-                    onMoveDown = { onMoveSessionItem(index, index + 1) },
-                    onRemove = { onRemoveSessionItem(index) },
-                    canMoveUp = index > 0,
-                    canMoveDown = index < editor.items.lastIndex,
-                )
+                ReorderableItem(reorderableState, key = item.order) { _ ->
+                    SessionItemEditorCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        item = item,
+                        number = index + 1,
+                        availableUnits = plannerUiState.units,
+                        selectedUnit = unitsById[item.practiceUnitId],
+                        clubCatalog = plannerUiState.clubCatalog,
+                        enabledClubCodes = plannerUiState.enabledClubCodes,
+                        isWorking = isWorking,
+                        dragHandleModifier = Modifier.draggableHandle(),
+                        onSelectUnit = { onUpdateSessionItemUnit(index, it) },
+                        onUpdateRepeatCount = { onUpdateSessionItemRepeatCount(index, it) },
+                        onSelectClub = { onUpdateSessionItemClubReference(index, it) },
+                        onUpdateNotes = { onUpdateSessionItemNotes(index, it) },
+                        onUpdateFocusCue = { onUpdateSessionItemFocusCue(index, it) },
+                        onMoveUp = { onMoveSessionItem(index, index - 1) },
+                        onMoveDown = { onMoveSessionItem(index, index + 1) },
+                        onRemove = { onRemoveSessionItem(index) },
+                        canMoveUp = index > 0,
+                        canMoveDown = index < editor.items.lastIndex,
+                    )
+                }
             }
 
             item {
@@ -245,6 +257,7 @@ private fun SessionItemEditorCard(
     clubCatalog: List<Club>,
     enabledClubCodes: Set<String>,
     isWorking: Boolean,
+    dragHandleModifier: Modifier = Modifier,
     onSelectUnit: (String) -> Unit,
     onUpdateRepeatCount: (Int) -> Unit,
     onSelectClub: (String) -> Unit,
@@ -290,7 +303,7 @@ private fun SessionItemEditorCard(
                         imageVector = Icons.Default.DragHandle,
                         contentDescription = "Drag to reorder item $number",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp),
+                        modifier = dragHandleModifier.size(24.dp),
                     )
                     NumberBadge(number = number)
                 }

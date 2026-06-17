@@ -805,7 +805,7 @@ class PracticePlannerViewModel(
         }
     }
 
-    private fun moveInstruction(fromIndex: Int, toIndex: Int) {
+    fun moveInstruction(fromIndex: Int, toIndex: Int) {
         updateUnitEditor {
             copy(
                 instructions = reindexedInstructions(
