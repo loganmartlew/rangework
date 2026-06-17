@@ -760,7 +760,10 @@ private fun AuthenticatedAppShell(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                    .then(
+                        if (isOnEditorRoute) Modifier
+                        else Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                    ),
             ) {
                 NavHost(
                     navController = shellNavController,
