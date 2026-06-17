@@ -2,6 +2,7 @@ package com.loganmartlew.rangework.android.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,7 +31,7 @@ import com.loganmartlew.rangework.android.ui.theme.RangeworkTheme
 
 /**
  * A row that combines a drag-handle icon,
- * a [content] slot, and ↑/↓ chevron buttons as the accessible reorder mechanism.
+ * shared content slots, and ↑/↓ chevron buttons as the accessible reorder mechanism.
  */
 @Composable
 internal fun ReorderableItemRow(
@@ -44,14 +45,20 @@ internal fun ReorderableItemRow(
     deleteContentDescription: String = "Delete",
     dragHandleModifier: Modifier = Modifier,
     modifier: Modifier = Modifier,
-    content: @Composable RowScope.() -> Unit,
+    leadingContent: (@Composable RowScope.() -> Unit)? = null,
+    trailingContent: (@Composable RowScope.() -> Unit)? = null,
+    footerContent: (@Composable ColumnScope.() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
 
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(
@@ -62,10 +69,24 @@ internal fun ReorderableItemRow(
             )
             Row(
                 modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                content()
+                leadingContent?.invoke(this)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    content = content,
+                )
+                trailingContent?.invoke(this)
             }
+        }
+        footerContent?.let {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                content = it,
+            )
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
