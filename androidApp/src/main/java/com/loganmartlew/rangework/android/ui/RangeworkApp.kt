@@ -2,9 +2,7 @@ package com.loganmartlew.rangework.android.ui
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,15 +14,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -37,7 +32,6 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -50,9 +44,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -63,13 +63,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.loganmartlew.rangework.android.R
 import com.loganmartlew.rangework.android.auth.AndroidGoogleIdTokenProvider
 import com.loganmartlew.rangework.android.config.baselineAndroidAppAuthConfig
-import com.loganmartlew.rangework.android.ui.components.BrandWordmark
 import com.loganmartlew.rangework.android.ui.components.BrandMarkContainer
-import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
-import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.BrandWordmark
+import com.loganmartlew.rangework.android.ui.components.GoogleSignInButton
 import com.loganmartlew.rangework.android.ui.screens.OverviewScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionDetailScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionEditorScreen
@@ -261,133 +259,73 @@ private fun UnauthenticatedEntryScreen(
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
     ) { innerPadding ->
-        ScrollableScreen(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 24.dp),
+                .padding(horizontal = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            Spacer(modifier = Modifier.weight(1.2f))
+            BrandMarkContainer(size = 84.dp, markSize = 60.dp, twoColor = true)
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Rangework",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = bootstrapMessage.headline,
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center,
             )
-            OnboardingHeroCard(
-                headline = bootstrapMessage.headline,
-                detail = bootstrapMessage.detail,
-            )
-            SignInActionsCard(
-                uiState = uiState,
-                onSignIn = onSignIn,
-            )
-        }
-    }
-}
-
-@Composable
-private fun OnboardingHeroCard(
-    headline: String,
-    detail: String,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            BrandMarkContainer(size = 96.dp, markSize = 72.dp, twoColor = true)
-            Badge(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-            ) {
-                Text("Welcome")
-            }
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = headline,
-                style = MaterialTheme.typography.headlineLarge,
-            )
-            Text(
-                text = detail,
+                text = bootstrapMessage.detail,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
-            EntryHighlightCard(
-                title = "What you'll do here",
-                body = "Shape reusable practice units, turn them into session templates, and keep everything ready for your next range block.",
+            Spacer(modifier = Modifier.weight(1.6f))
+            GoogleSignInButton(
+                onClick = onSignIn,
+                enabled = !uiState.actionInProgress && uiState.environment.isAuthConfigured,
             )
+            if (uiState.actionInProgress || uiState.authState is AuthState.Restoring) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            LegalLine()
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-private fun SignInActionsCard(
-    uiState: AuthUiState,
-    onSignIn: () -> Unit,
-) {
-    val supportText = when {
-        !uiState.environment.isAuthConfigured -> missingConfigMessage(uiState.environment)
-        uiState.actionInProgress || uiState.authState is AuthState.Restoring ->
-            "Checking your account and preparing the planning workspace."
-
-        uiState.statusMessage == null ||
-            uiState.statusMessage == authStateMessage(AuthState.SignedOut) ||
-            uiState.statusMessage == authStateMessage(AuthState.Restoring) ->
-            "Use the Google account connected to your practice planning workspace."
-
-        else -> uiState.statusMessage
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Badge(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            ) {
-                Text("Google sign-in")
-            }
-            Text(
-                text = "Pick up where you left off",
-                style = MaterialTheme.typography.headlineSmall,
-            )
-            Text(
-                text = supportText.orEmpty(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.actionInProgress && uiState.environment.isAuthConfigured,
-                onClick = onSignIn,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_google_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Sign in with Google")
-            }
-            if (uiState.actionInProgress || uiState.authState is AuthState.Restoring) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
+private fun LegalLine() {
+    val linkColor = MaterialTheme.colorScheme.primary
+    val textColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val text = buildAnnotatedString {
+        withStyle(SpanStyle(color = textColor)) {
+            append("By continuing you agree to the ")
         }
+        pushStringAnnotation("TERMS", "terms")
+        withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
+            append("Terms")
+        }
+        pop()
+        withStyle(SpanStyle(color = textColor)) {
+            append(" & ")
+        }
+        pushStringAnnotation("PRIVACY", "privacy")
+        withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
+            append("Privacy Policy")
+        }
+        pop()
     }
+    ClickableText(
+        text = text,
+        style = MaterialTheme.typography.bodySmall.copy(textAlign = TextAlign.Center),
+        onClick = { /* Terms and Privacy URLs to be wired when policies are published */ },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
