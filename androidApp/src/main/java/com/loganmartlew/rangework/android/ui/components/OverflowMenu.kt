@@ -20,8 +20,8 @@ import com.loganmartlew.rangework.android.ui.theme.RangeworkTheme
 @Composable
 internal fun OverflowMenu(
     contentDescription: String,
-    onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onEdit: (() -> Unit)? = null,
     onDuplicate: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -41,13 +41,15 @@ internal fun OverflowMenu(
         expanded = expanded,
         onDismissRequest = { expanded = false },
     ) {
-        DropdownMenuItem(
-            text = { Text("Edit") },
-            onClick = {
-                expanded = false
-                onEdit()
-            },
-        )
+        if (onEdit != null) {
+            DropdownMenuItem(
+                text = { Text("Edit") },
+                onClick = {
+                    expanded = false
+                    onEdit()
+                },
+            )
+        }
         if (onDuplicate != null) {
             DropdownMenuItem(
                 text = { Text("Duplicate") },
@@ -82,5 +84,6 @@ private fun OverflowMenuPreview() {
             onDelete = {},
             onDuplicate = {},
         )
+
     }
 }

@@ -637,6 +637,65 @@ class PracticePlannerViewModel(
         _uiState.value = _uiState.value.copy(duplicatedSessionId = null)
     }
 
+    fun restoreUnit(unit: PracticeUnit) {
+        val foundation = dataFoundation ?: return markPlannerUnavailable()
+        if (activeUserId == null) { markSignedOut(); return }
+        viewModelScope.launch {
+            try {
+                val draft = PracticeUnitDraft(
+                    title = unit.title,
+                    notes = unit.notes,
+                    focus = unit.focus,
+                    defaultClubReference = unit.defaultClubReference,
+                    instructions = unit.instructions.map { PracticeInstructionDraft(it.order, it.text, it.ballCount) },
+                )
+                foundation.savePracticeUnitUseCase(draft, unitId = unit.id)
+                val units = foundation.listPracticeUnitsUseCase()
+                val sessions = foundation.listPracticeSessionsUseCase()
+                _uiState.value = _uiState.value.copy(
+                    units = units,
+                    sessions = sessions,
+                    status = PlannerStatus.Notification("Restored \"${unit.title}\"."),
+                )
+            } catch (e: Exception) {
+                markSaveFailure(e, "Restore failed.")
+            }
+        }
+    }
+
+    fun restoreSession(session: PracticeSession) {
+        val foundation = dataFoundation ?: return markPlannerUnavailable()
+        if (activeUserId == null) { markSignedOut(); return }
+        viewModelScope.launch {
+            try {
+                val draft = PracticeSessionDraft(
+                    name = session.name,
+                    notes = session.notes,
+                    items = session.items.map { item ->
+                        PracticeSessionItemDraft(
+                            practiceUnitId = item.practiceUnitId,
+                            order = item.order,
+                            repeatCount = item.repeatCount,
+                            clubReference = item.clubReference,
+                            notes = item.notes,
+                            focusCue = item.focusCue,
+                        )
+                    },
+                )
+                foundation.savePracticeSessionUseCase(draft, sessionId = session.id)
+                val units = foundation.listPracticeUnitsUseCase()
+                val sessions = foundation.listPracticeSessionsUseCase()
+                _uiState.value = _uiState.value.copy(
+                    units = units,
+                    sessions = sessions,
+                    status = PlannerStatus.Notification("Restored \"${session.name}\"."),
+                )
+            } catch (e: Exception) {
+                markSaveFailure(e, "Restore failed.")
+            }
+        }
+    }
+
     fun clearEditorBaselines() {
         _uiState.value = _uiState.value.copy(
             unitEditorBaseline = null,
