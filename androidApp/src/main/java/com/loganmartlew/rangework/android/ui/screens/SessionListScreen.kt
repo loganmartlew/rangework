@@ -1,12 +1,14 @@
 package com.loganmartlew.rangework.android.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.material.icons.filled.Delete
@@ -16,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -134,9 +137,20 @@ internal fun SessionListScreen(
                             ) {
                                 ListEntryCard(
                                     title = session.name,
-                                    subtitle = "$itemCount item${if (itemCount == 1) "" else "s"}",
                                     supportingText = unitLineup,
-                                    metadataRow = { BallCountPill(count = ballCount) },
+                                    metadataRow = {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            BallCountPill(count = ballCount)
+                                            Text(
+                                                text = "$itemCount item${if (itemCount == 1) "" else "s"}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    },
                                     onClick = { onViewSession(session.id) },
                                     onEdit = { onEditSession(session.id) },
                                     onDelete = { pendingDeleteSession = session },

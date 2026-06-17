@@ -1,12 +1,14 @@
 package com.loganmartlew.rangework.android.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -16,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -130,11 +133,20 @@ internal fun UnitListScreen(
                             ) {
                                 ListEntryCard(
                                     title = unit.title,
-                                    subtitle = "$instructionCount instruction${if (instructionCount == 1) "" else "s"}  •  ${ballSummary(unit.derivedBallCount())}",
                                     supportingText = unit.instructions.joinToString("  •  ") { it.text }.ifBlank { "No instructions." },
-                                    metadataRow = if (clubName != null) {
-                                        { ClubChip(name = clubName) }
-                                    } else null,
+                                    metadataRow = {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            clubName?.let { ClubChip(name = it) }
+                                            Text(
+                                                text = "$instructionCount instruction${if (instructionCount == 1) "" else "s"}  •  ${ballSummary(unit.derivedBallCount())}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    },
                                     onClick = { onViewUnit(unit.id) },
                                     onEdit = { onEditUnit(unit.id) },
                                     onDelete = { pendingDeleteUnit = unit },

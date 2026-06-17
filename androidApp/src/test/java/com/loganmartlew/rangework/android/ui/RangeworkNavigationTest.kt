@@ -55,4 +55,13 @@ class RangeworkNavigationTest {
         assertEquals(false, RangeworkRoutes.UnitCreate.isTopLevelRoute())
         assertEquals(false, RangeworkRoutes.sessionDetail("session-1").isTopLevelRoute())
     }
+
+    @Test
+    fun listFabStyleUsesStage12Thresholds() {
+        assertEquals(ListFabStyle.Hidden, listFabStyleForCount(0))
+        assertEquals(ListFabStyle.Hidden, listFabStyleForCount(-1))
+        assertEquals(ListFabStyle.Extended, listFabStyleForCount(1))
+        assertEquals(ListFabStyle.Extended, listFabStyleForCount(2))
+        assertEquals(ListFabStyle.Compact, listFabStyleForCount(3))
+    }
 }

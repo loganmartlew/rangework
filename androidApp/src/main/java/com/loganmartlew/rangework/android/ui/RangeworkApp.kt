@@ -39,6 +39,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -563,43 +564,49 @@ private fun AuthenticatedAppShell(
         floatingActionButton = {
             when (currentRoute) {
                 RangeworkRoutes.Units -> {
-                    val unitsEmpty = plannerUiState.units.isEmpty()
-                    if (unitsEmpty) {
-                        RangeworkExtendedFab(
-                            onClick = {
-                                unitActions.onBeginNew()
-                                shellNavController.navigate(RangeworkRoutes.UnitCreate)
-                            },
-                            text = "New unit",
-                        )
-                    } else {
-                        RangeworkFab(
-                            onClick = {
-                                unitActions.onBeginNew()
-                                shellNavController.navigate(RangeworkRoutes.UnitCreate)
-                            },
-                            contentDescription = "New unit",
-                        )
+                    when (listFabStyleForCount(plannerUiState.units.size)) {
+                        ListFabStyle.Hidden -> Unit
+                        ListFabStyle.Extended -> {
+                            RangeworkExtendedFab(
+                                onClick = {
+                                    unitActions.onBeginNew()
+                                    shellNavController.navigate(RangeworkRoutes.UnitCreate)
+                                },
+                                text = "New unit",
+                            )
+                        }
+                        ListFabStyle.Compact -> {
+                            RangeworkFab(
+                                onClick = {
+                                    unitActions.onBeginNew()
+                                    shellNavController.navigate(RangeworkRoutes.UnitCreate)
+                                },
+                                contentDescription = "New unit",
+                            )
+                        }
                     }
                 }
                 RangeworkRoutes.Sessions -> if (plannerUiState.units.isNotEmpty()) {
-                    val sessionsEmpty = plannerUiState.sessions.isEmpty()
-                    if (sessionsEmpty) {
-                        RangeworkExtendedFab(
-                            onClick = {
-                                sessionActions.onBeginNew()
-                                shellNavController.navigate(RangeworkRoutes.SessionCreate)
-                            },
-                            text = "New session",
-                        )
-                    } else {
-                        RangeworkFab(
-                            onClick = {
-                                sessionActions.onBeginNew()
-                                shellNavController.navigate(RangeworkRoutes.SessionCreate)
-                            },
-                            contentDescription = "New session",
-                        )
+                    when (listFabStyleForCount(plannerUiState.sessions.size)) {
+                        ListFabStyle.Hidden -> Unit
+                        ListFabStyle.Extended -> {
+                            RangeworkExtendedFab(
+                                onClick = {
+                                    sessionActions.onBeginNew()
+                                    shellNavController.navigate(RangeworkRoutes.SessionCreate)
+                                },
+                                text = "New session",
+                            )
+                        }
+                        ListFabStyle.Compact -> {
+                            RangeworkFab(
+                                onClick = {
+                                    sessionActions.onBeginNew()
+                                    shellNavController.navigate(RangeworkRoutes.SessionCreate)
+                                },
+                                contentDescription = "New session",
+                            )
+                        }
                     }
                 }
             }
@@ -670,7 +677,14 @@ private fun AuthenticatedAppShell(
                     }
                 }
             }
-            if (isDetailRoute) {
+            if (currentRoute.isListRoute()) {
+                TopAppBar(
+                    title = titleContent,
+                    navigationIcon = navigationIconContent,
+                    actions = actionsContent,
+                    scrollBehavior = scrollBehavior,
+                )
+            } else if (isDetailRoute) {
                 MediumTopAppBar(
                     title = titleContent,
                     navigationIcon = navigationIconContent,
@@ -1078,6 +1092,20 @@ internal fun String.shouldRefreshPlanningOnEnter(): Boolean = when {
     startsWith("sessions/") && this != RangeworkRoutes.SessionCreate && !endsWith("/edit") -> true
     else -> false
 }
+
+internal enum class ListFabStyle {
+    Hidden,
+    Extended,
+    Compact,
+}
+
+internal fun listFabStyleForCount(itemCount: Int): ListFabStyle = when {
+    itemCount <= 0 -> ListFabStyle.Hidden
+    itemCount < 3 -> ListFabStyle.Extended
+    else -> ListFabStyle.Compact
+}
+
+private fun String.isListRoute(): Boolean = this == RangeworkRoutes.Units || this == RangeworkRoutes.Sessions
 
 private fun NavDestination?.isRouteSelected(route: String): Boolean = this?.hierarchy?.any { destination ->
     val destinationRoute = destination.route ?: return@any false

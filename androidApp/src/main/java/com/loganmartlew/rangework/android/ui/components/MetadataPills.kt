@@ -5,13 +5,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GolfCourse
-import androidx.compose.material.icons.filled.SportsTennis
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -24,19 +23,21 @@ internal fun BallCountPill(
     count: Int,
     modifier: Modifier = Modifier,
 ) {
-    AssistChip(
-        onClick = {},
-        label = {
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
                 text = "$count balls",
                 style = RangeworkMono.small,
             )
-        },
-        modifier = modifier,
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
-    )
+        }
+    }
 }
 
 /** A non-interactive pill showing a club name. */
@@ -45,26 +46,26 @@ internal fun ClubChip(
     name: String,
     modifier: Modifier = Modifier,
 ) {
-    AssistChip(
-        onClick = {},
-        label = {
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.GolfCourse,
+                contentDescription = null,
+            )
             Text(
                 text = name,
                 style = MaterialTheme.typography.labelMedium,
             )
-        },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.GolfCourse,
-                contentDescription = null,
-                modifier = Modifier.padding(start = 4.dp),
-            )
-        },
-        modifier = modifier,
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
-    )
+        }
+    }
 }
 
 @Preview(showBackground = true)
