@@ -71,9 +71,9 @@ internal fun SessionDetailScreen(
             ),
         )
 
-        // Notes
+        // Session notes
         session.notes?.takeIf(String::isNotBlank)?.let { notes ->
-            EntryHighlightCard(title = "Notes", body = notes)
+            EntryHighlightCard(title = "Session notes", body = notes)
         }
 
         // Session items card

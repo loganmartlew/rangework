@@ -63,9 +63,9 @@ internal fun UnitDetailScreen(
             ),
         )
 
-        // Notes
+        // Unit notes
         unit.notes?.takeIf(String::isNotBlank)?.let { notes ->
-            EntryHighlightCard(title = "Notes", body = notes)
+            EntryHighlightCard(title = "Unit notes", body = notes)
         }
 
         // Focus cue — tinted FocusCard only when a cue exists

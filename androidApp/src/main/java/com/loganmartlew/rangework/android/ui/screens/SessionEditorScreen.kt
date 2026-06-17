@@ -17,24 +17,15 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,10 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PracticeSessionItemEditorState
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
@@ -58,6 +45,7 @@ import com.loganmartlew.rangework.android.ui.components.CountStepper
 import com.loganmartlew.rangework.android.ui.components.DockedSaveBar
 import com.loganmartlew.rangework.android.ui.components.MoreOptionsExpander
 import com.loganmartlew.rangework.android.ui.components.NumberBadge
+import com.loganmartlew.rangework.android.ui.components.ReorderableItemRow
 import com.loganmartlew.rangework.android.ui.components.StickyTotalBar
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
@@ -97,7 +85,6 @@ internal fun SessionEditorScreen(
         item.derivedBallCount(unitsById[item.practiceUnitId]) ?: 0
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         val headerCount = 2
@@ -106,7 +93,6 @@ internal fun SessionEditorScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             DockedSaveBar(
                 label = "Save session",
@@ -270,195 +256,146 @@ private fun SessionItemEditorCard(
     canMoveDown: Boolean,
 ) {
     var unitMenuExpanded by remember(item.order, item.practiceUnitId) { mutableStateOf(false) }
-    val haptic = LocalHapticFeedback.current
     val repeatCountValue = item.repeatCount.trim().toIntOrNull() ?: 1
     val subtotal = item.derivedBallCount(selectedUnit)
     val hasMoreOptions = item.clubReference.isNotBlank() ||
         item.notes.isNotBlank() ||
         item.focusCue.isNotBlank()
 
-    Card(
+    Surface(
         modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        ),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            // Header row: drag handle + badge + subtotal + delete
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+        ReorderableItemRow(
+            canMoveUp = canMoveUp,
+            canMoveDown = canMoveDown,
+            onMoveUp = onMoveUp,
+            onMoveDown = onMoveDown,
+            onDelete = onRemove,
+            moveUpContentDescription = "Move item $number up",
+            moveDownContentDescription = "Move item $number down",
+            deleteContentDescription = "Delete item $number",
+            dragHandleModifier = dragHandleModifier,
+            modifier = Modifier.padding(12.dp),
+            leadingContent = {
+                NumberBadge(number = number)
+            },
+            trailingContent = {
+                Text(
+                    text = ballSummary(subtotal),
+                    style = RangeworkMono.medium,
+                    color = if (subtotal != null) {
+                        MaterialTheme.colorScheme.secondary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            },
+            footerContent = {
+                ExposedDropdownMenuBox(
+                    expanded = unitMenuExpanded,
+                    onExpandedChange = { if (!isWorking) unitMenuExpanded = it },
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.DragHandle,
-                        contentDescription = "Drag to reorder item $number",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = dragHandleModifier.size(24.dp),
-                    )
-                    NumberBadge(number = number)
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = ballSummary(subtotal),
-                        style = RangeworkMono.medium,
-                        color = if (subtotal != null)
-                            MaterialTheme.colorScheme.secondary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    IconButton(
-                        onClick = onRemove,
+                    OutlinedTextField(
                         modifier = Modifier
-                            .size(48.dp)
-                            .semantics { contentDescription = "Delete item $number" },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        readOnly = true,
+                        value = selectedUnit?.title ?: "",
+                        onValueChange = {},
+                        label = { Text("Practice unit") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = unitMenuExpanded)
+                        },
+                        enabled = !isWorking,
+                        isError = item.unitError != null,
+                        supportingText = item.unitError?.let { { Text(it) } },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = unitMenuExpanded,
+                        onDismissRequest = { unitMenuExpanded = false },
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = null)
+                        availableUnits.forEach { unit ->
+                            DropdownMenuItem(
+                                text = { Text(unit.title) },
+                                onClick = {
+                                    onSelectUnit(unit.id)
+                                    unitMenuExpanded = false
+                                },
+                            )
+                        }
                     }
                 }
-            }
 
-            // Practice unit dropdown
-            ExposedDropdownMenuBox(
-                expanded = unitMenuExpanded,
-                onExpandedChange = { if (!isWorking) unitMenuExpanded = it },
-            ) {
-                OutlinedTextField(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
-                    readOnly = true,
-                    value = selectedUnit?.title ?: "",
-                    onValueChange = {},
-                    label = { Text("Practice unit") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = unitMenuExpanded)
-                    },
-                    enabled = !isWorking,
-                    isError = item.unitError != null,
-                    supportingText = item.unitError?.let { { Text(it) } },
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                )
-                ExposedDropdownMenu(
-                    expanded = unitMenuExpanded,
-                    onDismissRequest = { unitMenuExpanded = false },
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    availableUnits.forEach { unit ->
-                        DropdownMenuItem(
-                            text = { Text(unit.title) },
-                            onClick = {
-                                onSelectUnit(unit.id)
-                                unitMenuExpanded = false
-                            },
+                    Text(
+                        text = "Repeats",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    CountStepper(
+                        value = repeatCountValue,
+                        onValueChange = onUpdateRepeatCount,
+                        min = 1,
+                        max = 50,
+                        label = "Repeat count for item $number",
+                    )
+                    if (item.repeatCountError != null) {
+                        Text(
+                            text = item.repeatCountError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
                         )
                     }
                 }
-            }
 
-            // Repeat count stepper
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = "Repeats",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                CountStepper(
-                    value = repeatCountValue,
-                    onValueChange = onUpdateRepeatCount,
-                    min = 1,
-                    max = 50,
-                    label = "Repeat count for item $number",
-                )
-                if (item.repeatCountError != null) {
-                    Text(
-                        text = item.repeatCountError,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                MoreOptionsExpander(
+                    label = "More options",
+                    hasContent = hasMoreOptions,
+                ) {
+                    ClubPickerField(
+                        label = "Session club override",
+                        selectedCode = item.clubReference.ifBlank { null },
+                        clubCatalog = clubCatalog,
+                        enabledClubCodes = enabledClubCodes,
+                        enabled = !isWorking,
+                        onSelect = onSelectClub,
+                    )
+                    OutlinedTextField(
+                        value = item.notes,
+                        onValueChange = onUpdateNotes,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Item notes") },
+                        supportingText = { Text("Reminders specific to this item") },
+                        enabled = !isWorking,
+                        minLines = 2,
+                    )
+                    OutlinedTextField(
+                        value = item.focusCue,
+                        onValueChange = onUpdateFocusCue,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Focus cue") },
+                        supportingText = { Text("One mental cue to hold while practising") },
+                        enabled = !isWorking,
+                        singleLine = true,
                     )
                 }
-            }
-
-            // Accessibility chevrons for TalkBack reorder
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                IconButton(
-                    enabled = canMoveUp,
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onMoveUp()
-                    },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .semantics { contentDescription = "Move item $number up" },
-                ) {
-                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = null)
-                }
-                IconButton(
-                    enabled = canMoveDown,
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onMoveDown()
-                    },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .semantics { contentDescription = "Move item $number down" },
-                ) {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
-                }
-            }
-
-            // Optional fields: club override, item notes, focus cue
-            MoreOptionsExpander(
-                label = "More options",
-                hasContent = hasMoreOptions,
-            ) {
-                ClubPickerField(
-                    label = "Session club override",
-                    selectedCode = item.clubReference.ifBlank { null },
-                    clubCatalog = clubCatalog,
-                    enabledClubCodes = enabledClubCodes,
-                    enabled = !isWorking,
-                    onSelect = onSelectClub,
-                )
-                OutlinedTextField(
-                    value = item.notes,
-                    onValueChange = onUpdateNotes,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Item notes") },
-                    supportingText = { Text("Reminders specific to this item") },
-                    enabled = !isWorking,
-                    minLines = 2,
-                )
-                OutlinedTextField(
-                    value = item.focusCue,
-                    onValueChange = onUpdateFocusCue,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Focus cue") },
-                    supportingText = { Text("One mental cue to hold while practising") },
-                    enabled = !isWorking,
-                    singleLine = true,
-                )
-            }
+            },
+        ) {
+            Text(
+                text = selectedUnit?.title ?: "Select a practice unit",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (selectedUnit != null) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
         }
     }
 }

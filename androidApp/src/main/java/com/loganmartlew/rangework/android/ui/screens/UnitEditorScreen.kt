@@ -21,13 +21,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -68,7 +65,6 @@ internal fun UnitEditorScreen(
     val hasNotesOrFocus = editor.notes.isNotBlank() || editor.focus.isNotBlank()
     val totalBalls = editor.instructions.sumOf { it.ballCount.toIntOrNull() ?: 0 }
 
-    val snackbarHostState = remember { SnackbarHostState() }
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         val headerCount = 4
@@ -77,7 +73,6 @@ internal fun UnitEditorScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             DockedSaveBar(
                 label = "Save unit",
@@ -116,7 +111,7 @@ internal fun UnitEditorScreen(
                         value = editor.notes,
                         onValueChange = onUpdateNotes,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Notes") },
+                        label = { Text("Unit notes") },
                         supportingText = { Text("General reminders for this drill") },
                         enabled = !isWorking,
                         minLines = 3,
@@ -247,48 +242,45 @@ private fun InstructionEditorRow(
             deleteContentDescription = "Delete instruction $number",
             dragHandleModifier = dragHandleModifier,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-        ) {
-            NumberBadge(
-                number = number,
-                modifier = Modifier.padding(end = 4.dp),
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedTextField(
-                    value = instruction.text,
-                    onValueChange = onUpdateText,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Instruction") },
-                    enabled = !isWorking,
-                    minLines = 2,
-                    isError = instruction.textError != null,
-                    supportingText = instruction.textError?.let { { Text(it) } },
+            leadingContent = {
+                NumberBadge(
+                    number = number,
+                    modifier = Modifier.padding(end = 4.dp),
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+            },
+        ) {
+            OutlinedTextField(
+                value = instruction.text,
+                onValueChange = onUpdateText,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Instruction") },
+                enabled = !isWorking,
+                minLines = 2,
+                isError = instruction.textError != null,
+                supportingText = instruction.textError?.let { { Text(it) } },
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = "Balls",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                CountStepper(
+                    value = ballCountValue,
+                    onValueChange = onUpdateBallCount,
+                    min = 0,
+                    max = 100,
+                    label = "Ball count for instruction $number",
+                )
+                if (instruction.ballCountError != null) {
                     Text(
-                        text = "Balls",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = instruction.ballCountError,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
                     )
-                    CountStepper(
-                        value = ballCountValue,
-                        onValueChange = onUpdateBallCount,
-                        min = 0,
-                        max = 100,
-                        label = "Ball count for instruction $number",
-                    )
-                    if (instruction.ballCountError != null) {
-                        Text(
-                            text = instruction.ballCountError,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
                 }
             }
         }
