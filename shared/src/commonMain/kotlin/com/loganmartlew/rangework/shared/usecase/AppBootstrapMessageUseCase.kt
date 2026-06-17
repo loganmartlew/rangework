@@ -22,9 +22,9 @@ class AppBootstrapMessageUseCase {
                 "Range-ready planning"
             },
             detail = if (environment.isAuthConfigured) {
-                "Create repeatable practice units, build session templates from them, and pick up the same plan whenever you come back on $platformName."
+                "Build repeatable units, assemble them into sessions, and pick up the same plan on $platformName."
             } else {
-                "Rangework is set up for focused practice planning. Sign-in still needs to be enabled on this build before your plans can sync across devices."
+                "Rangework is set up for focused practice planning — enable sign-in before plans can sync across devices."
             },
         )
     }

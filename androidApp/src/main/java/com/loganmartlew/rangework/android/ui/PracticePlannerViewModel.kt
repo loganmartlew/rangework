@@ -32,7 +32,7 @@ import kotlinx.coroutines.sync.withLock
 data class PracticeInstructionEditorState(
     val order: Int,
     val text: String = "",
-    val ballCount: String = "",
+    val ballCount: String = "1",
     val textError: String? = null,
     val ballCountError: String? = null,
 ) {

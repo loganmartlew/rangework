@@ -223,7 +223,7 @@ private fun InstructionEditorRow(
     canMoveUp: Boolean,
     canMoveDown: Boolean,
 ) {
-    val ballCountValue = instruction.ballCount.toIntOrNull() ?: 0
+    val ballCountValue = instruction.ballCount.toIntOrNull() ?: 1
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -271,7 +271,7 @@ private fun InstructionEditorRow(
                 CountStepper(
                     value = ballCountValue,
                     onValueChange = onUpdateBallCount,
-                    min = 0,
+                    min = 1,
                     max = 100,
                     label = "Ball count for instruction $number",
                 )

@@ -305,8 +305,7 @@ private fun UnauthenticatedEntryScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                maxLines = 3,
             )
             Spacer(modifier = Modifier.weight(1.6f))
             GoogleSignInButton(
