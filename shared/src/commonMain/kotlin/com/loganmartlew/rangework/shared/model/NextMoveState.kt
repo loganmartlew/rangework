@@ -4,7 +4,11 @@ sealed interface NextMoveState {
     data object NoUnits : NextMoveState
     data object UnitsNoSessions : NextMoveState
     data object Both : NextMoveState
-    data class ResumeEditing(val entityId: String, val isUnit: Boolean) : NextMoveState
+    data class ResumeEditing(
+        val entityId: String,
+        val isUnit: Boolean,
+        val entityName: String? = null,
+    ) : NextMoveState
 }
 
 fun resolveNextMoveState(
@@ -15,7 +19,25 @@ fun resolveNextMoveState(
 ): NextMoveState {
     if (units.isEmpty()) return NextMoveState.NoUnits
     if (sessions.isEmpty()) return NextMoveState.UnitsNoSessions
-    if (lastSavedUnitId != null) return NextMoveState.ResumeEditing(lastSavedUnitId, isUnit = true)
-    if (lastSavedSessionId != null) return NextMoveState.ResumeEditing(lastSavedSessionId, isUnit = false)
+    val savedUnit = lastSavedUnitId?.let { savedId ->
+        units.firstOrNull { unit -> unit.id == savedId }
+    }
+    if (savedUnit != null) {
+        return NextMoveState.ResumeEditing(
+            entityId = savedUnit.id,
+            isUnit = true,
+            entityName = savedUnit.title,
+        )
+    }
+    val savedSession = lastSavedSessionId?.let { savedId ->
+        sessions.firstOrNull { session -> session.id == savedId }
+    }
+    if (savedSession != null) {
+        return NextMoveState.ResumeEditing(
+            entityId = savedSession.id,
+            isUnit = false,
+            entityName = savedSession.name,
+        )
+    }
     return NextMoveState.Both
 }

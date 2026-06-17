@@ -259,6 +259,7 @@ class Stage03DataEnablerTest {
         val resume = assertIs<NextMoveState.ResumeEditing>(state)
         assertEquals("u1", resume.entityId)
         assertTrue(resume.isUnit)
+        assertEquals("Test unit", resume.entityName)
     }
 
     @Test
@@ -271,6 +272,7 @@ class Stage03DataEnablerTest {
         val resume = assertIs<NextMoveState.ResumeEditing>(state)
         assertEquals("s1", resume.entityId)
         assertFalse(resume.isUnit)
+        assertEquals("Test session", resume.entityName)
     }
 
     @Test
@@ -282,6 +284,17 @@ class Stage03DataEnablerTest {
             lastSavedUnitId = "u1",
         )
         assertIs<NextMoveState.NoUnits>(state)
+    }
+
+    @Test
+    fun nextMoveStateFallsBackToBothWhenLastSavedEntityIsMissing() {
+        val state = resolveNextMoveState(
+            units = listOf(makeUnit(id = "u1")),
+            sessions = listOf(makeSession(id = "s1")),
+            lastSavedUnitId = "missing-unit",
+        )
+
+        assertIs<NextMoveState.Both>(state)
     }
 }
 

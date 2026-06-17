@@ -478,7 +478,9 @@ class PracticePlannerViewModelTest {
 
         val nextMoveState = viewModel.uiState.value.nextMoveState
         assertTrue("Expected ResumeEditing", nextMoveState is NextMoveState.ResumeEditing)
-        assertTrue("Expected isUnit=true", (nextMoveState as NextMoveState.ResumeEditing).isUnit)
+        nextMoveState as NextMoveState.ResumeEditing
+        assertTrue("Expected isUnit=true", nextMoveState.isUnit)
+        assertEquals("Updated title", nextMoveState.entityName)
     }
 
     @Test

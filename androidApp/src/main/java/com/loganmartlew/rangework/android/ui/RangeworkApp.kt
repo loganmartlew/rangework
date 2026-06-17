@@ -21,7 +21,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -681,14 +680,7 @@ private fun AuthenticatedAppShell(
                     }
                 }
             }
-            if (currentRoute.isListRoute()) {
-                TopAppBar(
-                    title = titleContent,
-                    navigationIcon = navigationIconContent,
-                    actions = actionsContent,
-                    scrollBehavior = scrollBehavior,
-                )
-            } else if (isDetailRoute) {
+            if (isDetailRoute) {
                 MediumTopAppBar(
                     title = titleContent,
                     navigationIcon = navigationIconContent,
@@ -696,7 +688,7 @@ private fun AuthenticatedAppShell(
                     scrollBehavior = scrollBehavior,
                 )
             } else {
-                CenterAlignedTopAppBar(
+                TopAppBar(
                     title = titleContent,
                     navigationIcon = navigationIconContent,
                     actions = actionsContent,
@@ -1108,8 +1100,6 @@ internal fun listFabStyleForCount(itemCount: Int): ListFabStyle = when {
     itemCount < 3 -> ListFabStyle.Extended
     else -> ListFabStyle.Compact
 }
-
-private fun String.isListRoute(): Boolean = this == RangeworkRoutes.Units || this == RangeworkRoutes.Sessions
 
 private fun NavDestination?.isRouteSelected(route: String): Boolean = this?.hierarchy?.any { destination ->
     val destinationRoute = destination.route ?: return@any false

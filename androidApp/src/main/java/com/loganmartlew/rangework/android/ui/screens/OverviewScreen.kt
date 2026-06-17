@@ -1,8 +1,6 @@
 package com.loganmartlew.rangework.android.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +11,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Widgets
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -23,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,8 +35,13 @@ import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.auth.AuthState
+import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.NextMoveState
+import com.loganmartlew.rangework.shared.model.PracticeSession
+import com.loganmartlew.rangework.shared.model.PracticeSessionItem
+import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.RecentItem
+import com.loganmartlew.rangework.shared.model.derivedBallCount
 
 @Composable
 internal fun OverviewScreen(
@@ -57,6 +61,8 @@ internal fun OverviewScreen(
     val isFirstRun = plannerUiState.hasLoaded &&
         plannerUiState.units.isEmpty() &&
         plannerUiState.sessions.isEmpty()
+    val unitsById = plannerUiState.units.associateBy(PracticeUnit::id)
+    val clubsByCode = plannerUiState.clubCatalog.associateBy(Club::code)
 
     ScrollableScreen {
         if (!plannerUiState.dataConfigured) {
@@ -116,6 +122,8 @@ internal fun OverviewScreen(
                     )
                     RecentlyUsedSection(
                         recentItems = plannerUiState.recentItems,
+                        unitsById = unitsById,
+                        clubsByCode = clubsByCode,
                         onNavigateToUnitDetail = onNavigateToUnitDetail,
                         onNavigateToSessionDetail = onNavigateToSessionDetail,
                     )
@@ -140,6 +148,8 @@ internal fun OverviewScreen(
             )
             RecentlyUsedSection(
                 recentItems = plannerUiState.recentItems,
+                unitsById = unitsById,
+                clubsByCode = clubsByCode,
                 onNavigateToUnitDetail = onNavigateToUnitDetail,
                 onNavigateToSessionDetail = onNavigateToSessionDetail,
             )
@@ -242,23 +252,31 @@ private fun NextMoveCard(
 ) {
     val message: String
     val actionLabel: String
+    val actionDescription: String
     val onAction: () -> Unit
 
     when (nextMoveState) {
         NextMoveState.NoUnits -> {
             message = "Build your first practice unit to get started."
             actionLabel = "Create unit"
+            actionDescription = "Create your first practice unit"
             onAction = onCreateUnit
         }
         NextMoveState.UnitsNoSessions -> {
             message = "Combine your units into a session template."
             actionLabel = "New session"
+            actionDescription = "Create a new session"
             onAction = onCreateSession
         }
         NextMoveState.Both -> {
             val mostRecentSession = recentItems.filterIsInstance<RecentItem.Session>().firstOrNull()
             message = "Pick a session to run at the range."
             actionLabel = if (mostRecentSession != null) "Open most recent" else "New session"
+            actionDescription = if (mostRecentSession != null) {
+                "Open most recent session"
+            } else {
+                "Create a new session"
+            }
             onAction = if (mostRecentSession != null) {
                 { onNavigateToSessionDetail(mostRecentSession.id) }
             } else {
@@ -266,9 +284,14 @@ private fun NextMoveCard(
             }
         }
         is NextMoveState.ResumeEditing -> {
-            val entityLabel = if (nextMoveState.isUnit) "unit" else "session"
-            message = "Resume editing your $entityLabel."
+            val quotedName = nextMoveState.entityName?.takeIf { it.isNotBlank() }?.let { "\"$it\"" }
+            message = if (quotedName != null) {
+                "Resume editing $quotedName."
+            } else {
+                "Resume editing your ${if (nextMoveState.isUnit) "unit" else "session"}."
+            }
             actionLabel = "Resume"
+            actionDescription = message.removeSuffix(".")
             onAction = if (nextMoveState.isUnit) {
                 { onEditUnit(nextMoveState.entityId) }
             } else {
@@ -293,7 +316,7 @@ private fun NextMoveCard(
             Text(
                 text = "Next move".uppercase(),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             Text(
                 text = message,
@@ -302,7 +325,7 @@ private fun NextMoveCard(
             )
             FilledTonalButton(
                 onClick = onAction,
-                modifier = Modifier.semantics { contentDescription = actionLabel },
+                modifier = Modifier.semantics { contentDescription = actionDescription },
             ) {
                 Text(actionLabel)
             }
@@ -313,6 +336,8 @@ private fun NextMoveCard(
 @Composable
 private fun RecentlyUsedSection(
     recentItems: List<RecentItem>,
+    unitsById: Map<String, PracticeUnit>,
+    clubsByCode: Map<String, Club>,
     onNavigateToUnitDetail: (String) -> Unit,
     onNavigateToSessionDetail: (String) -> Unit,
 ) {
@@ -330,6 +355,8 @@ private fun RecentlyUsedSection(
             items(recentItems, key = { it.id }) { item ->
                 RecentCard(
                     item = item,
+                    unitsById = unitsById,
+                    clubsByCode = clubsByCode,
                     onNavigateToUnitDetail = onNavigateToUnitDetail,
                     onNavigateToSessionDetail = onNavigateToSessionDetail,
                 )
@@ -341,6 +368,8 @@ private fun RecentlyUsedSection(
 @Composable
 private fun RecentCard(
     item: RecentItem,
+    unitsById: Map<String, PracticeUnit>,
+    clubsByCode: Map<String, Club>,
     onNavigateToUnitDetail: (String) -> Unit,
     onNavigateToSessionDetail: (String) -> Unit,
 ) {
@@ -353,20 +382,18 @@ private fun RecentCard(
     when (item) {
         is RecentItem.Unit -> {
             val unit = item.practiceUnit
-            val ballTotal = unit.instructions.mapNotNull { it.ballCount }.sum()
             name = unit.title
             typeLabel = "Unit"
-            metadata = if (ballTotal > 0) "$ballTotal balls" else "${unit.instructions.size} instruction${if (unit.instructions.size != 1) "s" else ""}"
-            accessibleDescription = "${unit.title}, Unit, open"
+            metadata = unit.recentMetadata(clubsByCode)
+            accessibleDescription = accessibleRecentDescription(unit.title, typeLabel, metadata)
             onClick = { onNavigateToUnitDetail(unit.id) }
         }
         is RecentItem.Session -> {
             val session = item.practiceSession
-            val itemCount = session.items.size
             name = session.name
             typeLabel = "Session"
-            metadata = "$itemCount unit${if (itemCount != 1) "s" else ""}"
-            accessibleDescription = "${session.name}, Session, open"
+            metadata = session.recentMetadata(unitsById)
+            accessibleDescription = accessibleRecentDescription(session.name, typeLabel, metadata)
             onClick = { onNavigateToSessionDetail(session.id) }
         }
     }
@@ -381,18 +408,11 @@ private fun RecentCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(MaterialTheme.shapes.small)
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-            ) {
-                Text(
-                    text = typeLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            }
+            AssistChip(
+                onClick = onClick,
+                label = { Text(typeLabel) },
+                colors = AssistChipDefaults.assistChipColors(),
+            )
             Text(
                 text = name,
                 style = MaterialTheme.typography.titleSmall,
@@ -403,9 +423,47 @@ private fun RecentCard(
                 text = metadata,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
     }
 }
+
+private fun PracticeUnit.recentMetadata(clubsByCode: Map<String, Club>): String {
+    val metadata = buildList {
+        val ballCount = derivedBallCount()
+        if (ballCount > 0) {
+            add("$ballCount balls")
+        }
+        defaultClubReference
+            ?.takeIf { it.isNotBlank() }
+            ?.let { clubCode -> clubsByCode[clubCode]?.displayName ?: clubCode }
+            ?.let { clubName -> add(clubName) }
+    }
+    return metadata.joinToString(" · ").ifBlank { "Open unit" }
+}
+
+private fun PracticeSession.recentMetadata(unitsById: Map<String, PracticeUnit>): String {
+    val unitCount = items.map(PracticeSessionItem::practiceUnitId).distinct().size
+    val itemCount = items.size
+    val metadata = buildList {
+        val ballCount = derivedBallCount(unitsById)
+        if (ballCount > 0) {
+            add("$ballCount balls")
+        }
+        if (itemCount > 0) {
+            add("$itemCount ${if (itemCount == 1) "item" else "items"}")
+        }
+        if (unitCount > 0) {
+            add("$unitCount ${if (unitCount == 1) "unit" else "units"}")
+        }
+    }
+    return metadata.joinToString(" · ").ifBlank { "Open session" }
+}
+
+private fun accessibleRecentDescription(
+    name: String,
+    typeLabel: String,
+    metadata: String,
+): String = "$name, $typeLabel, $metadata, open"
