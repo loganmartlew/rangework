@@ -5,6 +5,7 @@ import com.loganmartlew.rangework.shared.auth.createAuthFoundation
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DuplicatePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeUnitUseCase
+import com.loganmartlew.rangework.shared.usecase.DuplicateUnitUseCase
 import com.loganmartlew.rangework.shared.usecase.GetClubCatalogUseCase
 import com.loganmartlew.rangework.shared.usecase.GetEnabledClubsUseCase
 import com.loganmartlew.rangework.shared.usecase.GetMeasurementPreferencesUseCase
@@ -23,6 +24,7 @@ data class DataFoundation(
     val getPracticeUnitUseCase: GetPracticeUnitUseCase,
     val savePracticeUnitUseCase: SavePracticeUnitUseCase,
     val deletePracticeUnitUseCase: DeletePracticeUnitUseCase,
+    val duplicatePracticeUnitUseCase: DuplicateUnitUseCase,
     val listPracticeSessionsUseCase: ListPracticeSessionsUseCase,
     val getPracticeSessionUseCase: GetPracticeSessionUseCase,
     val savePracticeSessionUseCase: SavePracticeSessionUseCase,
@@ -61,6 +63,10 @@ fun createDataFoundation(client: SupabaseClient): DataFoundation {
         getPracticeUnitUseCase = GetPracticeUnitUseCase(practiceUnitRepository),
         savePracticeUnitUseCase = SavePracticeUnitUseCase(practiceUnitRepository),
         deletePracticeUnitUseCase = DeletePracticeUnitUseCase(practiceUnitRepository),
+        duplicatePracticeUnitUseCase = DuplicateUnitUseCase(
+            getPracticeUnitUseCase = GetPracticeUnitUseCase(practiceUnitRepository),
+            savePracticeUnitUseCase = SavePracticeUnitUseCase(practiceUnitRepository),
+        ),
         listPracticeSessionsUseCase = ListPracticeSessionsUseCase(practiceSessionRepository),
         getPracticeSessionUseCase = GetPracticeSessionUseCase(practiceSessionRepository),
         savePracticeSessionUseCase = SavePracticeSessionUseCase(practiceSessionRepository),

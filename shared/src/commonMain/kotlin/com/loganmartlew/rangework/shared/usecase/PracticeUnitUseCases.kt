@@ -1,5 +1,6 @@
 package com.loganmartlew.rangework.shared.usecase
 
+import com.loganmartlew.rangework.shared.model.PracticeInstructionDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.model.validated
@@ -34,5 +35,29 @@ class DeletePracticeUnitUseCase(
 ) {
     suspend operator fun invoke(unitId: String) {
         practiceUnitRepository.deletePracticeUnit(unitId.trim())
+    }
+}
+
+class DuplicateUnitUseCase(
+    private val getPracticeUnitUseCase: GetPracticeUnitUseCase,
+    private val savePracticeUnitUseCase: SavePracticeUnitUseCase,
+) {
+    suspend operator fun invoke(unitId: String): PracticeUnit {
+        val original = getPracticeUnitUseCase(unitId)
+            ?: error("Unit $unitId not found")
+        val draft = PracticeUnitDraft(
+            title = original.title,
+            notes = original.notes,
+            focus = original.focus,
+            defaultClubReference = original.defaultClubReference,
+            instructions = original.instructions.map { instruction ->
+                PracticeInstructionDraft(
+                    order = instruction.order,
+                    text = instruction.text,
+                    ballCount = instruction.ballCount,
+                )
+            },
+        )
+        return savePracticeUnitUseCase(draft)
     }
 }

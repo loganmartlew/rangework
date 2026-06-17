@@ -20,6 +20,7 @@ import com.loganmartlew.rangework.shared.data.DataFoundation
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DuplicatePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeUnitUseCase
+import com.loganmartlew.rangework.shared.usecase.DuplicateUnitUseCase
 import com.loganmartlew.rangework.shared.usecase.GetPracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.GetPracticeUnitUseCase
 import com.loganmartlew.rangework.shared.usecase.ListPracticeSessionsUseCase
@@ -234,6 +235,10 @@ private fun fakeDataFoundation(
         getPracticeUnitUseCase = GetPracticeUnitUseCase(emptyUnitRepo),
         savePracticeUnitUseCase = SavePracticeUnitUseCase(emptyUnitRepo),
         deletePracticeUnitUseCase = DeletePracticeUnitUseCase(emptyUnitRepo),
+        duplicatePracticeUnitUseCase = DuplicateUnitUseCase(
+            getPracticeUnitUseCase = GetPracticeUnitUseCase(emptyUnitRepo),
+            savePracticeUnitUseCase = SavePracticeUnitUseCase(emptyUnitRepo),
+        ),
         listPracticeSessionsUseCase = ListPracticeSessionsUseCase(emptySessionRepo),
         getPracticeSessionUseCase = GetPracticeSessionUseCase(emptySessionRepo),
         savePracticeSessionUseCase = SavePracticeSessionUseCase(emptySessionRepo),

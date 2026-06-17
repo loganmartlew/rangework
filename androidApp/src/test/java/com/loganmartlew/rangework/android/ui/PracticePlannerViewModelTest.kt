@@ -16,6 +16,7 @@ import com.loganmartlew.rangework.shared.repository.ClubRepository
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DuplicatePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeUnitUseCase
+import com.loganmartlew.rangework.shared.usecase.DuplicateUnitUseCase
 import com.loganmartlew.rangework.shared.usecase.GetClubCatalogUseCase
 import com.loganmartlew.rangework.shared.usecase.GetEnabledClubsUseCase
 import com.loganmartlew.rangework.shared.usecase.GetMeasurementPreferencesUseCase
@@ -385,6 +386,10 @@ private class FakePlannerRepositories :
         getPracticeUnitUseCase = GetPracticeUnitUseCase(this),
         savePracticeUnitUseCase = SavePracticeUnitUseCase(this),
         deletePracticeUnitUseCase = DeletePracticeUnitUseCase(this),
+        duplicatePracticeUnitUseCase = DuplicateUnitUseCase(
+            getPracticeUnitUseCase = GetPracticeUnitUseCase(this),
+            savePracticeUnitUseCase = SavePracticeUnitUseCase(this),
+        ),
         listPracticeSessionsUseCase = ListPracticeSessionsUseCase(this),
         getPracticeSessionUseCase = GetPracticeSessionUseCase(this),
         savePracticeSessionUseCase = SavePracticeSessionUseCase(this),

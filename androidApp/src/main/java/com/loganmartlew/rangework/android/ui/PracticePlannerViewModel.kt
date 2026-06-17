@@ -15,7 +15,12 @@ import com.loganmartlew.rangework.shared.model.PracticeSessionItem
 import com.loganmartlew.rangework.shared.model.PracticeSessionItemDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
+import com.loganmartlew.rangework.shared.model.EnabledClubCount
+import com.loganmartlew.rangework.shared.model.NextMoveState
+import com.loganmartlew.rangework.shared.model.RecentItem
 import com.loganmartlew.rangework.shared.model.ValidationIssue
+import com.loganmartlew.rangework.shared.model.recentItems
+import com.loganmartlew.rangework.shared.model.resolveNextMoveState
 import com.loganmartlew.rangework.shared.model.validationIssues
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -93,6 +98,7 @@ data class PracticePlannerUiState(
     val sessionEditorBaseline: PracticeSessionEditorState? = null,
     val savedUnitId: String? = null,
     val savedSessionId: String? = null,
+    val duplicatedUnitId: String? = null,
     val duplicatedSessionId: String? = null,
     val status: PlannerStatus? = if (dataConfigured) null else PlannerStatus.Unavailable,
 ) {
@@ -104,6 +110,15 @@ data class PracticePlannerUiState(
 
     val isSessionEditorDirty: Boolean
         get() = sessionEditorBaseline != null && sessionEditor.withoutErrors() != sessionEditorBaseline
+
+    val enabledClubCount: EnabledClubCount
+        get() = EnabledClubCount.from(clubCatalog, enabledClubCodes)
+
+    val recentItems: List<RecentItem>
+        get() = recentItems(units, sessions)
+
+    val nextMoveState: NextMoveState
+        get() = resolveNextMoveState(units, sessions, savedUnitId, savedSessionId)
 }
 
 class PracticePlannerViewModel(
@@ -165,6 +180,7 @@ class PracticePlannerViewModel(
                     sessionEditorBaseline = null,
                     savedUnitId = null,
                     savedSessionId = null,
+                    duplicatedUnitId = null,
                     duplicatedSessionId = null,
                     status = if (dataFoundation == null) {
                         PlannerStatus.Unavailable
@@ -557,6 +573,35 @@ class PracticePlannerViewModel(
                 }
             }
         }
+    }
+
+    fun duplicateUnit(unitId: String) {
+        val foundation = dataFoundation ?: return markPlannerUnavailable()
+        if (activeUserId == null) {
+            markSignedOut()
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSaving = true, duplicatedUnitId = null)
+            try {
+                val duplicated = foundation.duplicatePracticeUnitUseCase(unitId)
+                val units = foundation.listPracticeUnitsUseCase()
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSaving = false,
+                    units = units,
+                    duplicatedUnitId = duplicated.id,
+                    status = PlannerStatus.Notification("Duplicated ${duplicated.title}."),
+                )
+            } catch (exception: Exception) {
+                markSaveFailure(exception, "Unit duplicate failed.")
+            }
+        }
+    }
+
+    fun clearDuplicatedUnitId() {
+        _uiState.value = _uiState.value.copy(duplicatedUnitId = null)
     }
 
     fun duplicateSession(sessionId: String) {
