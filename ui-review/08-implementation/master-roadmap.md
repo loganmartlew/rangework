@@ -1,8 +1,8 @@
 # Rangework Redesign — Master Implementation Roadmap
 
-A single migration plan that turns the redesign program (10 screen redesigns + 11 audits) into an ordered, dependency-aware sequence of implementable stages. This document does **not** implement anything; it sequences the work so each stage is independently shippable, minimally coupled to its neighbours, and testable on its own.
+A single migration plan that turns the redesign program plus the follow-on delivery audits into an ordered, dependency-aware sequence of implementable stages. This document does **not** implement anything; it sequences the work so each stage is independently shippable, minimally coupled to its neighbours, and testable on its own.
 
-**Sources analyzed:** `RANGEWORK.md`; `06-findings/*` (systemic audit, cognitive walkthrough, consistency audit, Material 3 audit, planning/readiness review, five per-screen reviews, prioritized 60-item backlog); `07-redesigns/*` (login, overview, unit list/detail/edit, session list/detail/edit, settings + new Manage clubs — markdown specs and wireframe PNGs); current-state screenshots `01–05`; `08-implementation/redesign-audit.md`; and the codebase map in `CLAUDE.md`.
+**Sources analyzed:** `RANGEWORK.md`; `06-findings/*` (systemic audit, cognitive walkthrough, consistency audit, Material 3 audit, planning/readiness review, five per-screen reviews, prioritized 60-item backlog); `07-redesigns/*` (login, overview, unit list/detail/edit, session list/detail/edit, settings + new Manage clubs — markdown specs and wireframe PNGs); current-state screenshots `01–05`; `08-implementation/redesign-audit.md`; `08-implementation/redesign-audit-1.md`; `08-implementation/redesign-audit-2.md`; and the codebase map in `CLAUDE.md`.
 
 Backlog item IDs (B01–B60) reference `06-findings/prioritized-roadmap.md`.
 
@@ -173,10 +173,31 @@ No redesign requires a breaking model/column rename. Terminology lock changes **
        └────────────┬─────────────┘                     └────────────┬─────────────┘
                     └────────────────────────┬───────────────────────┘
                                              ▼
-                               ┌──────────────────────────┐
-                               │ S15 OVERVIEW POLISH      │
-                               │ recents · contrast · bars│
-                               └──────────────────────────┘
+                              ┌──────────────────────────┐
+                              │ S15 OVERVIEW POLISH      │
+                              │ recents · contrast · bars│
+                              └────────────┬─────────────┘
+                                           ▼
+                              ┌──────────────────────────┐
+                              │ S16 APP BAR + TITLES     │
+                              │ shell policy · names     │
+                              └───────┬────────┬─────────┘
+                                      ▼        ▼
+                    ┌──────────────────────┐  ┌──────────────────────┐
+                    │ S17 LIST INTERACTION │  │ S18 EDITOR VIEWPORT  │
+                    │ swipe background     │  │ sticky surfaces      │
+                    └──────────┬───────────┘  └──────────┬───────────┘
+                               └──────────────┬───────────┘
+                                              ▼
+                              ┌──────────────────────────┐
+                              │ S19 CREATE + ONBOARDING  │
+                              │ stepper defaults · login │
+                              └────────────┬─────────────┘
+                                           ▼
+                              ┌──────────────────────────┐
+                              │ S20 DENSITY + RHYTHM     │
+                              │ settings · editors       │
+                              └──────────────────────────┘
 ```
 
 **Edge summary (X depends on Y):**
@@ -192,6 +213,11 @@ No redesign requires a breaking model/column rename. Terminology lock changes **
 - S13 → S11 (detail top-bar/session-note changes should land first)
 - S14 → S11 (drag-to-reorder should land before consolidating editor rows)
 - S15 → S12, S13, S14 (final pass after card, detail/top-bar, and terminology decisions)
+- S16 → S15 (locks the app-wide authenticated title/app-bar policy after the first fidelity wave)
+- S17 → S16 (list swipe/card polish after final shell-title treatment is in place)
+- S18 → S16 (editor viewport work depends on final authenticated top-bar/chrome behavior)
+- S19 → S16, S18 (create/onboarding polish after shell and editor viewport stabilization)
+- S20 → S17, S18, S19 (final density pass after interaction and layout churn settle)
 
 S3 and S4 can begin in parallel with S2 the moment S1 lands. S4 (Login) only needs the Google button from S2; it can ship as soon as that single component exists.
 
@@ -306,11 +332,46 @@ Each stage lists: **scope · depends-on · backlog IDs · why it's a coherent un
 **Audit findings:** redesign-audit #7 (overview/settings/editor remainder), #10, #11.
 **Tested by:** Overview next-move branches, recents metadata for units/sessions, contrast in light/dark, all remaining non-detail top bars, phone and tablet.
 
+### S16 — App bar and title system
+**Scope:** Replace the remaining generic and double-title app-bar treatments with an explicit authenticated route policy: detail screens resolve and show the real entity title; top-level authenticated routes use title-only small top bars; pushed non-detail routes such as Manage clubs use one consistent back + title treatment.
+**Depends on:** S15.
+**Why one unit:** all remaining title/app-bar issues are shared-shell problems in `RangeworkApp`; fixing them together avoids one more round of route-policy drift.
+**Audit findings:** redesign-audit-2 #1, #2, #8.
+**Tested by:** Overview/Units/Sessions/Settings/Manage-clubs top-bar screenshots, detail title resolution for units/sessions, long-title truncation, phone and tablet.
+
+### S17 — List interaction polish
+**Scope:** Remove resting swipe-background leakage around list cards while preserving S11 swipe-to-edit/delete behavior, outlined-card fidelity, and tap/overflow affordances.
+**Depends on:** S16.
+**Why one unit:** the remaining list issue is localized to the swipe/card interaction layer and is best verified separately from shell-title changes.
+**Audit findings:** redesign-audit-2 #3.
+**Tested by:** Units/Sessions resting-card screenshots, active swipe screenshots, tap/edit/delete/overflow regression checks, phone and tablet.
+
+### S18 — Editor viewport and sticky surface stabilization
+**Scope:** Rework editor pinned-surface behavior so docked Save bars and the Session sticky total never obscure active controls or allow scrolled content to slide underneath them.
+**Depends on:** S16.
+**Why one unit:** the remaining editor bugs are both viewport/layering failures caused by pinned surfaces inside scrolling forms; solving them together keeps the editor shell coherent.
+**Audit findings:** redesign-audit-2 #4, #5.
+**Tested by:** Unit/Session editor screenshots at top/mid/bottom scroll, IME open/closed, sticky-total behavior, compact phone and tablet.
+
+### S19 — Create flow and onboarding polish
+**Scope:** Fix the unit-create default ball-count behavior so the stepper does not present an invalid-looking zero state, and make the login supporting copy fit cleanly without truncation.
+**Depends on:** S16, S18.
+**Why one unit:** both issues affect the app's earliest entry/create moments and are small enough to land together once the editor viewport is stable.
+**Audit findings:** redesign-audit-2 #6, #7.
+**Tested by:** New unit create-state screenshot, unit-save validation behavior, login screenshot on baseline phone, light and dark themes.
+
+### S20 — Density and rhythm pass
+**Scope:** Tighten spacing and row density on Settings and the editors so those screens scan more like the redesign intent once shell, interaction, and viewport issues are settled.
+**Depends on:** S17, S18, S19.
+**Why one unit:** density tuning should be the last polish pass, after structural and layering bugs stop moving the layout around.
+**Audit findings:** redesign-audit-2 #9.
+**Tested by:** Settings and editor before/after screenshots, compact-phone scan pass, tablet pass, no regression in touch-target sizes.
+
 ---
 
 ## C. Stage Ordering
 
-**Critical path:** S1 → S2 → {S5, S6, S7, S8} → S9 → S10 → S11 → S12 → {S13, S14} → S15.
+**Critical path:** S1 → S2 → {S5, S6, S7, S8} → S9 → S10 → S11 → S12 → {S13, S14} → S15 → S16 → S18 → S19 → S20.
 
 **Recommended sequence (with rationale):**
 
@@ -328,8 +389,13 @@ Each stage lists: **scope · depends-on · backlog IDs · why it's a coherent un
 12. **S13 Detail fidelity** — restore ball-count hierarchy, summary parity, and focus cue treatment.
 13. **S14 Editor consistency** — consolidate the twin editor row structure and repair terminology drift.
 14. **S15 Overview polish** — finish the integrator screen and any remaining small-top-bar normalization once list/card/terminology decisions are stable.
+15. **S16 App bar + title system** — fix the remaining shared-shell spec breaks first, because they affect navigation clarity across detail, top-level, and pushed screens.
+16. **S17 List interaction polish** — clean up the swipe/card resting state once the list shell and title system are final.
+17. **S18 Editor viewport stabilization** — resolve the remaining editor pinned-surface overlap and sticky-header collisions after shell chrome is settled.
+18. **S19 Create + onboarding polish** — tighten the first-run/new-item states after editor viewport behavior is trustworthy.
+19. **S20 Density + rhythm** — do the final spacing pass last, once structure, chrome, and interaction states are no longer moving.
 
-**Parallelization opportunities:** S2∥S3; once S2 lands, S5/S6/S7 and S8 are mutually independent and can be split across implementers (each touches a disjoint screen set; shared surface is the S2 library, which is frozen). S9 must wait for S5+S6. After S12, S13 and S14 can run in parallel because they touch details vs editors; S15 should wait for both so Overview consumes the final card, top-bar, and terminology patterns.
+**Parallelization opportunities:** S2∥S3; once S2 lands, S5/S6/S7 and S8 are mutually independent and can be split across implementers (each touches a disjoint screen set; shared surface is the S2 library, which is frozen). S9 must wait for S5+S6. After S12, S13 and S14 can run in parallel because they touch details vs editors; S15 should wait for both so Overview consumes the final card, top-bar, and terminology patterns. After S16 lands, S17 and S18 can run in parallel because one is list-interaction polish and the other is editor viewport stabilization. S19 should wait for S18, and S20 should wait for all three so spacing is tuned against the final behavior.
 
 **Why low-ROI-formula items aren't all front-loaded:** the backlog's top formula rows (B09, B07, B37, token swaps) are absorbed into S1/S2 as foundation rather than shipped as isolated one-liners, because they're cheaper to do once at the component/theme layer than to retrofit per screen. The genuinely high-user-value items the reviews converge on (B01 drag-reorder, B02 empty states, B06 delete safety, B10 club extraction) land in their natural screen stages on the critical path.
 
@@ -359,12 +425,17 @@ Each stage lists: **scope · depends-on · backlog IDs · why it's a coherent un
 | **S13** | Ball totals dominate detail summary strips; Unit detail summary includes default club; session item focus cues are labelled/tinted; `FocusCard` has icon; long detail titles truncate. |
 | **S14** | Session editor uses shared reorder row; drag/chevrons/delete/subtotals still work; notes labels are scope-prefixed everywhere; unused editor snackbar hosts removed. |
 | **S15** | Overview eyebrow contrast passes; recents include type + metadata; "Resume editing" includes entity name; all remaining non-detail top bars use left-aligned small bars. |
+| **S16** | Detail bars show real unit/session names; top-level authenticated bars are title-only small bars; Manage clubs uses the pushed non-detail bar treatment; long names still truncate cleanly. |
+| **S17** | Units and Sessions list cards show no swipe-background leakage at rest; active swipes still reveal the correct affordances; tap/overflow/swipe all coexist. |
+| **S18** | Docked Save bars do not cover active editor controls; Session sticky total no longer overlays scrolled item content; IME and compact-phone layouts stay usable. |
+| **S19** | New unit create-state no longer presents a misleading zero-ball default; login supporting copy fits cleanly without ellipsis; create/save validation still behaves correctly. |
+| **S20** | Settings and editor spacing feel intentionally compact and scannable; touch-target sizes and readability remain intact on phone and tablet. |
 
 **Program-level checkpoints:**
 - Phone (compact) **and** tablet (expanded rail + two-column overview) verified each screen stage — `CLAUDE.md` requires preserving the responsive nav pattern.
 - Terminology audit after S1, re-checked after S9, and repaired/verified again in S14 (no concept uses two words anywhere).
 - Auth-gated flow intact end-to-end after S4 and after S9.
-- Delivery-audit coverage check after S15: every finding in `08-implementation/redesign-audit.md` is either implemented in S12-S15 or explicitly covered by S11.
+- Delivery-audit coverage check after S20: every finding in `08-implementation/redesign-audit.md` and every staged finding in `08-implementation/redesign-audit-2.md` (#1-#9) is either implemented in S12-S20 or explicitly covered by S11. Audit-2 finding #10 remains a validation/checklist concern, not a standalone stage.
 
 ---
 
@@ -382,7 +453,7 @@ Each stage lists: **scope · depends-on · backlog IDs · why it's a coherent un
 | **R8** | Twin screens drift (Units vs Sessions, both details, both editors) if implemented separately. | Med | Low | Enforce the S2 shared components as the single source; review twins together in one stage. |
 | **R9** | Progressive disclosure / "More options" expander (B40) hides fields users expect, causing confusion or lost edits. | Low | Med | Only collapse genuinely-optional fields; auto-expand when a hidden field has a value; usability check in S7. |
 | **R10** | Tablet/responsive layout (compact ↔ expanded) regresses as screens are restructured. | Med | Med | Validate both width classes at every screen stage; the redesigns are phone-first and must not break the rail/two-column pattern. |
-| **R11** | Scope creep from delight items (briefing reframe, run-mode, tablet panes) pulled into screen stages. | Med | Med | Keep S11 and S12-S15 bounded to their plan docs; larger product features need their own stage. |
+| **R11** | Scope creep from delight items (briefing reframe, run-mode, tablet panes) pulled into screen stages. | Med | Med | Keep S11 and S12-S20 bounded to their plan docs; larger product features need their own stage. |
 | **R12** | List FAB rules regress because the decision is made in the global shell instead of each list screen. | Med | Med | In S12, derive FAB state from the active route and that route's actual item count; test empty, 1, 2, and 3+ items for both lists. |
 | **R13** | Ball-count prominence crowds detail summary rows at large font scale. | Med | Low | Give `StatBlock` a prominence variant and test narrow/large-font layouts; wrap or rebalance row weights instead of shrinking the primary metric away. |
 | **R14** | Refactoring Session editor onto `ReorderableItemRow` drops session-specific subtotal/repeat/club behavior. | Med | Med | Inventory row behavior before S14 and verify every callback/state after the refactor. |
@@ -405,4 +476,4 @@ These must be resolved by the product owner or handled by the already-approved d
 
 ## Summary
 
-The original redesign program is sequenced as **two foundation stages (tokens, then a shared component library) + one data-enabler stage**, feeding **five screen stages** (Login → Lists → Details → Editors → Settings), **Overview as the integrator**, and an **accessibility sweep**. S11 then closes the approved deferred backlog items. The updated post-delivery audit continues with **S12-S15**: list fidelity, detail fidelity, editor consistency, and Overview polish. Together those stages cover every remaining finding in `redesign-audit.md` while keeping work grouped by user-facing surface and preserving the twin-screen strategy that keeps Units/Sessions and both editors from drifting.
+The original redesign program is sequenced as **two foundation stages (tokens, then a shared component library) + one data-enabler stage**, feeding **five screen stages** (Login → Lists → Details → Editors → Settings), **Overview as the integrator**, and an **accessibility sweep**. S11 then closes the approved deferred backlog items. The updated post-delivery audit now continues with **S12-S20**: list fidelity, detail fidelity, editor consistency, Overview polish, shell-title normalization, list interaction polish, editor viewport stabilization, create/onboarding polish, and a final density pass. Together those stages cover the open implementation findings in `redesign-audit.md` and `redesign-audit-2.md` while keeping work grouped by user-facing surface and preserving the twin-screen strategy that keeps Units/Sessions and both editors from drifting.
