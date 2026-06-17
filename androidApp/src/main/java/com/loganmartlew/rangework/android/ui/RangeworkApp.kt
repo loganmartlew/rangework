@@ -185,7 +185,7 @@ fun RangeworkApp(
             onUpdateDefaultClubReference = plannerViewModel::updateUnitDefaultClubReference,
             onAddInstruction = plannerViewModel::addInstruction,
             onUpdateInstructionText = plannerViewModel::updateInstructionText,
-            onUpdateInstructionBallCount = plannerViewModel::updateInstructionBallCount,
+            onUpdateInstructionBallCount = { i, v -> plannerViewModel.updateInstructionBallCount(i, v) },
             onMoveInstructionUp = plannerViewModel::moveInstructionUp,
             onMoveInstructionDown = plannerViewModel::moveInstructionDown,
             onRemoveInstruction = plannerViewModel::removeInstruction,
@@ -205,7 +205,7 @@ fun RangeworkApp(
             onUpdateNotes = plannerViewModel::updateSessionNotes,
             onAddItem = plannerViewModel::addSessionItem,
             onUpdateItemUnit = plannerViewModel::updateSessionItemUnit,
-            onUpdateItemRepeatCount = plannerViewModel::updateSessionItemRepeatCount,
+            onUpdateItemRepeatCount = { i, v -> plannerViewModel.updateSessionItemRepeatCount(i, v) },
             onUpdateItemClubReference = plannerViewModel::updateSessionItemClubReference,
             onUpdateItemNotes = plannerViewModel::updateSessionItemNotes,
             onUpdateItemFocusCue = plannerViewModel::updateSessionItemFocusCue,
@@ -747,6 +747,10 @@ private fun AuthenticatedAppShell(
                             onUpdateSessionItemFocusCue = sessionActions.onUpdateItemFocusCue,
                             onMoveSessionItem = sessionActions.onMoveItem,
                             onRemoveSessionItem = sessionActions.onRemoveItem,
+                            onNavigateToCreateUnit = {
+                                unitActions.onBeginNew()
+                                shellNavController.navigate(RangeworkRoutes.UnitCreate)
+                            },
                         )
                     }
                     composable(RangeworkRoutes.SessionDetail) { backStackEntry ->
@@ -795,6 +799,10 @@ private fun AuthenticatedAppShell(
                             onUpdateSessionItemFocusCue = sessionActions.onUpdateItemFocusCue,
                             onMoveSessionItem = sessionActions.onMoveItem,
                             onRemoveSessionItem = sessionActions.onRemoveItem,
+                            onNavigateToCreateUnit = {
+                                unitActions.onBeginNew()
+                                shellNavController.navigate(RangeworkRoutes.UnitCreate)
+                            },
                         )
                     }
                     composable(RangeworkRoutes.Settings) {

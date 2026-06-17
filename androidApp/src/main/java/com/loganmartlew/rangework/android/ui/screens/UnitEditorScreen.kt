@@ -2,27 +2,44 @@ package com.loganmartlew.rangework.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PracticeInstructionEditorState
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
+import com.loganmartlew.rangework.android.ui.ballSummary
 import com.loganmartlew.rangework.android.ui.components.ClubPickerField
-import com.loganmartlew.rangework.android.ui.components.ReorderButtons
-import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
-import com.loganmartlew.rangework.shared.model.Club
+import com.loganmartlew.rangework.android.ui.components.CountStepper
+import com.loganmartlew.rangework.android.ui.components.DockedSaveBar
+import com.loganmartlew.rangework.android.ui.components.MoreOptionsExpander
+import com.loganmartlew.rangework.android.ui.components.NumberBadge
+import com.loganmartlew.rangework.android.ui.components.ReorderableItemRow
+import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,103 +53,103 @@ internal fun UnitEditorScreen(
     onUpdateDefaultClubReference: (String) -> Unit,
     onAddInstruction: () -> Unit,
     onUpdateInstructionText: (Int, String) -> Unit,
-    onUpdateInstructionBallCount: (Int, String) -> Unit,
+    onUpdateInstructionBallCount: (Int, Int) -> Unit,
     onMoveInstructionUp: (Int) -> Unit,
     onMoveInstructionDown: (Int) -> Unit,
     onRemoveInstruction: (Int) -> Unit,
 ) {
-    ScrollableScreen {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        UnitEditorCard(
-            editorState = plannerUiState.unitEditor,
-            clubCatalog = plannerUiState.clubCatalog,
-            enabledClubCodes = plannerUiState.enabledClubCodes,
-            isWorking = plannerUiState.isWorking,
-            onUpdateTitle = onUpdateTitle,
-            onUpdateNotes = onUpdateNotes,
-            onUpdateFocus = onUpdateFocus,
-            onSelectDefaultClub = onUpdateDefaultClubReference,
-            onAddInstruction = onAddInstruction,
-            onUpdateInstructionText = onUpdateInstructionText,
-            onUpdateInstructionBallCount = onUpdateInstructionBallCount,
-            onMoveInstructionUp = onMoveInstructionUp,
-            onMoveInstructionDown = onMoveInstructionDown,
-            onRemoveInstruction = onRemoveInstruction,
-            onSaveUnit = onSaveUnit,
-        )
-    }
-}
+    val editor = plannerUiState.unitEditor
+    val isWorking = plannerUiState.isWorking
+    val isCreateMode = editor.unitId == null
+    val hasNotesOrFocus = editor.notes.isNotBlank() || editor.focus.isNotBlank()
+    val totalBalls = editor.instructions.sumOf { it.ballCount.toIntOrNull() ?: 0 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun UnitEditorCard(
-    editorState: com.loganmartlew.rangework.android.ui.PracticeUnitEditorState,
-    clubCatalog: List<Club>,
-    enabledClubCodes: Set<String>,
-    isWorking: Boolean,
-    onUpdateTitle: (String) -> Unit,
-    onUpdateNotes: (String) -> Unit,
-    onUpdateFocus: (String) -> Unit,
-    onSelectDefaultClub: (String) -> Unit,
-    onAddInstruction: () -> Unit,
-    onUpdateInstructionText: (Int, String) -> Unit,
-    onUpdateInstructionBallCount: (Int, String) -> Unit,
-    onMoveInstructionUp: (Int) -> Unit,
-    onMoveInstructionDown: (Int) -> Unit,
-    onRemoveInstruction: (Int) -> Unit,
-    onSaveUnit: () -> Unit,
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    Scaffold(
+        contentWindowInsets = WindowInsets(0),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            DockedSaveBar(
+                label = "Save unit",
+                onClick = onSaveUnit,
+                enabled = !isWorking,
+            )
+        },
+    ) { innerPadding ->
+        LazyColumn(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            OutlinedTextField(
-                value = editorState.title,
-                onValueChange = onUpdateTitle,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Title") },
-                enabled = !isWorking,
-                singleLine = true,
-                isError = editorState.titleError != null,
-                supportingText = editorState.titleError?.let { { Text(it) } },
-            )
-            OutlinedTextField(
-                value = editorState.notes,
-                onValueChange = onUpdateNotes,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Unit notes") },
-                enabled = !isWorking,
-                minLines = 3,
-            )
-            OutlinedTextField(
-                value = editorState.focus,
-                onValueChange = onUpdateFocus,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Focus cue") },
-                enabled = !isWorking,
-                singleLine = true,
-            )
-            ClubPickerField(
-                label = "Default club",
-                selectedCode = editorState.defaultClubReference.ifBlank { null },
-                clubCatalog = clubCatalog,
-                enabledClubCodes = enabledClubCodes,
-                enabled = !isWorking,
-                onSelect = onSelectDefaultClub,
-            )
-            Text(
-                text = "Instructions",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            editorState.instructions.forEachIndexed { index, instruction ->
-                InstructionEditorCard(
+            item {
+                OutlinedTextField(
+                    value = editor.title,
+                    onValueChange = onUpdateTitle,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Title") },
+                    enabled = !isWorking,
+                    singleLine = true,
+                    isError = editor.titleError != null,
+                    supportingText = editor.titleError?.let { { Text(it) } },
+                )
+            }
+
+            item {
+                MoreOptionsExpander(
+                    label = if (isCreateMode && !hasNotesOrFocus) "Add notes & focus" else "Notes & focus",
+                    hasContent = hasNotesOrFocus,
+                ) {
+                    OutlinedTextField(
+                        value = editor.notes,
+                        onValueChange = onUpdateNotes,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Notes") },
+                        supportingText = { Text("General reminders for this drill") },
+                        enabled = !isWorking,
+                        minLines = 3,
+                    )
+                    OutlinedTextField(
+                        value = editor.focus,
+                        onValueChange = onUpdateFocus,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Focus cue") },
+                        supportingText = { Text("One mental cue to hold while practising") },
+                        enabled = !isWorking,
+                        singleLine = true,
+                    )
+                }
+            }
+
+            item {
+                ClubPickerField(
+                    label = "Default club",
+                    selectedCode = editor.defaultClubReference.ifBlank { null },
+                    clubCatalog = plannerUiState.clubCatalog,
+                    enabledClubCodes = plannerUiState.enabledClubCodes,
+                    enabled = !isWorking,
+                    onSelect = onUpdateDefaultClubReference,
+                )
+            }
+
+            item {
+                Text(
+                    text = "INSTRUCTIONS",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+
+            itemsIndexed(
+                items = editor.instructions,
+                key = { _, instruction -> instruction.order },
+            ) { index, instruction ->
+                InstructionEditorRow(
                     instruction = instruction,
+                    number = index + 1,
                     isWorking = isWorking,
                     onUpdateText = { onUpdateInstructionText(index, it) },
                     onUpdateBallCount = { onUpdateInstructionBallCount(index, it) },
@@ -140,83 +157,125 @@ private fun UnitEditorCard(
                     onMoveDown = { onMoveInstructionDown(index) },
                     onRemove = { onRemoveInstruction(index) },
                     canMoveUp = index > 0,
-                    canMoveDown = index < editorState.instructions.lastIndex,
+                    canMoveDown = index < editor.instructions.lastIndex,
                 )
             }
-            FilledTonalButton(
-                enabled = !isWorking,
-                onClick = onAddInstruction,
-            ) {
-                Text("Add instruction")
+
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Total",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = ballSummary(totalBalls),
+                        style = RangeworkMono.medium,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
             }
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isWorking,
-                onClick = onSaveUnit,
-            ) {
-                Text("Save unit")
+
+            item {
+                TextButton(
+                    onClick = onAddInstruction,
+                    enabled = !isWorking,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Add instruction")
+                }
             }
         }
     }
 }
 
 @Composable
-private fun InstructionEditorCard(
+private fun InstructionEditorRow(
     instruction: PracticeInstructionEditorState,
+    number: Int,
     isWorking: Boolean,
     onUpdateText: (String) -> Unit,
-    onUpdateBallCount: (String) -> Unit,
+    onUpdateBallCount: (Int) -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onRemove: () -> Unit,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
 ) {
-    Card(
+    val ballCountValue = instruction.ballCount.toIntOrNull() ?: 0
+
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        ),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 0.dp,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ReorderableItemRow(
+            canMoveUp = canMoveUp,
+            canMoveDown = canMoveDown,
+            onMoveUp = onMoveUp,
+            onMoveDown = onMoveDown,
+            onDelete = onRemove,
+            moveUpContentDescription = "Move instruction $number up",
+            moveDownContentDescription = "Move instruction $number down",
+            deleteContentDescription = "Delete instruction $number",
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
-            Text(
-                text = "Instruction ${instruction.order}",
-                style = MaterialTheme.typography.titleSmall,
+            NumberBadge(
+                number = number,
+                modifier = Modifier.padding(end = 4.dp),
             )
-            OutlinedTextField(
-                value = instruction.text,
-                onValueChange = onUpdateText,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Instruction") },
-                enabled = !isWorking,
-                minLines = 2,
-                isError = instruction.textError != null,
-                supportingText = instruction.textError?.let { { Text(it) } },
-            )
-            OutlinedTextField(
-                value = instruction.ballCount,
-                onValueChange = { onUpdateBallCount(it.filter(Char::isDigit)) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Ball count") },
-                enabled = !isWorking,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                isError = instruction.ballCountError != null,
-                supportingText = instruction.ballCountError?.let { { Text(it) } },
-            )
-            ReorderButtons(
-                isWorking = isWorking,
-                canMoveUp = canMoveUp,
-                canMoveDown = canMoveDown,
-                onMoveUp = onMoveUp,
-                onMoveDown = onMoveDown,
-                onRemove = onRemove,
-            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = instruction.text,
+                    onValueChange = onUpdateText,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Instruction") },
+                    enabled = !isWorking,
+                    minLines = 2,
+                    isError = instruction.textError != null,
+                    supportingText = instruction.textError?.let { { Text(it) } },
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = "Balls",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    CountStepper(
+                        value = ballCountValue,
+                        onValueChange = onUpdateBallCount,
+                        min = 0,
+                        max = 100,
+                        label = "Ball count for instruction $number",
+                    )
+                    if (instruction.ballCountError != null) {
+                        Text(
+                            text = instruction.ballCountError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
         }
     }
 }
