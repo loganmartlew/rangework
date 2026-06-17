@@ -1,6 +1,5 @@
 package com.loganmartlew.rangework.android.ui.screens
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -54,7 +53,7 @@ import com.loganmartlew.rangework.shared.model.derivedBallCount
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SessionEditorScreen(
     plannerUiState: PracticePlannerUiState,
@@ -87,7 +86,7 @@ internal fun SessionEditorScreen(
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        val headerCount = 2
+        val headerCount = 1
         onMoveSessionItem(from.index - headerCount, to.index - headerCount)
     }
 
@@ -101,21 +100,23 @@ internal fun SessionEditorScreen(
             )
         },
     ) { innerPadding ->
-        LazyColumn(
-            state = lazyListState,
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            stickyHeader {
-                StickyTotalBar(
-                    label = "Total",
-                    value = sessionEditorTotalText(totalBalls),
-                )
-            }
-
+            StickyTotalBar(
+                label = "Total",
+                value = sessionEditorTotalText(totalBalls),
+            )
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
             item {
                 Column(
                     modifier = Modifier
@@ -227,6 +228,7 @@ internal fun SessionEditorScreen(
                         if (plannerUiState.units.isEmpty()) "Create a unit first" else "Add item",
                     )
                 }
+            }
             }
         }
     }
