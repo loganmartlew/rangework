@@ -613,7 +613,11 @@ private fun AuthenticatedAppShell(
         },
         topBar = {
             val titleContent: @Composable () -> Unit = {
-                Text(text = titleForRoute(currentRoute, plannerUiState))
+                Text(
+                    text = titleForRoute(currentRoute, plannerUiState),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             val navigationIconContent: @Composable () -> Unit = {
                 if (canNavigateBack) {

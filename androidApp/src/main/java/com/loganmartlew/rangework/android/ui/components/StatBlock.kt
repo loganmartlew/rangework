@@ -10,15 +10,28 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.android.ui.theme.RangeworkTheme
+
+internal enum class StatProminence {
+    Primary,
+    Secondary,
+}
+
+internal data class BriefingStat(
+    val value: String,
+    val label: String,
+    val prominence: StatProminence = StatProminence.Secondary,
+)
 
 /** A single numeric value + caption pair, stacked vertically. */
 @Composable
 internal fun StatBlock(
     value: String,
     label: String,
+    prominence: StatProminence = StatProminence.Secondary,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -27,8 +40,16 @@ internal fun StatBlock(
     ) {
         Text(
             text = value,
-            style = RangeworkMono.medium,
-            color = MaterialTheme.colorScheme.secondary,
+            style = when (prominence) {
+                StatProminence.Primary -> RangeworkMono.large
+                StatProminence.Secondary -> RangeworkMono.medium
+            },
+            color = when (prominence) {
+                StatProminence.Primary -> MaterialTheme.colorScheme.onSurface
+                StatProminence.Secondary -> MaterialTheme.colorScheme.secondary
+            },
+            maxLines = if (prominence == StatProminence.Primary) 1 else 2,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = label.uppercase(),
@@ -41,15 +62,20 @@ internal fun StatBlock(
 /** A horizontal strip of [StatBlock]s, evenly distributed. */
 @Composable
 internal fun BriefingRow(
-    stats: List<Pair<String, String>>,
+    stats: List<BriefingStat>,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        stats.forEach { (value, label) ->
-            StatBlock(value = value, label = label)
+        stats.forEach { stat ->
+            StatBlock(
+                value = stat.value,
+                label = stat.label,
+                prominence = stat.prominence,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
@@ -61,6 +87,7 @@ private fun StatBlockPreview() {
         StatBlock(
             value = "40",
             label = "Balls",
+            prominence = StatProminence.Primary,
             modifier = Modifier.padding(16.dp),
         )
     }
@@ -72,9 +99,9 @@ private fun BriefingRowPreview() {
     RangeworkTheme {
         BriefingRow(
             stats = listOf(
-                "40" to "Balls",
-                "4" to "Instructions",
-                "3" to "Sessions",
+                BriefingStat(value = "40", label = "Balls", prominence = StatProminence.Primary),
+                BriefingStat(value = "4", label = "Instructions"),
+                BriefingStat(value = "3", label = "Sessions"),
             ),
             modifier = Modifier.padding(16.dp),
         )

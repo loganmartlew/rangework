@@ -5,9 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.material.icons.filled.GolfCourse
+import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
@@ -15,6 +18,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -23,11 +27,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
 import com.loganmartlew.rangework.android.ui.components.BallCountPill
+import com.loganmartlew.rangework.android.ui.components.BriefingStat
 import com.loganmartlew.rangework.android.ui.components.BriefingRow
 import com.loganmartlew.rangework.android.ui.components.EmptyStateCard
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.NumberBadge
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.StatProminence
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.PracticeSessionItem
@@ -65,9 +71,19 @@ internal fun SessionDetailScreen(
         // Briefing strip: balls (primary) + unit count + estimated duration
         BriefingRow(
             stats = listOf(
-                totalBalls.toString() to "Balls",
-                session.items.size.toString() to "Units",
-                durationDisplay to "Est. time",
+                BriefingStat(
+                    value = totalBalls.toString(),
+                    label = "Balls",
+                    prominence = StatProminence.Primary,
+                ),
+                BriefingStat(
+                    value = session.items.size.toString(),
+                    label = "Units",
+                ),
+                BriefingStat(
+                    value = durationDisplay,
+                    label = "Est. time",
+                ),
             ),
         )
 
@@ -200,12 +216,36 @@ private fun SessionItemDetailRow(
 
         // Focus cue line (conditional, aligned after badge)
         item.focusCue?.takeIf(String::isNotBlank)?.let { cue ->
-            Text(
-                text = cue,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.padding(start = 40.dp),
-            )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.GpsFixed,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Focus cue",
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        Text(
+                            text = cue,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
         }
 
         item.notes?.takeIf(String::isNotBlank)?.let { notes ->

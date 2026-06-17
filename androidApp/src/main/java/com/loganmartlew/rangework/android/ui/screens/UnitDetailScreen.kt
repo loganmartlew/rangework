@@ -23,12 +23,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
 import com.loganmartlew.rangework.android.ui.components.BallCountPill
+import com.loganmartlew.rangework.android.ui.components.BriefingStat
 import com.loganmartlew.rangework.android.ui.components.BriefingRow
 import com.loganmartlew.rangework.android.ui.components.EmptyStateCard
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.FocusCard
 import com.loganmartlew.rangework.android.ui.components.NumberBadge
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.StatProminence
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.derivedBallCount
@@ -55,11 +57,26 @@ internal fun UnitDetailScreen(
             return@ScrollableScreen
         }
 
-        // Stat strip: total balls (primary) + instruction count
+        val defaultClubName = unit.defaultClubReference?.takeIf(String::isNotBlank)?.let { code ->
+            plannerUiState.clubCatalog.firstOrNull { it.code == code }?.displayName ?: code
+        } ?: "No club"
+
+        // Stat strip: total balls (primary) + instruction count + default club
         BriefingRow(
             stats = listOf(
-                unit.derivedBallCount().toString() to "Balls",
-                unit.instructions.size.toString() to "Instructions",
+                BriefingStat(
+                    value = unit.derivedBallCount().toString(),
+                    label = "Balls",
+                    prominence = StatProminence.Primary,
+                ),
+                BriefingStat(
+                    value = unit.instructions.size.toString(),
+                    label = "Instructions",
+                ),
+                BriefingStat(
+                    value = defaultClubName,
+                    label = "Default club",
+                ),
             ),
         )
 
@@ -71,12 +88,6 @@ internal fun UnitDetailScreen(
         // Focus cue — tinted FocusCard only when a cue exists
         unit.focus?.takeIf(String::isNotBlank)?.let { cue ->
             FocusCard(cue = cue)
-        }
-
-        // Default club (if set)
-        unit.defaultClubReference?.takeIf(String::isNotBlank)?.let { code ->
-            val name = plannerUiState.clubCatalog.firstOrNull { it.code == code }?.displayName ?: code
-            EntryHighlightCard(title = "Default club", body = name)
         }
 
         // Instructions card
