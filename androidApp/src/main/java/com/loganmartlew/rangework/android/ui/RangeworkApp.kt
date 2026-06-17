@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
@@ -68,8 +69,13 @@ import com.loganmartlew.rangework.android.auth.AndroidGoogleIdTokenProvider
 import com.loganmartlew.rangework.android.config.baselineAndroidAppAuthConfig
 import com.loganmartlew.rangework.android.ui.components.BrandWordmark
 import com.loganmartlew.rangework.android.ui.components.BrandMarkContainer
+import com.loganmartlew.rangework.android.ui.components.DeleteConfirmationDialog
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
+import com.loganmartlew.rangework.android.ui.components.OverflowMenu
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.showUndoSnackbar
+import com.loganmartlew.rangework.shared.model.PracticeSession
+import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.android.ui.screens.OverviewScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionDetailScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionEditorScreen
@@ -173,6 +179,8 @@ fun RangeworkApp(
             onBeginNew = plannerViewModel::beginNewUnit,
             onEdit = plannerViewModel::editUnit,
             onDelete = plannerViewModel::deleteUnit,
+            onDuplicate = plannerViewModel::duplicateUnit,
+            onClearDuplicatedId = plannerViewModel::clearDuplicatedUnitId,
             onClearBaselines = plannerViewModel::clearEditorBaselines,
             onConsumeSavedId = plannerViewModel::consumeSavedUnitId,
             onUpdateTitle = plannerViewModel::updateUnitTitle,
@@ -245,6 +253,8 @@ fun RangeworkApp(
                         settingsActions = settingsActions,
                         onRefreshPlanning = plannerViewModel::refreshPlanning,
                         onRefreshPlanningOnNavigation = plannerViewModel::refreshPlanningOnNavigation,
+                        onRestoreUnit = plannerViewModel::restoreUnit,
+                        onRestoreSession = plannerViewModel::restoreSession,
                     )
                 }
             }
@@ -401,6 +411,8 @@ private fun AuthenticatedAppShell(
     settingsActions: SettingsActions,
     onRefreshPlanning: () -> Unit,
     onRefreshPlanningOnNavigation: () -> Unit,
+    onRestoreUnit: (PracticeUnit) -> Unit,
+    onRestoreSession: (PracticeSession) -> Unit,
 ) {
     if (authUiState.authState !is AuthState.SignedIn) {
         Box(modifier = Modifier.fillMaxSize())
@@ -417,6 +429,16 @@ private fun AuthenticatedAppShell(
     val canNavigateBack = shellNavController.previousBackStackEntry != null && !currentRoute.isTopLevelRoute()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Delete dialog state for unit and session
+    var showUnitDeleteDialog by remember { mutableStateOf(false) }
+    var pendingDeleteUnit by remember { mutableStateOf<PracticeUnit?>(null) }
+    var showSessionDeleteDialog by remember { mutableStateOf(false) }
+    var pendingDeleteSession by remember { mutableStateOf<PracticeSession?>(null) }
+
+    // Undo state: entity captured just before delete so it can be restored
+    var justDeletedUnit by remember { mutableStateOf<PracticeUnit?>(null) }
+    var justDeletedSession by remember { mutableStateOf<PracticeSession?>(null) }
+
     LaunchedEffect(plannerUiState.status) {
         val s = plannerUiState.status
         if (s?.showAsSnackbar == true && s is PlannerStatus.Notification) {
@@ -431,11 +453,44 @@ private fun AuthenticatedAppShell(
         }
     }
 
+    LaunchedEffect(plannerUiState.duplicatedUnitId) {
+        plannerUiState.duplicatedUnitId?.let { unitId ->
+            unitActions.onClearDuplicatedId()
+            shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
+        }
+    }
+
+    LaunchedEffect(justDeletedUnit) {
+        val unit = justDeletedUnit ?: return@LaunchedEffect
+        snackbarHostState.showUndoSnackbar(
+            message = "Deleted \"${unit.title}\"",
+            onRestore = { onRestoreUnit(unit) },
+        )
+        justDeletedUnit = null
+    }
+
+    LaunchedEffect(justDeletedSession) {
+        val session = justDeletedSession ?: return@LaunchedEffect
+        snackbarHostState.showUndoSnackbar(
+            message = "Deleted \"${session.name}\"",
+            onRestore = { onRestoreSession(session) },
+        )
+        justDeletedSession = null
+    }
+
     LaunchedEffect(currentRoute) {
         if (currentRoute.shouldRefreshPlanningOnEnter()) {
             onRefreshPlanningOnNavigation()
         }
     }
+
+    // Derive the entity ID when on a detail route (not edit) for app-bar actions
+    val currentUnitId: String? = if (currentRoute.startsWith("units/") && !currentRoute.endsWith("/edit")) {
+        navBackStackEntry?.arguments?.getString(UnitIdArg)
+    } else null
+    val currentSessionId: String? = if (currentRoute.startsWith("sessions/") && !currentRoute.endsWith("/edit")) {
+        navBackStackEntry?.arguments?.getString(SessionIdArg)
+    } else null
 
     val isOnEditorRoute = currentRoute.isEditorRoute()
     val isCurrentEditorDirty = when (currentRoute.editorType()) {
@@ -459,6 +514,46 @@ private fun AuthenticatedAppShell(
     BackHandler(enabled = isOnEditorRoute && isCurrentEditorDirty) {
         pendingNavigation = { shellNavController.popBackStack() }
         showDiscardDialog = true
+    }
+
+    if (showUnitDeleteDialog) {
+        DeleteConfirmationDialog(
+            itemName = pendingDeleteUnit?.title ?: "unit",
+            onConfirm = {
+                showUnitDeleteDialog = false
+                val unit = pendingDeleteUnit
+                pendingDeleteUnit = null
+                if (unit != null) {
+                    unitActions.onDelete(unit.id)
+                    shellNavController.popBackStack()
+                    justDeletedUnit = unit
+                }
+            },
+            onDismiss = {
+                showUnitDeleteDialog = false
+                pendingDeleteUnit = null
+            },
+        )
+    }
+
+    if (showSessionDeleteDialog) {
+        DeleteConfirmationDialog(
+            itemName = pendingDeleteSession?.name ?: "session",
+            onConfirm = {
+                showSessionDeleteDialog = false
+                val session = pendingDeleteSession
+                pendingDeleteSession = null
+                if (session != null) {
+                    sessionActions.onDelete(session.id)
+                    shellNavController.popBackStack()
+                    justDeletedSession = session
+                }
+            },
+            onDismiss = {
+                showSessionDeleteDialog = false
+                pendingDeleteSession = null
+            },
+        )
     }
 
     if (showDiscardDialog) {
@@ -532,6 +627,56 @@ private fun AuthenticatedAppShell(
                         }
                     } else {
                         BrandWordmark(modifier = Modifier.padding(start = 12.dp))
+                    }
+                },
+                actions = {
+                    currentUnitId?.let { unitId ->
+                        val unit = plannerUiState.units.firstOrNull { it.id == unitId }
+                        IconButton(
+                            onClick = {
+                                unitActions.onEdit(unitId)
+                                shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit ${unit?.title ?: "unit"}",
+                            )
+                        }
+                        Box {
+                            OverflowMenu(
+                                contentDescription = "More options for ${unit?.title ?: "unit"}",
+                                onDuplicate = { unitActions.onDuplicate(unitId) },
+                                onDelete = {
+                                    pendingDeleteUnit = unit
+                                    showUnitDeleteDialog = true
+                                },
+                            )
+                        }
+                    }
+                    currentSessionId?.let { sessionId ->
+                        val session = plannerUiState.sessions.firstOrNull { it.id == sessionId }
+                        IconButton(
+                            onClick = {
+                                sessionActions.onEdit(sessionId)
+                                shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit ${session?.name ?: "session"}",
+                            )
+                        }
+                        Box {
+                            OverflowMenu(
+                                contentDescription = "More options for ${session?.name ?: "session"}",
+                                onDuplicate = { sessionActions.onDuplicate(sessionId) },
+                                onDelete = {
+                                    pendingDeleteSession = session
+                                    showSessionDeleteDialog = true
+                                },
+                            )
+                        }
                     }
                 },
             )
@@ -681,10 +826,6 @@ private fun AuthenticatedAppShell(
                                 unitActions.onEdit(unitId)
                                 shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
                             },
-                            onDeleteUnit = {
-                                unitActions.onDelete(unitId)
-                                shellNavController.popBackStack()
-                            },
                         )
                     }
                     composable(RangeworkRoutes.UnitEdit) { backStackEntry ->
@@ -775,10 +916,6 @@ private fun AuthenticatedAppShell(
                             onEditSession = {
                                 sessionActions.onEdit(sessionId)
                                 shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
-                            },
-                            onDeleteSession = {
-                                sessionActions.onDelete(sessionId)
-                                shellNavController.popBackStack()
                             },
                         )
                     }
