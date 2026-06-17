@@ -202,6 +202,74 @@ class SettingsViewModelTest {
         assertTrue(viewModel.uiState.value.enabledClubCodes.isEmpty())
     }
 
+    @Test
+    fun disableAllClubsClearsEnabledSet() = runTest {
+        val clubRepo = FakeClubRepository(
+            catalog = listOf(sampleClub("driver"), sampleClub("putter"), sampleClub("seven_iron")),
+            enabledCodes = mutableSetOf("driver", "putter", "seven_iron"),
+        )
+        val viewModel = createViewModel(clubRepo = clubRepo)
+
+        viewModel.onAuthStateChanged(signedIn())
+        advanceUntilIdle()
+
+        viewModel.disableAllClubs()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.enabledClubCodes.isEmpty())
+        assertTrue(clubRepo.enabledCodes.isEmpty())
+    }
+
+    @Test
+    fun enableCommonBagEnablesOnlyCommonCodes() = runTest {
+        val clubRepo = FakeClubRepository(
+            catalog = listOf(
+                sampleClub("driver"),
+                sampleClub("two_wood"),
+                sampleClub("putter"),
+            ),
+            enabledCodes = mutableSetOf(),
+        )
+        val viewModel = createViewModel(clubRepo = clubRepo)
+
+        viewModel.onAuthStateChanged(signedIn())
+        advanceUntilIdle()
+
+        viewModel.enableCommonBag()
+        advanceUntilIdle()
+
+        assertTrue("driver" in viewModel.uiState.value.enabledClubCodes)
+        assertFalse("two_wood" in viewModel.uiState.value.enabledClubCodes)
+        assertTrue("putter" in viewModel.uiState.value.enabledClubCodes)
+    }
+
+    @Test
+    fun toggleDynamicColorPersistsToStore() = runTest {
+        val themeStore = FakeThemePreferenceStore()
+        val viewModel = createViewModel(themePreferenceStore = themeStore)
+
+        viewModel.toggleDynamicColor()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.dynamicColor)
+    }
+
+    @Test
+    fun enabledClubCountComputedFromState() = runTest {
+        val clubRepo = FakeClubRepository(
+            catalog = listOf(sampleClub("driver"), sampleClub("putter")),
+            enabledCodes = mutableSetOf("driver"),
+        )
+        val viewModel = createViewModel(clubRepo = clubRepo)
+
+        viewModel.onAuthStateChanged(signedIn())
+        advanceUntilIdle()
+
+        val count = viewModel.uiState.value.enabledClubCount
+        assertEquals(1, count.enabled)
+        assertEquals(2, count.total)
+    }
+
     private fun createViewModel(
         repo: FakeMeasurementPreferencesRepository = FakeMeasurementPreferencesRepository(),
         clubRepo: FakeClubRepository = FakeClubRepository(),
@@ -288,10 +356,17 @@ private class FakeThemePreferenceStore : ThemePreferenceStore {
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     override val themeMode: Flow<ThemeMode> = _themeMode
 
+    private val _dynamicColor = MutableStateFlow(false)
+    override val dynamicColor: Flow<Boolean> = _dynamicColor
+
     var lastSet: ThemeMode? = null
 
     override suspend fun setThemeMode(mode: ThemeMode) {
         lastSet = mode
         _themeMode.value = mode
+    }
+
+    override suspend fun setDynamicColor(enabled: Boolean) {
+        _dynamicColor.value = enabled
     }
 }

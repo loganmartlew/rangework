@@ -74,6 +74,7 @@ import com.loganmartlew.rangework.android.ui.screens.OverviewScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionDetailScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionEditorScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionListScreen
+import com.loganmartlew.rangework.android.ui.screens.ManageClubsScreen
 import com.loganmartlew.rangework.android.ui.screens.SettingsScreen
 import com.loganmartlew.rangework.android.ui.screens.UnitDetailScreen
 import com.loganmartlew.rangework.android.ui.screens.UnitEditorScreen
@@ -167,6 +168,7 @@ fun RangeworkApp(
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
+    val dynamicColor = settingsUiState.dynamicColor
 
     val unitActions = remember(plannerViewModel) {
         UnitEditorActions(
@@ -215,13 +217,16 @@ fun RangeworkApp(
         SettingsActions(
             onSignOut = authViewModel::signOut,
             onSetThemeMode = settingsViewModel::setThemeMode,
+            onToggleDynamicColor = settingsViewModel::toggleDynamicColor,
             onSelectDistanceUnit = settingsViewModel::selectDistanceUnit,
             onSelectSpeedUnit = settingsViewModel::selectSpeedUnit,
             onSetClubEnabled = settingsViewModel::setClubEnabled,
+            onEnableCommonBag = settingsViewModel::enableCommonBag,
+            onDisableAllClubs = settingsViewModel::disableAllClubs,
         )
     }
 
-    RangeworkTheme(darkTheme = darkTheme) {
+    RangeworkTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
         Surface(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = rootNavController,
@@ -817,9 +822,20 @@ private fun AuthenticatedAppShell(
                             settingsUiState = settingsUiState,
                             onSignOut = settingsActions.onSignOut,
                             onSetThemeMode = settingsActions.onSetThemeMode,
+                            onToggleDynamicColor = settingsActions.onToggleDynamicColor,
                             onSelectDistanceUnit = settingsActions.onSelectDistanceUnit,
                             onSelectSpeedUnit = settingsActions.onSelectSpeedUnit,
+                            onNavigateToManageClubs = {
+                                shellNavController.navigate(RangeworkRoutes.ManageClubs)
+                            },
+                        )
+                    }
+                    composable(RangeworkRoutes.ManageClubs) {
+                        ManageClubsScreen(
+                            settingsUiState = settingsUiState,
                             onSetClubEnabled = settingsActions.onSetClubEnabled,
+                            onEnableCommonBag = settingsActions.onEnableCommonBag,
+                            onDisableAllClubs = settingsActions.onDisableAllClubs,
                         )
                     }
                 }
@@ -843,6 +859,7 @@ internal fun titleForRoute(route: String): String = when {
     route.startsWith("sessions/") && route.endsWith("/edit") -> "Edit session"
     route.startsWith("sessions/") -> "Session"
     route == RangeworkRoutes.Settings -> "Settings"
+    route == RangeworkRoutes.ManageClubs -> "Club bag"
     else -> "Rangework"
 }
 

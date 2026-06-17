@@ -4,10 +4,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -84,7 +90,7 @@ internal fun SettingsListItem(
     }
 }
 
-/** A destructive sign-out action row. */
+/** A destructive sign-out action row with a leading logout icon. */
 @Composable
 internal fun SignOutItem(
     onClick: () -> Unit,
@@ -102,6 +108,13 @@ internal fun SignOutItem(
             .semantics { role = Role.Button },
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.Logout,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = "Sign out",
             style = MaterialTheme.typography.bodyMedium,
