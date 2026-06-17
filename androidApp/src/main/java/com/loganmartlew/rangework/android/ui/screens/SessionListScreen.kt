@@ -1,20 +1,12 @@
 package com.loganmartlew.rangework.android.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.EventNote
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -38,6 +30,7 @@ import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.ListEntryCard
 import com.loganmartlew.rangework.android.ui.components.PlanningListContent
 import com.loganmartlew.rangework.android.ui.components.RefreshableScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.SwipeActionBackground
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.derivedBallCount
@@ -167,37 +160,3 @@ internal fun SessionListScreen(
     }
 }
 
-@Composable
-private fun SwipeActionBackground(direction: SwipeToDismissBoxValue) {
-    val isDelete = direction == SwipeToDismissBoxValue.EndToStart
-    val alignment = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-        SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
-        SwipeToDismissBoxValue.Settled -> Alignment.Center
-    }
-    val containerColor = if (isDelete) {
-        MaterialTheme.colorScheme.errorContainer
-    } else {
-        MaterialTheme.colorScheme.secondaryContainer
-    }
-    val contentColor = if (isDelete) {
-        MaterialTheme.colorScheme.onErrorContainer
-    } else {
-        MaterialTheme.colorScheme.onSecondaryContainer
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(containerColor)
-            .padding(horizontal = 24.dp),
-        contentAlignment = alignment,
-    ) {
-        Icon(
-            imageVector = if (isDelete) Icons.Default.Delete else Icons.Default.Edit,
-            contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(28.dp),
-        )
-    }
-}
