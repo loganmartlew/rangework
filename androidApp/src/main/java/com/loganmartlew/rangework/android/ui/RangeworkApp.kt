@@ -72,7 +72,6 @@ import androidx.navigation.compose.rememberNavController
 import com.loganmartlew.rangework.android.auth.AndroidGoogleIdTokenProvider
 import com.loganmartlew.rangework.android.config.baselineAndroidAppAuthConfig
 import com.loganmartlew.rangework.android.ui.components.BrandMarkContainer
-import com.loganmartlew.rangework.android.ui.components.BrandWordmark
 import com.loganmartlew.rangework.android.ui.components.GoogleSignInButton
 import com.loganmartlew.rangework.android.ui.components.RangeworkExtendedFab
 import com.loganmartlew.rangework.android.ui.components.RangeworkFab
@@ -611,9 +610,16 @@ private fun AuthenticatedAppShell(
             }
         },
         topBar = {
+            val topBarTitle: String = when {
+                currentUnitId != null ->
+                    plannerUiState.units.firstOrNull { it.id == currentUnitId }?.title ?: "Unit"
+                currentSessionId != null ->
+                    plannerUiState.sessions.firstOrNull { it.id == currentSessionId }?.name ?: "Session"
+                else -> titleForRoute(currentRoute)
+            }
             val titleContent: @Composable () -> Unit = {
                 Text(
-                    text = titleForRoute(currentRoute, plannerUiState),
+                    text = topBarTitle,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -626,8 +632,6 @@ private fun AuthenticatedAppShell(
                             contentDescription = "Back",
                         )
                     }
-                } else {
-                    BrandWordmark(modifier = Modifier.padding(start = 12.dp))
                 }
             }
             val actionsContent: @Composable RowScope.() -> Unit = {
@@ -1063,18 +1067,6 @@ internal fun titleForRoute(route: String): String = when {
     route == RangeworkRoutes.Settings -> "Settings"
     route == RangeworkRoutes.ManageClubs -> "Club bag"
     else -> "Rangework"
-}
-
-internal fun titleForRoute(route: String, plannerUiState: PracticePlannerUiState): String {
-    if (route.startsWith("sessions/") && !route.endsWith("/edit")) {
-        val id = route.removePrefix("sessions/")
-        plannerUiState.sessions.firstOrNull { it.id == id }?.name?.let { return it }
-    }
-    if (route.startsWith("units/") && !route.endsWith("/edit")) {
-        val id = route.removePrefix("units/")
-        plannerUiState.units.firstOrNull { it.id == id }?.title?.let { return it }
-    }
-    return titleForRoute(route)
 }
 
 internal fun String.shouldRefreshPlanningOnEnter(): Boolean = when {
