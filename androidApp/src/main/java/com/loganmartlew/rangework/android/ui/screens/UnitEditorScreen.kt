@@ -106,7 +106,7 @@ private fun UnitEditorCard(
                 value = editorState.notes,
                 onValueChange = onUpdateNotes,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Notes") },
+                label = { Text("Unit notes") },
                 enabled = !isWorking,
                 minLines = 3,
             )
@@ -114,7 +114,7 @@ private fun UnitEditorCard(
                 value = editorState.focus,
                 onValueChange = onUpdateFocus,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Focus") },
+                label = { Text("Focus cue") },
                 enabled = !isWorking,
                 singleLine = true,
             )

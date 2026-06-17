@@ -65,7 +65,7 @@ internal fun SessionDetailScreen(
             body = "${session.items.size} item${if (session.items.size == 1) "" else "s"}  •  ${ballSummary(session.derivedBallCount(unitsById))}",
         )
         session.notes?.takeIf(String::isNotBlank)?.let { notes ->
-            EntryHighlightCard(title = "Notes", body = notes)
+            EntryHighlightCard(title = "Session notes", body = notes)
         }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(
@@ -112,7 +112,7 @@ private fun SessionItemDetailCard(
         },
         supportingText = buildString {
             append(ballSummary(item.derivedBallCount(unit)))
-            item.focusCue?.takeIf(String::isNotBlank)?.let { append("  •  Focus: $it") }
+            item.focusCue?.takeIf(String::isNotBlank)?.let { append("  •  Focus cue: $it") }
             item.notes?.takeIf(String::isNotBlank)?.let { append("  •  $it") }
         },
     )

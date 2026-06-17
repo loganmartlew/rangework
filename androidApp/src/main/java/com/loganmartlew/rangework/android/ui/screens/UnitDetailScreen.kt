@@ -66,10 +66,10 @@ internal fun UnitDetailScreen(
             },
         )
         unit.notes?.takeIf(String::isNotBlank)?.let { notes ->
-            EntryHighlightCard(title = "Notes", body = notes)
+            EntryHighlightCard(title = "Unit notes", body = notes)
         }
         unit.focus?.takeIf(String::isNotBlank)?.let { focus ->
-            EntryHighlightCard(title = "Focus", body = focus)
+            EntryHighlightCard(title = "Focus cue", body = focus)
         }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(
