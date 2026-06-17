@@ -29,11 +29,13 @@ import com.loganmartlew.rangework.shared.usecase.SavePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.SavePracticeUnitUseCase
 import com.loganmartlew.rangework.shared.usecase.SetClubEnabledUseCase
 import com.loganmartlew.rangework.android.ui.PlannerStatus
+import com.loganmartlew.rangework.shared.model.NextMoveState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -387,6 +389,100 @@ class PracticePlannerViewModelTest {
 
         viewModel.updateSessionName("Changed name")
         assertEquals(true, viewModel.uiState.value.isSessionEditorDirty)
+    }
+
+    @Test
+    fun nextMoveStateIsNoUnitsWhenNoDataLoaded() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "test@example.com"))
+        advanceUntilIdle()
+
+        assertEquals(NextMoveState.NoUnits, viewModel.uiState.value.nextMoveState)
+    }
+
+    @Test
+    fun nextMoveStateIsUnitsNoSessionsWithUnitsOnly() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "test@example.com"))
+        advanceUntilIdle()
+
+        assertEquals(NextMoveState.UnitsNoSessions, viewModel.uiState.value.nextMoveState)
+    }
+
+    @Test
+    fun nextMoveStateIsBothWhenUnitsAndSessionsExist() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "test@example.com"))
+        advanceUntilIdle()
+
+        assertEquals(NextMoveState.Both, viewModel.uiState.value.nextMoveState)
+    }
+
+    @Test
+    fun nextMoveStateIsResumeEditingAfterSavingUnitWhenSessionsExist() = runTest {
+        // ResumeEditing only triggers when both units AND sessions exist and savedUnitId is set
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "test@example.com"))
+        advanceUntilIdle()
+
+        viewModel.editUnit("unit-1")
+        viewModel.updateUnitTitle("Updated title")
+        viewModel.saveUnit()
+        advanceUntilIdle()
+
+        val nextMoveState = viewModel.uiState.value.nextMoveState
+        assertTrue("Expected ResumeEditing", nextMoveState is NextMoveState.ResumeEditing)
+        assertTrue("Expected isUnit=true", (nextMoveState as NextMoveState.ResumeEditing).isUnit)
+    }
+
+    @Test
+    fun firstRunStateRequiresHasLoadedToBeTrue() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+
+        assertFalse("hasLoaded should be false before first auth", viewModel.uiState.value.hasLoaded)
+        // Before hasLoaded, isFirstRun logic should not trigger even with empty lists
+        assertFalse(
+            "isFirstRun must not be true until hasLoaded",
+            viewModel.uiState.value.hasLoaded &&
+                viewModel.uiState.value.units.isEmpty() &&
+                viewModel.uiState.value.sessions.isEmpty(),
+        )
+
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "test@example.com"))
+        advanceUntilIdle()
+
+        assertTrue("hasLoaded should be true after successful refresh", viewModel.uiState.value.hasLoaded)
+        assertTrue(
+            "isFirstRun should be true after load with empty data",
+            viewModel.uiState.value.hasLoaded &&
+                viewModel.uiState.value.units.isEmpty() &&
+                viewModel.uiState.value.sessions.isEmpty(),
+        )
     }
 }
 

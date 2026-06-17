@@ -725,6 +725,30 @@ private fun AuthenticatedAppShell(
                             authUiState = authUiState,
                             plannerUiState = plannerUiState,
                             isExpandedLayout = navigationType == RangeworkNavigationType.NavigationRail,
+                            onNavigateToUnits = {
+                                shellNavController.navigate(RangeworkRoutes.Units) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                    popUpTo(shellNavController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                }
+                            },
+                            onNavigateToSessions = {
+                                shellNavController.navigate(RangeworkRoutes.Sessions) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                    popUpTo(shellNavController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                }
+                            },
+                            onNavigateToUnitDetail = { unitId ->
+                                shellNavController.navigate(RangeworkRoutes.unitDetail(unitId))
+                            },
+                            onNavigateToSessionDetail = { sessionId ->
+                                shellNavController.navigate(RangeworkRoutes.sessionDetail(sessionId))
+                            },
                             onCreateUnit = {
                                 unitActions.onBeginNew()
                                 shellNavController.navigate(RangeworkRoutes.UnitCreate)
@@ -732,6 +756,14 @@ private fun AuthenticatedAppShell(
                             onCreateSession = {
                                 sessionActions.onBeginNew()
                                 shellNavController.navigate(RangeworkRoutes.SessionCreate)
+                            },
+                            onEditUnit = { unitId ->
+                                unitActions.onEdit(unitId)
+                                shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
+                            },
+                            onEditSession = { sessionId ->
+                                sessionActions.onEdit(sessionId)
+                                shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
                             },
                         )
                     }
