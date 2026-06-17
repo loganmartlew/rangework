@@ -270,6 +270,84 @@ class PracticePlannerViewModelTest {
 
         assertEquals(true, viewModel.uiState.value.hasLoaded)
     }
+
+    @Test
+    fun intBallCountStepperUpdatesInstructionAndPersistsOnSave() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.updateUnitTitle("Putting drills")
+        viewModel.updateInstructionText(0, "Hit 5ft putts")
+        viewModel.updateInstructionBallCount(0, 12) // Int overload from CountStepper
+        viewModel.saveUnit()
+        advanceUntilIdle()
+
+        assertEquals(12, repositories.savedUnitDrafts.single().instructions.single().ballCount)
+        assertEquals("12", viewModel.uiState.value.unitEditor.instructions.first().ballCount)
+    }
+
+    @Test
+    fun intBallCountStepperClampsToZeroMin() = runTest {
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = FakePlannerRepositories().toDataFoundation(),
+        )
+
+        viewModel.updateInstructionBallCount(0, 0) // exactly at min
+        assertEquals("0", viewModel.uiState.value.unitEditor.instructions.first().ballCount)
+
+        viewModel.updateInstructionBallCount(0, 5)
+        assertEquals("5", viewModel.uiState.value.unitEditor.instructions.first().ballCount)
+    }
+
+    @Test
+    fun intRepeatCountStepperUpdatesSessionItemAndPersistsOnSave() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.beginNewSession()
+        viewModel.updateSessionName("Morning block")
+        viewModel.addSessionItem()
+        viewModel.updateSessionItemUnit(0, "unit-1")
+        viewModel.updateSessionItemRepeatCount(0, 4) // Int overload from CountStepper
+        viewModel.saveSession()
+        advanceUntilIdle()
+
+        assertEquals(4, repositories.savedSessionDrafts.single().items.single().repeatCount)
+        assertEquals("4", viewModel.uiState.value.sessionEditor.items.first().repeatCount)
+    }
+
+    @Test
+    fun isSessionEditorDirtyTogglesCorrectly() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.uiState.value.isSessionEditorDirty)
+
+        viewModel.editSession("session-1")
+        assertEquals(false, viewModel.uiState.value.isSessionEditorDirty)
+
+        viewModel.updateSessionName("Changed name")
+        assertEquals(true, viewModel.uiState.value.isSessionEditorDirty)
+    }
 }
 
 private class FakePlannerRepositories :
@@ -287,6 +365,7 @@ private class FakePlannerRepositories :
     val units = mutableListOf<PracticeUnit>()
     val sessions = mutableListOf<PracticeSession>()
     val savedUnitDrafts = mutableListOf<PracticeUnitDraft>()
+    val savedSessionDrafts = mutableListOf<PracticeSessionDraft>()
     var listUnitsCallCount = 0
     var listSessionsCallCount = 0
 
@@ -341,6 +420,7 @@ private class FakePlannerRepositories :
         draft: PracticeSessionDraft,
         sessionId: String?,
     ): PracticeSession {
+        savedSessionDrafts += draft
         val session = PracticeSession(
             id = sessionId ?: "session-${sessions.size + 1}",
             name = draft.name,

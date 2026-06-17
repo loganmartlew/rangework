@@ -1,43 +1,69 @@
 package com.loganmartlew.rangework.android.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PracticeSessionItemEditorState
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
 import com.loganmartlew.rangework.android.ui.ballSummary
+import com.loganmartlew.rangework.android.ui.sessionEditorTotalText
 import com.loganmartlew.rangework.android.ui.components.ClubPickerField
-import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
-import com.loganmartlew.rangework.android.ui.components.ReorderButtons
-import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.CountStepper
+import com.loganmartlew.rangework.android.ui.components.DockedSaveBar
+import com.loganmartlew.rangework.android.ui.components.MoreOptionsExpander
+import com.loganmartlew.rangework.android.ui.components.NumberBadge
+import com.loganmartlew.rangework.android.ui.components.StickyTotalBar
+import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.derivedBallCount
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun SessionEditorScreen(
     plannerUiState: PracticePlannerUiState,
@@ -47,109 +73,163 @@ internal fun SessionEditorScreen(
     onUpdateSessionNotes: (String) -> Unit,
     onAddSessionItem: () -> Unit,
     onUpdateSessionItemUnit: (Int, String) -> Unit,
-    onUpdateSessionItemRepeatCount: (Int, String) -> Unit,
+    onUpdateSessionItemRepeatCount: (Int, Int) -> Unit,
     onUpdateSessionItemClubReference: (Int, String) -> Unit,
     onUpdateSessionItemNotes: (Int, String) -> Unit,
     onUpdateSessionItemFocusCue: (Int, String) -> Unit,
     onMoveSessionItem: (Int, Int) -> Unit,
     onRemoveSessionItem: (Int) -> Unit,
+    onNavigateToCreateUnit: () -> Unit,
 ) {
+    val editor = plannerUiState.sessionEditor
+    val isWorking = plannerUiState.isWorking
+    val isCreateMode = editor.sessionId == null
+    val hasSessionNotes = editor.notes.isNotBlank()
+
     val unitsById = remember(plannerUiState.units) {
         plannerUiState.units.associateBy(PracticeUnit::id)
     }
 
-    ScrollableScreen(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        if (plannerUiState.units.isEmpty()) {
-            EntryHighlightCard(
-                title = "Create a unit first",
-                body = "Sessions need at least one unit before you can add items.",
+    val totalBalls = editor.items.sumOf { item ->
+        item.derivedBallCount(unitsById[item.practiceUnitId]) ?: 0
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    Scaffold(
+        contentWindowInsets = WindowInsets(0),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            DockedSaveBar(
+                label = "Save session",
+                onClick = onSaveSession,
+                enabled = !isWorking,
             )
-        }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedTextField(
-                    value = plannerUiState.sessionEditor.name,
-                    onValueChange = onUpdateSessionName,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Name") },
-                    enabled = !plannerUiState.isWorking,
-                    singleLine = true,
-                    isError = plannerUiState.sessionEditor.nameError != null,
-                    supportingText = plannerUiState.sessionEditor.nameError?.let { { Text(it) } },
+        },
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            stickyHeader {
+                StickyTotalBar(
+                    label = "Total",
+                    value = sessionEditorTotalText(totalBalls),
                 )
-                OutlinedTextField(
-                    value = plannerUiState.sessionEditor.notes,
-                    onValueChange = onUpdateSessionNotes,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Session notes") },
-                    enabled = !plannerUiState.isWorking,
-                    minLines = 3,
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+            }
+
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text(
-                        text = "Session items",
-                        style = MaterialTheme.typography.titleMedium,
+                    OutlinedTextField(
+                        value = editor.name,
+                        onValueChange = onUpdateSessionName,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Name") },
+                        enabled = !isWorking,
+                        singleLine = true,
+                        isError = editor.nameError != null,
+                        supportingText = editor.nameError?.let { { Text(it) } },
                     )
-                    FilledTonalButton(
-                        enabled = !plannerUiState.isWorking && plannerUiState.units.isNotEmpty(),
-                        onClick = onAddSessionItem,
+
+                    MoreOptionsExpander(
+                        label = if (isCreateMode && !hasSessionNotes) "Add notes" else "Session notes",
+                        hasContent = hasSessionNotes,
                     ) {
-                        Text("Add item")
+                        OutlinedTextField(
+                            value = editor.notes,
+                            onValueChange = onUpdateSessionNotes,
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Session notes") },
+                            supportingText = { Text("Reminders for the whole session") },
+                            enabled = !isWorking,
+                            minLines = 3,
+                        )
                     }
-                }
-                if (plannerUiState.sessionEditor.items.isEmpty()) {
+
                     Text(
-                        text = "No session items yet.",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "SESSION ITEMS",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
             }
-        }
-        plannerUiState.sessionEditor.items.forEachIndexed { index, item ->
-            SessionItemEditorCard(
-                modifier = Modifier.fillMaxWidth(),
-                item = item,
-                availableUnits = plannerUiState.units,
-                selectedUnit = unitsById[item.practiceUnitId],
-                clubCatalog = plannerUiState.clubCatalog,
-                enabledClubCodes = plannerUiState.enabledClubCodes,
-                isWorking = plannerUiState.isWorking,
-                onSelectUnit = { onUpdateSessionItemUnit(index, it) },
-                onUpdateRepeatCount = { onUpdateSessionItemRepeatCount(index, it) },
-                onSelectClub = { onUpdateSessionItemClubReference(index, it) },
-                onUpdateNotes = { onUpdateSessionItemNotes(index, it) },
-                onUpdateFocusCue = { onUpdateSessionItemFocusCue(index, it) },
-                onMoveUp = { onMoveSessionItem(index, index - 1) },
-                onMoveDown = { onMoveSessionItem(index, index + 1) },
-                onRemove = { onRemoveSessionItem(index) },
-                canMoveUp = index > 0,
-                canMoveDown = index < plannerUiState.sessionEditor.items.lastIndex,
-            )
-        }
-        EntryHighlightCard(
-            title = "Balls",
-            body = ballSummary(plannerUiState.sessionEditor.items.sumOf { item ->
-                item.derivedBallCount(unitsById[item.practiceUnitId]) ?: 0
-            }),
-        )
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !plannerUiState.isWorking,
-            onClick = onSaveSession,
-        ) {
-            Text("Save session")
+
+            if (editor.items.isEmpty()) {
+                item {
+                    Text(
+                        text = if (plannerUiState.units.isEmpty())
+                            "Add a practice unit first, then come back to build your session."
+                        else
+                            "No items yet. Use 'Add item' below to get started.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                    )
+                }
+            }
+
+            itemsIndexed(
+                items = editor.items,
+                key = { _, item -> item.order },
+            ) { index, item ->
+                SessionItemEditorCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    item = item,
+                    number = index + 1,
+                    availableUnits = plannerUiState.units,
+                    selectedUnit = unitsById[item.practiceUnitId],
+                    clubCatalog = plannerUiState.clubCatalog,
+                    enabledClubCodes = plannerUiState.enabledClubCodes,
+                    isWorking = isWorking,
+                    onSelectUnit = { onUpdateSessionItemUnit(index, it) },
+                    onUpdateRepeatCount = { onUpdateSessionItemRepeatCount(index, it) },
+                    onSelectClub = { onUpdateSessionItemClubReference(index, it) },
+                    onUpdateNotes = { onUpdateSessionItemNotes(index, it) },
+                    onUpdateFocusCue = { onUpdateSessionItemFocusCue(index, it) },
+                    onMoveUp = { onMoveSessionItem(index, index - 1) },
+                    onMoveDown = { onMoveSessionItem(index, index + 1) },
+                    onRemove = { onRemoveSessionItem(index) },
+                    canMoveUp = index > 0,
+                    canMoveDown = index < editor.items.lastIndex,
+                )
+            }
+
+            item {
+                TextButton(
+                    onClick = {
+                        if (plannerUiState.units.isEmpty()) onNavigateToCreateUnit()
+                        else onAddSessionItem()
+                    },
+                    enabled = !isWorking,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        if (plannerUiState.units.isEmpty()) "Create a unit first" else "Add item",
+                    )
+                }
+            }
         }
     }
 }
@@ -159,13 +239,14 @@ internal fun SessionEditorScreen(
 private fun SessionItemEditorCard(
     modifier: Modifier = Modifier,
     item: PracticeSessionItemEditorState,
+    number: Int,
     availableUnits: List<PracticeUnit>,
     selectedUnit: PracticeUnit?,
     clubCatalog: List<Club>,
     enabledClubCodes: Set<String>,
     isWorking: Boolean,
     onSelectUnit: (String) -> Unit,
-    onUpdateRepeatCount: (String) -> Unit,
+    onUpdateRepeatCount: (Int) -> Unit,
     onSelectClub: (String) -> Unit,
     onUpdateNotes: (String) -> Unit,
     onUpdateFocusCue: (String) -> Unit,
@@ -176,6 +257,12 @@ private fun SessionItemEditorCard(
     canMoveDown: Boolean,
 ) {
     var unitMenuExpanded by remember(item.order, item.practiceUnitId) { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
+    val repeatCountValue = item.repeatCount.trim().toIntOrNull() ?: 1
+    val subtotal = item.derivedBallCount(selectedUnit)
+    val hasMoreOptions = item.clubReference.isNotBlank() ||
+        item.notes.isNotBlank() ||
+        item.focusCue.isNotBlank()
 
     Card(
         modifier = modifier,
@@ -187,12 +274,53 @@ private fun SessionItemEditorCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                text = "Session item ${item.order}",
-                style = MaterialTheme.typography.titleSmall,
-            )
+            // Header row: drag handle + badge + subtotal + delete
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DragHandle,
+                        contentDescription = "Drag to reorder item $number",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    NumberBadge(number = number)
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = ballSummary(subtotal),
+                        style = RangeworkMono.medium,
+                        color = if (subtotal != null)
+                            MaterialTheme.colorScheme.secondary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    IconButton(
+                        onClick = onRemove,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .semantics { contentDescription = "Delete item $number" },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                    }
+                }
+            }
+
+            // Practice unit dropdown
             ExposedDropdownMenuBox(
                 expanded = unitMenuExpanded,
                 onExpandedChange = { if (!isWorking) unitMenuExpanded = it },
@@ -205,7 +333,9 @@ private fun SessionItemEditorCard(
                     value = selectedUnit?.title ?: "",
                     onValueChange = {},
                     label = { Text("Practice unit") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = unitMenuExpanded) },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = unitMenuExpanded)
+                    },
                     enabled = !isWorking,
                     isError = item.unitError != null,
                     supportingText = item.unitError?.let { { Text(it) } },
@@ -226,65 +356,96 @@ private fun SessionItemEditorCard(
                     }
                 }
             }
-            OutlinedTextField(
-                value = item.repeatCount,
-                onValueChange = { onUpdateRepeatCount(it.filter(Char::isDigit)) },
+
+            // Repeat count stepper
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = "Repeats",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                CountStepper(
+                    value = repeatCountValue,
+                    onValueChange = onUpdateRepeatCount,
+                    min = 1,
+                    max = 50,
+                    label = "Repeat count for item $number",
+                )
+                if (item.repeatCountError != null) {
+                    Text(
+                        text = item.repeatCountError,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+
+            // Accessibility chevrons for TalkBack reorder
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Repeat count") },
-                enabled = !isWorking,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                isError = item.repeatCountError != null,
-                supportingText = item.repeatCountError?.let { { Text(it) } },
-            )
-            ClubPickerField(
-                label = "Session club",
-                selectedCode = item.clubReference.ifBlank { null },
-                clubCatalog = clubCatalog,
-                enabledClubCodes = enabledClubCodes,
-                enabled = !isWorking,
-                onSelect = onSelectClub,
-            )
-            OutlinedTextField(
-                value = item.notes,
-                onValueChange = onUpdateNotes,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Item notes") },
-                enabled = !isWorking,
-                minLines = 2,
-            )
-            OutlinedTextField(
-                value = item.focusCue,
-                onValueChange = onUpdateFocusCue,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Focus cue") },
-                enabled = !isWorking,
-                singleLine = true,
-            )
-            Text(
-                text = buildString {
-                    append(ballSummary(item.derivedBallCount(selectedUnit)))
-                    val effectiveCode = item.clubReference.ifBlank {
-                        selectedUnit?.defaultClubReference.orEmpty()
-                    }
-                    if (effectiveCode.isNotBlank()) {
-                        val displayName =
-                            clubCatalog.firstOrNull { it.code == effectiveCode }?.displayName
-                                ?: effectiveCode
-                        append("  •  Club: $displayName")
-                    }
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            ReorderButtons(
-                isWorking = isWorking,
-                canMoveUp = canMoveUp,
-                canMoveDown = canMoveDown,
-                onMoveUp = onMoveUp,
-                onMoveDown = onMoveDown,
-                onRemove = onRemove,
-            )
+                horizontalArrangement = Arrangement.End,
+            ) {
+                IconButton(
+                    enabled = canMoveUp,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onMoveUp()
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .semantics { contentDescription = "Move item $number up" },
+                ) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = null)
+                }
+                IconButton(
+                    enabled = canMoveDown,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onMoveDown()
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .semantics { contentDescription = "Move item $number down" },
+                ) {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
+                }
+            }
+
+            // Optional fields: club override, item notes, focus cue
+            MoreOptionsExpander(
+                label = "More options",
+                hasContent = hasMoreOptions,
+            ) {
+                ClubPickerField(
+                    label = "Session club override",
+                    selectedCode = item.clubReference.ifBlank { null },
+                    clubCatalog = clubCatalog,
+                    enabledClubCodes = enabledClubCodes,
+                    enabled = !isWorking,
+                    onSelect = onSelectClub,
+                )
+                OutlinedTextField(
+                    value = item.notes,
+                    onValueChange = onUpdateNotes,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Item notes") },
+                    supportingText = { Text("Reminders specific to this item") },
+                    enabled = !isWorking,
+                    minLines = 2,
+                )
+                OutlinedTextField(
+                    value = item.focusCue,
+                    onValueChange = onUpdateFocusCue,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Focus cue") },
+                    supportingText = { Text("One mental cue to hold while practising") },
+                    enabled = !isWorking,
+                    singleLine = true,
+                )
+            }
         }
     }
 }

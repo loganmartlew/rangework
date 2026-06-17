@@ -250,6 +250,8 @@ class PracticePlannerViewModel(
         copy(ballCount = value, ballCountError = null)
     }
 
+    fun updateInstructionBallCount(index: Int, value: Int) = updateInstructionBallCount(index, value.toString())
+
     fun moveInstructionUp(index: Int) = moveInstruction(index, index - 1)
 
     fun moveInstructionDown(index: Int) = moveInstruction(index, index + 1)
@@ -424,6 +426,8 @@ class PracticePlannerViewModel(
     fun updateSessionItemRepeatCount(index: Int, value: String) = updateSessionItem(index) {
         copy(repeatCount = value, repeatCountError = null)
     }
+
+    fun updateSessionItemRepeatCount(index: Int, value: Int) = updateSessionItemRepeatCount(index, value.toString())
 
     fun updateSessionItemClubReference(index: Int, value: String) = updateSessionItem(index) {
         copy(clubReference = value)
