@@ -31,6 +31,7 @@ internal fun ListEntryCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onDuplicate: (() -> Unit)? = null,
+    metadataRow: (@Composable () -> Unit)? = null,
     overflowContentDescription: String = "More options",
     modifier: Modifier = Modifier,
 ) {
@@ -67,6 +68,9 @@ internal fun ListEntryCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (metadataRow != null) {
+                    metadataRow()
+                }
                 Text(
                     text = supportingText,
                     style = MaterialTheme.typography.bodySmall,

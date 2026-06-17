@@ -256,6 +256,46 @@ class PracticePlannerViewModelTest {
     }
 
     @Test
+    fun deleteUnitRemovesFromList() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.units.size)
+
+        viewModel.deleteUnit("unit-1")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.units.isEmpty())
+        val status = viewModel.uiState.value.status
+        assertTrue("Expected Notification with 'Deleted'", status is PlannerStatus.Notification && status.text.contains("Deleted"))
+    }
+
+    @Test
+    fun duplicateUnitSetsDuplicatedUnitId() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+        assertEquals(null, viewModel.uiState.value.duplicatedUnitId)
+
+        viewModel.duplicateUnit("unit-1")
+        advanceUntilIdle()
+
+        val duplicatedId = viewModel.uiState.value.duplicatedUnitId
+        assertTrue("Expected duplicatedUnitId to be set", duplicatedId != null)
+        assertEquals(2, viewModel.uiState.value.units.size)
+    }
+
+    @Test
     fun hasLoadedFlipsAfterFirstSuccessfulRefresh() = runTest {
         val repositories = FakePlannerRepositories()
         val viewModel = PracticePlannerViewModel(

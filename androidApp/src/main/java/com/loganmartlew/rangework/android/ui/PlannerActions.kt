@@ -8,6 +8,8 @@ data class UnitEditorActions(
     val onBeginNew: () -> Unit,
     val onEdit: (String) -> Unit,
     val onDelete: (String) -> Unit,
+    val onDuplicate: (String) -> Unit,
+    val onClearDuplicatedId: () -> Unit,
     val onClearBaselines: () -> Unit,
     val onConsumeSavedId: () -> Unit,
     val onUpdateTitle: (String) -> Unit,

@@ -20,14 +20,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,8 +64,10 @@ import androidx.navigation.compose.rememberNavController
 import com.loganmartlew.rangework.android.R
 import com.loganmartlew.rangework.android.auth.AndroidGoogleIdTokenProvider
 import com.loganmartlew.rangework.android.config.baselineAndroidAppAuthConfig
-import com.loganmartlew.rangework.android.ui.components.BrandWordmark
 import com.loganmartlew.rangework.android.ui.components.BrandMarkContainer
+import com.loganmartlew.rangework.android.ui.components.BrandWordmark
+import com.loganmartlew.rangework.android.ui.components.RangeworkExtendedFab
+import com.loganmartlew.rangework.android.ui.components.RangeworkFab
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
 import com.loganmartlew.rangework.android.ui.screens.OverviewScreen
@@ -173,6 +173,8 @@ fun RangeworkApp(
             onBeginNew = plannerViewModel::beginNewUnit,
             onEdit = plannerViewModel::editUnit,
             onDelete = plannerViewModel::deleteUnit,
+            onDuplicate = plannerViewModel::duplicateUnit,
+            onClearDuplicatedId = plannerViewModel::clearDuplicatedUnitId,
             onClearBaselines = plannerViewModel::clearEditorBaselines,
             onConsumeSavedId = plannerViewModel::consumeSavedUnitId,
             onUpdateTitle = plannerViewModel::updateUnitTitle,
@@ -431,6 +433,13 @@ private fun AuthenticatedAppShell(
         }
     }
 
+    LaunchedEffect(plannerUiState.duplicatedUnitId) {
+        plannerUiState.duplicatedUnitId?.let { unitId ->
+            unitActions.onClearDuplicatedId()
+            shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
+        }
+    }
+
     LaunchedEffect(currentRoute) {
         if (currentRoute.shouldRefreshPlanningOnEnter()) {
             onRefreshPlanningOnNavigation()
@@ -497,22 +506,44 @@ private fun AuthenticatedAppShell(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             when (currentRoute) {
-                RangeworkRoutes.Units -> FloatingActionButton(
-                    onClick = {
-                        unitActions.onBeginNew()
-                        shellNavController.navigate(RangeworkRoutes.UnitCreate)
-                    },
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "New unit")
+                RangeworkRoutes.Units -> {
+                    val unitsEmpty = plannerUiState.units.isEmpty()
+                    if (unitsEmpty) {
+                        RangeworkExtendedFab(
+                            onClick = {
+                                unitActions.onBeginNew()
+                                shellNavController.navigate(RangeworkRoutes.UnitCreate)
+                            },
+                            text = "New unit",
+                        )
+                    } else {
+                        RangeworkFab(
+                            onClick = {
+                                unitActions.onBeginNew()
+                                shellNavController.navigate(RangeworkRoutes.UnitCreate)
+                            },
+                            contentDescription = "New unit",
+                        )
+                    }
                 }
                 RangeworkRoutes.Sessions -> if (plannerUiState.units.isNotEmpty()) {
-                    FloatingActionButton(
-                        onClick = {
-                            sessionActions.onBeginNew()
-                            shellNavController.navigate(RangeworkRoutes.SessionCreate)
-                        },
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = "New session")
+                    val sessionsEmpty = plannerUiState.sessions.isEmpty()
+                    if (sessionsEmpty) {
+                        RangeworkExtendedFab(
+                            onClick = {
+                                sessionActions.onBeginNew()
+                                shellNavController.navigate(RangeworkRoutes.SessionCreate)
+                            },
+                            text = "New session",
+                        )
+                    } else {
+                        RangeworkFab(
+                            onClick = {
+                                sessionActions.onBeginNew()
+                                shellNavController.navigate(RangeworkRoutes.SessionCreate)
+                            },
+                            contentDescription = "New session",
+                        )
                     }
                 }
             }
@@ -638,6 +669,7 @@ private fun AuthenticatedAppShell(
                                 shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
                             },
                             onDeleteUnit = unitActions.onDelete,
+                            onDuplicateUnit = unitActions.onDuplicate,
                         )
                     }
                     composable(RangeworkRoutes.UnitCreate) {
@@ -733,6 +765,15 @@ private fun AuthenticatedAppShell(
                             },
                             onDeleteSession = sessionActions.onDelete,
                             onDuplicateSession = sessionActions.onDuplicate,
+                            onGoToUnits = {
+                                shellNavController.navigate(RangeworkRoutes.Units) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                    popUpTo(shellNavController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                }
+                            },
                         )
                     }
                     composable(RangeworkRoutes.SessionCreate) {
