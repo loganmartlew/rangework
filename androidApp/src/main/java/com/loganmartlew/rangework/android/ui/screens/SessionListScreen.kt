@@ -1,18 +1,26 @@
 package com.loganmartlew.rangework.android.ui.screens
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.EventNote
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PlannerStatus
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
-import com.loganmartlew.rangework.android.ui.ballSummary
+import com.loganmartlew.rangework.android.ui.components.BallCountPill
+import com.loganmartlew.rangework.android.ui.components.DeleteConfirmationDialog
 import com.loganmartlew.rangework.android.ui.components.EmptyStateCard
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
+import com.loganmartlew.rangework.android.ui.components.ListEntryCard
 import com.loganmartlew.rangework.android.ui.components.PlanningListContent
 import com.loganmartlew.rangework.android.ui.components.RefreshableScrollableScreen
-import com.loganmartlew.rangework.android.ui.components.SummaryEntityCard
+import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.derivedBallCount
 
@@ -25,10 +33,24 @@ internal fun SessionListScreen(
     onEditSession: (String) -> Unit,
     onDeleteSession: (String) -> Unit,
     onDuplicateSession: (String) -> Unit,
+    onGoToUnits: () -> Unit,
 ) {
     val unitsById = remember(plannerUiState.units) {
         plannerUiState.units.associateBy(PracticeUnit::id)
     }
+    var pendingDeleteSession by remember { mutableStateOf<PracticeSession?>(null) }
+
+    pendingDeleteSession?.let { session ->
+        DeleteConfirmationDialog(
+            itemName = session.name,
+            onConfirm = {
+                onDeleteSession(session.id)
+                pendingDeleteSession = null
+            },
+            onDismiss = { pendingDeleteSession = null },
+        )
+    }
+
     RefreshableScrollableScreen(
         isRefreshing = plannerUiState.isLoading,
         onRefresh = {
@@ -55,7 +77,7 @@ internal fun SessionListScreen(
                         title = "Create a unit first",
                         body = "Sessions are assembled from units. Build at least one unit before creating a session.",
                         actionLabel = "Go to Units",
-                        onAction = { /* navigate handled by FAB/nav */ },
+                        onAction = onGoToUnits,
                     )
                 } else if (plannerUiState.sessions.isEmpty()) {
                     EmptyStateCard(
@@ -66,22 +88,25 @@ internal fun SessionListScreen(
                         onAction = onCreateSession,
                     )
                 } else {
-                    plannerUiState.sessions.forEachIndexed { index, session ->
-                        SummaryEntityCard(
+                    plannerUiState.sessions.forEach { session ->
+                        val ballCount = session.derivedBallCount(unitsById)
+                        val itemCount = session.items.size
+                        val unitLineup = session.items.joinToString("  •  ") { item ->
+                            unitsById[item.practiceUnitId]?.title ?: "Missing unit"
+                        }.ifBlank { "No items yet." }
+                        ListEntryCard(
                             title = session.name,
-                            subtitle = "${session.items.size} item${if (session.items.size == 1) "" else "s"}  •  ${ballSummary(session.derivedBallCount(unitsById))}",
-                            supportingText = session.items.joinToString("  •  ") { item ->
-                                unitsById[item.practiceUnitId]?.title ?: "Missing unit"
-                            }.ifBlank { "No items yet." },
-                            onView = { onViewSession(session.id) },
+                            subtitle = "$itemCount item${if (itemCount == 1) "" else "s"}",
+                            supportingText = unitLineup,
+                            metadataRow = { BallCountPill(count = ballCount) },
+                            onClick = { onViewSession(session.id) },
                             onEdit = { onEditSession(session.id) },
-                            onDelete = { onDeleteSession(session.id) },
+                            onDelete = { pendingDeleteSession = session },
                             onDuplicate = { onDuplicateSession(session.id) },
+                            overflowContentDescription = "More options for ${session.name}",
                         )
-                        if (index != plannerUiState.sessions.lastIndex) {
-                            HorizontalDivider()
-                        }
                     }
+                    Spacer(modifier = Modifier.height(96.dp))
                 }
             },
         )

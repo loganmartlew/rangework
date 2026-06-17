@@ -1,17 +1,27 @@
 package com.loganmartlew.rangework.android.ui.screens
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Widgets
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PlannerStatus
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
 import com.loganmartlew.rangework.android.ui.ballSummary
+import com.loganmartlew.rangework.android.ui.components.ClubChip
+import com.loganmartlew.rangework.android.ui.components.DeleteConfirmationDialog
 import com.loganmartlew.rangework.android.ui.components.EmptyStateCard
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
+import com.loganmartlew.rangework.android.ui.components.ListEntryCard
 import com.loganmartlew.rangework.android.ui.components.PlanningListContent
 import com.loganmartlew.rangework.android.ui.components.RefreshableScrollableScreen
-import com.loganmartlew.rangework.android.ui.components.SummaryEntityCard
+import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.derivedBallCount
 
 @Composable
@@ -22,7 +32,21 @@ internal fun UnitListScreen(
     onViewUnit: (String) -> Unit,
     onEditUnit: (String) -> Unit,
     onDeleteUnit: (String) -> Unit,
+    onDuplicateUnit: (String) -> Unit,
 ) {
+    var pendingDeleteUnit by remember { mutableStateOf<PracticeUnit?>(null) }
+
+    pendingDeleteUnit?.let { unit ->
+        DeleteConfirmationDialog(
+            itemName = unit.title,
+            onConfirm = {
+                onDeleteUnit(unit.id)
+                pendingDeleteUnit = null
+            },
+            onDismiss = { pendingDeleteUnit = null },
+        )
+    }
+
     RefreshableScrollableScreen(
         isRefreshing = plannerUiState.isLoading,
         onRefresh = {
@@ -52,25 +76,28 @@ internal fun UnitListScreen(
                         onAction = onCreateUnit,
                     )
                 } else {
-                    plannerUiState.units.forEachIndexed { index, unit ->
-                        SummaryEntityCard(
+                    plannerUiState.units.forEach { unit ->
+                        val clubName = unit.defaultClubReference
+                            ?.takeIf(String::isNotBlank)
+                            ?.let { code ->
+                                plannerUiState.clubCatalog.firstOrNull { it.code == code }?.displayName ?: code
+                            }
+                        val instructionCount = unit.instructions.size
+                        ListEntryCard(
                             title = unit.title,
-                            subtitle = "${unit.instructions.size} instruction${if (unit.instructions.size == 1) "" else "s"}  •  ${ballSummary(unit.derivedBallCount())}",
-                            supportingText = buildString {
-                                unit.defaultClubReference?.takeIf(String::isNotBlank)?.let { code ->
-                                    val name = plannerUiState.clubCatalog.firstOrNull { it.code == code }?.displayName ?: code
-                                    append("$name  •  ")
-                                }
-                                append(unit.instructions.joinToString("  •  ") { instruction -> instruction.text })
-                            },
-                            onView = { onViewUnit(unit.id) },
+                            subtitle = "$instructionCount instruction${if (instructionCount == 1) "" else "s"}  •  ${ballSummary(unit.derivedBallCount())}",
+                            supportingText = unit.instructions.joinToString("  •  ") { it.text }.ifBlank { "No instructions." },
+                            metadataRow = if (clubName != null) {
+                                { ClubChip(name = clubName) }
+                            } else null,
+                            onClick = { onViewUnit(unit.id) },
                             onEdit = { onEditUnit(unit.id) },
-                            onDelete = { onDeleteUnit(unit.id) },
+                            onDelete = { pendingDeleteUnit = unit },
+                            onDuplicate = { onDuplicateUnit(unit.id) },
+                            overflowContentDescription = "More options for ${unit.title}",
                         )
-                        if (index != plannerUiState.units.lastIndex) {
-                            HorizontalDivider()
-                        }
                     }
+                    Spacer(modifier = Modifier.height(96.dp))
                 }
             },
         )
