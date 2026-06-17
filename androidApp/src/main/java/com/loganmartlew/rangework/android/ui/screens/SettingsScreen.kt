@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.BuildConfig
 import com.loganmartlew.rangework.android.ui.AuthUiState
@@ -196,7 +197,7 @@ internal fun SettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onNavigateToManageClubs)
+                .clickable(role = Role.Button, onClick = onNavigateToManageClubs)
                 .padding(vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
@@ -305,7 +306,7 @@ internal fun SettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { showHelpSheet = true }
+                .clickable(role = Role.Button) { showHelpSheet = true }
                 .padding(vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
@@ -335,7 +336,7 @@ internal fun SettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable {
+                .clickable(role = Role.Button) {
                     val intent = Intent(Intent.ACTION_SENDTO).apply {
                         data = Uri.parse("mailto:support@rangework.app")
                         putExtra(Intent.EXTRA_SUBJECT, "Rangework Feedback")
@@ -371,7 +372,7 @@ internal fun SettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { showPrivacySheet = true }
+                .clickable(role = Role.Button) { showPrivacySheet = true }
                 .padding(vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,

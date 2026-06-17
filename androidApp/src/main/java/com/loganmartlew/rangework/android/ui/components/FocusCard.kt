@@ -39,7 +39,7 @@ internal fun FocusCard(
             Text(
                 text = "Focus cue".uppercase(),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
             Text(
                 text = cue,

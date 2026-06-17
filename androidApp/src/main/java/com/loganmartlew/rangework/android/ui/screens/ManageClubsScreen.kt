@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,6 +34,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.SettingsUiState
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
@@ -185,14 +188,16 @@ internal fun ManageClubsScreen(
                         }
                         items(clubs, key = { it.code }) { club ->
                             val enabled = club.code in enabledCodes
-                            val description = if (enabled) "${club.displayName}, enabled" else "Enable ${club.displayName}"
+                            val description = if (enabled) "${club.displayName}, enabled" else "${club.displayName}, disabled"
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
                                     .padding(vertical = 4.dp)
                                     .semantics {
                                         role = Role.Switch
                                         contentDescription = description
+                                        toggleableState = if (enabled) ToggleableState.On else ToggleableState.Off
                                     },
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
