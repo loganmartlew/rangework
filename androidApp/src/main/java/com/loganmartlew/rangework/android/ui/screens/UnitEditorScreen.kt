@@ -241,7 +241,7 @@ private fun InstructionEditorRow(
             moveDownContentDescription = "Move instruction $number down",
             deleteContentDescription = "Delete instruction $number",
             dragHandleModifier = dragHandleModifier,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
             leadingContent = {
                 NumberBadge(
                     number = number,

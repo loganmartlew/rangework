@@ -97,91 +97,90 @@ internal fun SettingsScreen(
         // Preferences section
         SettingsSubheader("Preferences")
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = "Theme",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val options = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK)
-                val labels = listOf("System", "Light", "Dark")
-                options.forEachIndexed { index, mode ->
-                    SegmentedButton(
-                        selected = settingsUiState.themeMode == mode,
-                        onClick = { onSetThemeMode(mode) },
-                        shape = SegmentedButtonDefaults.itemShape(index, options.size),
-                    ) {
-                        Text(labels[index])
-                    }
-                }
-            }
-        }
-
-        HorizontalDivider()
-        SettingsListItem(
-            label = "Dynamic color",
-            checked = settingsUiState.dynamicColor,
-            onCheckedChange = { onToggleDynamicColor() },
-            supportingText = "Use colours from your wallpaper",
-        )
-
-        HorizontalDivider()
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = "Distance",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp, top = 4.dp),
-            )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val distOptions = listOf(DistanceUnit.YARDS, DistanceUnit.METERS)
-                val distLabels = listOf("Yards", "Meters")
-                distOptions.forEachIndexed { index, unit ->
-                    SegmentedButton(
-                        selected = settingsUiState.measurementPreferences.distanceUnit == unit,
-                        onClick = { onSelectDistanceUnit(unit) },
-                        shape = SegmentedButtonDefaults.itemShape(index, distOptions.size),
-                        enabled = !settingsUiState.isWorking && settingsUiState.dataConfigured,
-                    ) {
-                        Text(distLabels[index])
-                    }
-                }
-            }
-        }
-
-        HorizontalDivider()
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = "Speed",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp, top = 4.dp),
-            )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val speedOptions = listOf(
-                    SpeedUnit.MILES_PER_HOUR,
-                    SpeedUnit.KILOMETRES_PER_HOUR,
-                    SpeedUnit.METRES_PER_SECOND,
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                Text(
+                    text = "Theme",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
-                val speedLabels = listOf("mph", "km/h", "m/s")
-                speedOptions.forEachIndexed { index, unit ->
-                    SegmentedButton(
-                        selected = settingsUiState.measurementPreferences.speedUnit == unit,
-                        onClick = { onSelectSpeedUnit(unit) },
-                        shape = SegmentedButtonDefaults.itemShape(index, speedOptions.size),
-                        enabled = !settingsUiState.isWorking && settingsUiState.dataConfigured,
-                    ) {
-                        Text(speedLabels[index])
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val options = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK)
+                    val labels = listOf("System", "Light", "Dark")
+                    options.forEachIndexed { index, mode ->
+                        SegmentedButton(
+                            selected = settingsUiState.themeMode == mode,
+                            onClick = { onSetThemeMode(mode) },
+                            shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                        ) {
+                            Text(labels[index])
+                        }
                     }
                 }
             }
-            Text(
-                text = "Applies to launch monitor readings.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
+            HorizontalDivider()
+            SettingsListItem(
+                label = "Dynamic color",
+                checked = settingsUiState.dynamicColor,
+                onCheckedChange = { onToggleDynamicColor() },
+                supportingText = "Use colours from your wallpaper",
             )
+            HorizontalDivider()
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                Text(
+                    text = "Distance",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val distOptions = listOf(DistanceUnit.YARDS, DistanceUnit.METERS)
+                    val distLabels = listOf("Yards", "Meters")
+                    distOptions.forEachIndexed { index, unit ->
+                        SegmentedButton(
+                            selected = settingsUiState.measurementPreferences.distanceUnit == unit,
+                            onClick = { onSelectDistanceUnit(unit) },
+                            shape = SegmentedButtonDefaults.itemShape(index, distOptions.size),
+                            enabled = !settingsUiState.isWorking && settingsUiState.dataConfigured,
+                        ) {
+                            Text(distLabels[index])
+                        }
+                    }
+                }
+            }
+            HorizontalDivider()
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                Text(
+                    text = "Speed",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val speedOptions = listOf(
+                        SpeedUnit.MILES_PER_HOUR,
+                        SpeedUnit.KILOMETRES_PER_HOUR,
+                        SpeedUnit.METRES_PER_SECOND,
+                    )
+                    val speedLabels = listOf("mph", "km/h", "m/s")
+                    speedOptions.forEachIndexed { index, unit ->
+                        SegmentedButton(
+                            selected = settingsUiState.measurementPreferences.speedUnit == unit,
+                            onClick = { onSelectSpeedUnit(unit) },
+                            shape = SegmentedButtonDefaults.itemShape(index, speedOptions.size),
+                            enabled = !settingsUiState.isWorking && settingsUiState.dataConfigured,
+                        ) {
+                            Text(speedLabels[index])
+                        }
+                    }
+                }
+                Text(
+                    text = "Applies to launch monitor readings.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
         }
 
         if (!settingsUiState.dataConfigured) {
@@ -242,161 +241,165 @@ internal fun SettingsScreen(
 
         // Account section
         SettingsSubheader("Account")
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Default.AccountCircle,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Column {
-                Text(
-                    text = "Signed in as",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    text = signedInState?.userEmail ?: "—",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Column {
+                    Text(
+                        text = "Signed in as",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = signedInState?.userEmail ?: "—",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
+            HorizontalDivider()
+            SignOutItem(
+                onClick = { showSignOutDialog = true },
+            )
         }
-        HorizontalDivider()
-        SignOutItem(
-            onClick = { showSignOutDialog = true },
-        )
 
         // About section
         SettingsSubheader("About")
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "Version",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-            Text(
-                text = BuildConfig.VERSION_NAME,
-                style = RangeworkMono.small,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        HorizontalDivider()
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(role = Role.Button) { showHelpSheet = true }
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Help,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "Help",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.NavigateNext,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        HorizontalDivider()
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(role = Role.Button) {
-                    val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:support@rangework.app")
-                        putExtra(Intent.EXTRA_SUBJECT, "Rangework Feedback")
-                    }
-                    context.startActivity(intent)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Version",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Mail,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 Text(
-                    text = "Feedback",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = BuildConfig.VERSION_NAME,
+                    style = RangeworkMono.small,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.NavigateNext,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        HorizontalDivider()
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(role = Role.Button) { showPrivacySheet = true }
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+            HorizontalDivider()
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(role = Role.Button) { showHelpSheet = true }
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Help,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Help",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
                 Icon(
-                    imageVector = Icons.Default.Lock,
+                    imageVector = Icons.AutoMirrored.Filled.NavigateNext,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    text = "Privacy",
-                    style = MaterialTheme.typography.bodyMedium,
+            }
+            HorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(role = Role.Button) {
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:support@rangework.app")
+                            putExtra(Intent.EXTRA_SUBJECT, "Rangework Feedback")
+                        }
+                        context.startActivity(intent)
+                    }
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mail,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Feedback",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.NavigateNext,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.NavigateNext,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            HorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(role = Role.Button) { showPrivacySheet = true }
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Privacy",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.NavigateNext,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 

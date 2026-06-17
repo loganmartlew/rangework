@@ -41,7 +41,7 @@ internal fun SettingsSubheader(
         text = title.uppercase(),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.padding(top = 12.dp, bottom = 4.dp),
+        modifier = modifier.padding(top = 8.dp, bottom = 4.dp),
     )
 }
 

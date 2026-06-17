@@ -279,7 +279,7 @@ private fun SessionItemEditorCard(
             moveDownContentDescription = "Move item $number down",
             deleteContentDescription = "Delete item $number",
             dragHandleModifier = dragHandleModifier,
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             leadingContent = {
                 NumberBadge(number = number)
             },
