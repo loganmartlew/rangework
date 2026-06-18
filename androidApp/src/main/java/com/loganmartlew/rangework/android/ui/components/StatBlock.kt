@@ -15,15 +15,10 @@ import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.android.ui.theme.RangeworkTheme
 
-internal enum class StatProminence {
-    Primary,
-    Secondary,
-}
-
 internal data class BriefingStat(
     val value: String,
     val label: String,
-    val prominence: StatProminence = StatProminence.Secondary,
+    val colored: Boolean = false,
 )
 
 /** A single numeric value + caption pair, stacked vertically. */
@@ -31,7 +26,7 @@ internal data class BriefingStat(
 internal fun StatBlock(
     value: String,
     label: String,
-    prominence: StatProminence = StatProminence.Secondary,
+    colored: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -40,15 +35,9 @@ internal fun StatBlock(
     ) {
         Text(
             text = value,
-            style = when (prominence) {
-                StatProminence.Primary -> RangeworkMono.large
-                StatProminence.Secondary -> RangeworkMono.medium
-            },
-            color = when (prominence) {
-                StatProminence.Primary -> MaterialTheme.colorScheme.onSurface
-                StatProminence.Secondary -> MaterialTheme.colorScheme.secondary
-            },
-            maxLines = if (prominence == StatProminence.Primary) 1 else 2,
+            style = RangeworkMono.medium,
+            color = if (colored) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
@@ -73,7 +62,7 @@ internal fun BriefingRow(
             StatBlock(
                 value = stat.value,
                 label = stat.label,
-                prominence = stat.prominence,
+                colored = stat.colored,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -87,7 +76,7 @@ private fun StatBlockPreview() {
         StatBlock(
             value = "40",
             label = "Balls",
-            prominence = StatProminence.Primary,
+            colored = true,
             modifier = Modifier.padding(16.dp),
         )
     }
@@ -99,7 +88,7 @@ private fun BriefingRowPreview() {
     RangeworkTheme {
         BriefingRow(
             stats = listOf(
-                BriefingStat(value = "40", label = "Balls", prominence = StatProminence.Primary),
+                BriefingStat(value = "40", label = "Balls", colored = true),
                 BriefingStat(value = "4", label = "Instructions"),
                 BriefingStat(value = "3", label = "Sessions"),
             ),

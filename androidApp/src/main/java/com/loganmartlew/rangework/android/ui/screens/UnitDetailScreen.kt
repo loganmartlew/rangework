@@ -30,7 +30,6 @@ import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.FocusCard
 import com.loganmartlew.rangework.android.ui.components.NumberBadge
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
-import com.loganmartlew.rangework.android.ui.components.StatProminence
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.derivedBallCount
@@ -67,7 +66,7 @@ internal fun UnitDetailScreen(
                 BriefingStat(
                     value = unit.derivedBallCount().toString(),
                     label = "Balls",
-                    prominence = StatProminence.Primary,
+                    colored = true,
                 ),
                 BriefingStat(
                     value = unit.instructions.size.toString(),

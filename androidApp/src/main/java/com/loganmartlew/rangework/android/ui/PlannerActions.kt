@@ -49,7 +49,6 @@ data class SessionEditorActions(
 data class SettingsActions(
     val onSignOut: () -> Unit,
     val onSetThemeMode: (ThemeMode) -> Unit,
-    val onToggleDynamicColor: () -> Unit,
     val onSelectDistanceUnit: (DistanceUnit) -> Unit,
     val onSelectSpeedUnit: (SpeedUnit) -> Unit,
     val onSetClubEnabled: (String, Boolean) -> Unit,

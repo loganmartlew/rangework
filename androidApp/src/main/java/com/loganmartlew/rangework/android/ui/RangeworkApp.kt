@@ -181,7 +181,6 @@ fun RangeworkApp(
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    val dynamicColor = settingsUiState.dynamicColor
 
     val unitActions = remember(plannerViewModel) {
         UnitEditorActions(
@@ -233,7 +232,6 @@ fun RangeworkApp(
         SettingsActions(
             onSignOut = authViewModel::signOut,
             onSetThemeMode = settingsViewModel::setThemeMode,
-            onToggleDynamicColor = settingsViewModel::toggleDynamicColor,
             onSelectDistanceUnit = settingsViewModel::selectDistanceUnit,
             onSelectSpeedUnit = settingsViewModel::selectSpeedUnit,
             onSetClubEnabled = settingsViewModel::setClubEnabled,
@@ -242,7 +240,7 @@ fun RangeworkApp(
         )
     }
 
-    RangeworkTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
+    RangeworkTheme(darkTheme = darkTheme) {
         Surface(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = rootNavController,
@@ -1030,7 +1028,6 @@ private fun AuthenticatedAppShell(
                             settingsUiState = settingsUiState,
                             onSignOut = settingsActions.onSignOut,
                             onSetThemeMode = settingsActions.onSetThemeMode,
-                            onToggleDynamicColor = settingsActions.onToggleDynamicColor,
                             onSelectDistanceUnit = settingsActions.onSelectDistanceUnit,
                             onSelectSpeedUnit = settingsActions.onSelectSpeedUnit,
                             onNavigateToManageClubs = {

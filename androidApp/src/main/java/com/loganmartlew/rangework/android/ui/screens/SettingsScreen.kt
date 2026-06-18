@@ -59,7 +59,6 @@ internal fun SettingsScreen(
     settingsUiState: SettingsUiState,
     onSignOut: () -> Unit,
     onSetThemeMode: (ThemeMode) -> Unit,
-    onToggleDynamicColor: () -> Unit,
     onSelectDistanceUnit: (DistanceUnit) -> Unit,
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
     onNavigateToManageClubs: () -> Unit,
@@ -119,13 +118,6 @@ internal fun SettingsScreen(
                 }
             }
             HorizontalDivider()
-            SettingsListItem(
-                label = "Dynamic color",
-                checked = settingsUiState.dynamicColor,
-                onCheckedChange = { onToggleDynamicColor() },
-                supportingText = "Use colours from your wallpaper",
-            )
-            HorizontalDivider()
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                 Text(
                     text = "Distance",
@@ -174,12 +166,6 @@ internal fun SettingsScreen(
                         }
                     }
                 }
-                Text(
-                    text = "Applies to launch monitor readings.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
             }
         }
 

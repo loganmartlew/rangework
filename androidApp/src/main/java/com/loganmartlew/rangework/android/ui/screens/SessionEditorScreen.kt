@@ -267,7 +267,7 @@ private fun SessionItemEditorCard(
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         ReorderableItemRow(
             canMoveUp = canMoveUp,
