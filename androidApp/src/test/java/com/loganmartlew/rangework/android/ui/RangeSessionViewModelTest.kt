@@ -208,6 +208,144 @@ class RangeSessionViewModelTest {
         assertNull(state.rangeSession)
         assertTrue("Expected error message for null foundation", state.statusMessage != null)
     }
+
+    @Test
+    fun loadSessionPopulatesCompletedStepIndices() = runTest {
+        val session = sampleRangeSession(steps = 3, completedStepIndices = setOf(0, 2))
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        assertEquals(setOf(0, 2), viewModel.uiState.value.completedStepIndices)
+    }
+
+    @Test
+    fun toggleStepCompleteAddsIndexOptimistically() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.toggleStepComplete(0)
+
+        // Optimistic update — visible before coroutine completes
+        assertTrue(0 in viewModel.uiState.value.completedStepIndices)
+    }
+
+    @Test
+    fun toggleStepCompleteServerResponseUpdatesSession() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.toggleStepComplete(0)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(0 in state.completedStepIndices)
+        assertEquals(1, state.rangeSession?.completedSteps?.size)
+        assertEquals(0, state.rangeSession?.completedSteps?.first()?.stepIndex)
+    }
+
+    @Test
+    fun toggleStepCompleteRemovesIndexWhenAlreadyComplete() = runTest {
+        val session = sampleRangeSession(steps = 3, completedStepIndices = setOf(1))
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.toggleStepComplete(1)
+        advanceUntilIdle()
+
+        assertFalse(1 in viewModel.uiState.value.completedStepIndices)
+        assertTrue(viewModel.uiState.value.rangeSession?.completedSteps?.isEmpty() == true)
+    }
+
+    @Test
+    fun toggleStepCompleteAutoAdvancesFromCurrentStep() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        assertEquals(0, viewModel.uiState.value.currentStepIndex)
+        viewModel.toggleStepComplete(0) // completing current step 0
+
+        assertEquals(1, viewModel.uiState.value.currentStepIndex)
+    }
+
+    @Test
+    fun toggleStepCompleteDoesNotAdvanceWhenCompletingNonCurrentStep() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        assertEquals(0, viewModel.uiState.value.currentStepIndex)
+        viewModel.toggleStepComplete(2) // completing a step that isn't current
+
+        assertEquals(0, viewModel.uiState.value.currentStepIndex)
+    }
+
+    @Test
+    fun toggleStepCompleteDoesNotAdvancePastLastStep() = runTest {
+        val session = sampleRangeSession(steps = 2, lastViewedStepIndex = 1)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.currentStepIndex)
+        viewModel.toggleStepComplete(1) // completing last step
+
+        assertEquals(1, viewModel.uiState.value.currentStepIndex)
+    }
+
+    @Test
+    fun toggleStepCompleteDoesNotAutoAdvanceOnUncomplete() = runTest {
+        val session = sampleRangeSession(steps = 3, lastViewedStepIndex = 1, completedStepIndices = setOf(1))
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.currentStepIndex)
+        viewModel.toggleStepComplete(1) // uncompleting current step
+
+        assertEquals(1, viewModel.uiState.value.currentStepIndex)
+    }
+
+    @Test
+    fun toggleStepCompleteRevertsOnNetworkFailure() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session), shouldFailOnToggle = true)
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.toggleStepComplete(0) // optimistic update applies
+        assertTrue(0 in viewModel.uiState.value.completedStepIndices)
+
+        advanceUntilIdle() // network fails → revert
+
+        val state = viewModel.uiState.value
+        assertFalse(0 in state.completedStepIndices)
+        assertEquals(0, state.currentStepIndex)
+        assertTrue("Expected error notification after failure", state.notification != null)
+    }
+
+    @Test
+    fun consumeNotificationClearsNotification() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session), shouldFailOnToggle = true)
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.toggleStepComplete(0)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.notification != null)
+
+        viewModel.consumeNotification()
+        assertNull(viewModel.uiState.value.notification)
+    }
 }
 
 private fun makeViewModel(
@@ -264,8 +402,10 @@ private fun buildDataFoundation(rangeRepo: RangeSessionRepository): DataFoundati
 
 private class FakeRangeSessionRepo(
     val sessions: MutableList<RangeSession> = mutableListOf(),
+    var shouldFailOnToggle: Boolean = false,
 ) : RangeSessionRepository {
     val lastViewedStepUpdates = mutableMapOf<String, Int>()
+    val toggleInvocations = mutableListOf<Triple<String, Int, Boolean>>()
 
     override suspend fun startSession(rangeSessionId: String, sessionId: String): RangeSession =
         error("Not called in these tests")
@@ -273,8 +413,23 @@ private class FakeRangeSessionRepo(
         sessions.firstOrNull { it.id == rangeSessionId }
     override suspend fun listActiveSessions(): List<ActiveRangeSessionSummary> = emptyList()
     override suspend fun listCompletedSessions(sessionId: String): List<CompletedRangeSessionSummary> = emptyList()
-    override suspend fun toggleStepComplete(rangeSessionId: String, stepIndex: Int, completed: Boolean): RangeSession =
-        error("Not called in these tests")
+    override suspend fun toggleStepComplete(rangeSessionId: String, stepIndex: Int, completed: Boolean): RangeSession {
+        if (shouldFailOnToggle) throw RuntimeException("Simulated network error")
+        toggleInvocations.add(Triple(rangeSessionId, stepIndex, completed))
+        val session = sessions.firstOrNull { it.id == rangeSessionId } ?: error("Session not found")
+        val updatedCompletedSteps = if (completed) {
+            session.completedSteps + com.loganmartlew.rangework.shared.model.CompletedStep(
+                stepIndex = stepIndex,
+                completedAt = Instant.parse("2026-06-19T10:00:00Z"),
+            )
+        } else {
+            session.completedSteps.filter { it.stepIndex != stepIndex }
+        }
+        val updated = session.copy(completedSteps = updatedCompletedSteps)
+        sessions.removeAll { it.id == rangeSessionId }
+        sessions.add(updated)
+        return updated
+    }
     override suspend fun overrideStepClub(rangeSessionId: String, stepIndex: Int, clubCode: String): RangeSession =
         error("Not called in these tests")
     override suspend fun updateLastViewedStep(rangeSessionId: String, stepIndex: Int) {
@@ -334,6 +489,7 @@ private fun sampleRangeSession(
     id: String = "range-session-1",
     steps: Int = 3,
     lastViewedStepIndex: Int? = null,
+    completedStepIndices: Set<Int> = emptySet(),
 ): RangeSession = RangeSession(
     id = id,
     sourceSessionId = "session-1",
@@ -361,7 +517,12 @@ private fun sampleRangeSession(
         },
     ),
     snapshotVersion = 1,
-    completedSteps = emptyList(),
+    completedSteps = completedStepIndices.map {
+        com.loganmartlew.rangework.shared.model.CompletedStep(
+            stepIndex = it,
+            completedAt = Instant.parse("2026-06-19T09:00:00Z"),
+        )
+    },
     clubOverrides = emptyMap(),
     lastViewedStepIndex = lastViewedStepIndex,
     startedAt = Instant.parse("2026-06-18T08:00:00Z"),

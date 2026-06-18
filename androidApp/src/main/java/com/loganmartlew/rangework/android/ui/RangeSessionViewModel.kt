@@ -15,6 +15,8 @@ data class RangeSessionUiState(
     val currentStepIndex: Int = 0,
     val isLoading: Boolean = true,
     val statusMessage: String? = null,
+    val completedStepIndices: Set<Int> = emptySet(),
+    val notification: String? = null,
 )
 
 class RangeSessionViewModel(
@@ -53,6 +55,7 @@ class RangeSessionViewModel(
                     currentStepIndex = startIndex,
                     isLoading = false,
                     statusMessage = if (session == null) "Session not found." else null,
+                    completedStepIndices = session?.completedSteps?.map { it.stepIndex }?.toSet() ?: emptySet(),
                 )
             } catch (exception: Exception) {
                 _uiState.value = RangeSessionUiState(
@@ -88,6 +91,65 @@ class RangeSessionViewModel(
         val clamped = index.coerceIn(0, totalSteps - 1)
         _uiState.value = state.copy(currentStepIndex = clamped)
         persistLastViewedStep(clamped)
+    }
+
+    fun toggleStepComplete(stepIndex: Int) {
+        val state = _uiState.value
+        val session = state.rangeSession ?: return
+        val foundation = dataFoundation ?: return
+        val isCurrentlyComplete = stepIndex in state.completedStepIndices
+
+        // Optimistic update — apply immediately for responsive UX
+        val optimisticIndices = if (isCurrentlyComplete) {
+            state.completedStepIndices - stepIndex
+        } else {
+            state.completedStepIndices + stepIndex
+        }
+
+        // Auto-advance: completing the current step advances to the next (if not at the end)
+        val completing = !isCurrentlyComplete
+        val isCurrentStep = stepIndex == state.currentStepIndex
+        val totalSteps = session.snapshot.steps.size
+        val newStepIndex = if (completing && isCurrentStep && state.currentStepIndex < totalSteps - 1) {
+            state.currentStepIndex + 1
+        } else {
+            state.currentStepIndex
+        }
+
+        _uiState.value = state.copy(
+            completedStepIndices = optimisticIndices,
+            currentStepIndex = newStepIndex,
+        )
+
+        if (newStepIndex != state.currentStepIndex) {
+            persistLastViewedStep(newStepIndex)
+        }
+
+        viewModelScope.launch {
+            try {
+                val updatedSession = foundation.toggleStepCompleteUseCase(
+                    rangeSessionId = rangeSessionId,
+                    stepIndex = stepIndex,
+                    completed = !isCurrentlyComplete,
+                )
+                _uiState.value = _uiState.value.copy(
+                    rangeSession = updatedSession,
+                    completedStepIndices = updatedSession.completedSteps.map { it.stepIndex }.toSet(),
+                )
+            } catch (_: Exception) {
+                // Revert full pre-toggle state and surface error
+                _uiState.value = _uiState.value.copy(
+                    rangeSession = session,
+                    completedStepIndices = state.completedStepIndices,
+                    currentStepIndex = state.currentStepIndex,
+                    notification = "Failed to update step. Please try again.",
+                )
+            }
+        }
+    }
+
+    fun consumeNotification() {
+        _uiState.value = _uiState.value.copy(notification = null)
     }
 
     private fun persistLastViewedStep(index: Int) {

@@ -3,11 +3,18 @@ package com.loganmartlew.rangework.android.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.GolfCourse
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +33,8 @@ internal fun ExecutionStepCard(
     step: SnapshotStep,
     stepNumber: Int,
     totalSteps: Int,
+    isCompleted: Boolean,
+    onToggleComplete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val contextLabel = buildString {
@@ -42,6 +51,12 @@ internal fun ExecutionStepCard(
         }
     }
 
+    val cardColors = if (isCompleted) {
+        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    } else {
+        CardDefaults.cardColors()
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -53,8 +68,10 @@ internal fun ExecutionStepCard(
                     step.clubDisplayName?.let { append(". Club: $it") }
                     step.focusCue?.takeIf(String::isNotBlank)?.let { append(". Focus cue: $it") }
                     step.notes?.takeIf(String::isNotBlank)?.let { append(". Notes: $it") }
+                    if (isCompleted) append(". Completed") else append(". Incomplete")
                 }
             },
+        colors = cardColors,
     ) {
         Column(
             modifier = Modifier
@@ -144,6 +161,33 @@ internal fun ExecutionStepCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+
+            // Completion toggle
+            if (isCompleted) {
+                Button(
+                    onClick = onToggleComplete,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = "Mark step incomplete" },
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Completed", style = MaterialTheme.typography.labelLarge)
+                }
+            } else {
+                FilledTonalButton(
+                    onClick = onToggleComplete,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = "Mark step complete" },
+                ) {
+                    Text("Mark Complete", style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
     }

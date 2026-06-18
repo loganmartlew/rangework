@@ -19,10 +19,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
@@ -30,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.RangeSessionUiState
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.ExecutionStepCard
+import com.loganmartlew.rangework.android.ui.components.RangeSessionProgressHeader
 import com.loganmartlew.rangework.android.ui.components.StepNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +43,8 @@ internal fun RangeSessionScreen(
     uiState: RangeSessionUiState,
     onNextStep: () -> Unit,
     onPreviousStep: () -> Unit,
+    onToggleStepComplete: (Int) -> Unit,
+    onConsumeNotification: () -> Unit,
     onBack: () -> Unit,
 ) {
     val view = LocalView.current
@@ -47,6 +54,13 @@ internal fun RangeSessionScreen(
         onDispose {
             window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.notification) {
+        val msg = uiState.notification ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(msg)
+        onConsumeNotification()
     }
 
     val sessionName = uiState.rangeSession?.sessionName ?: "Session"
@@ -84,6 +98,7 @@ internal fun RangeSessionScreen(
                 )
             }
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -128,17 +143,25 @@ internal fun RangeSessionScreen(
                 else -> {
                     val currentStep = steps.getOrNull(uiState.currentStepIndex)
                     if (currentStep != null) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                        ) {
-                            ExecutionStepCard(
-                                step = currentStep,
-                                stepNumber = uiState.currentStepIndex + 1,
-                                totalSteps = totalSteps,
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            RangeSessionProgressHeader(
+                                rangeSession = uiState.rangeSession,
+                                completedStepIndices = uiState.completedStepIndices,
                             )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                            ) {
+                                ExecutionStepCard(
+                                    step = currentStep,
+                                    stepNumber = uiState.currentStepIndex + 1,
+                                    totalSteps = totalSteps,
+                                    isCompleted = uiState.currentStepIndex in uiState.completedStepIndices,
+                                    onToggleComplete = { onToggleStepComplete(uiState.currentStepIndex) },
+                                )
+                            }
                         }
                     }
                 }
