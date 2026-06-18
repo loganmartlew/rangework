@@ -3,16 +3,22 @@ package com.loganmartlew.rangework.android.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.material.icons.filled.GolfCourse
 import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -46,6 +52,7 @@ internal fun SessionDetailScreen(
     sessionId: String,
     onCreateSession: () -> Unit,
     onEditSession: () -> Unit,
+    onStartSession: () -> Unit = {},
 ) {
     val session = plannerUiState.sessions.firstOrNull { it.id == sessionId }
     val unitsById = remember(plannerUiState.units) {
@@ -67,6 +74,16 @@ internal fun SessionDetailScreen(
         val estimatedMinutes = estimateSessionDurationMinutes(session, unitsById)
         val durationDisplay = if (estimatedMinutes == 0) "—" else "~$estimatedMinutes min"
 
+        val isSessionExecutable = session.items.isNotEmpty() &&
+            session.items.any { item ->
+                (unitsById[item.practiceUnitId]?.instructions?.size ?: 0) > 0
+            }
+        val startSessionDisabledReason = when {
+            session.items.isEmpty() -> "Add units to this session before starting."
+            !isSessionExecutable -> "All units in this session have no instructions."
+            else -> null
+        }
+
         // Briefing strip: balls (primary) + unit count + estimated duration
         BriefingRow(
             stats = listOf(
@@ -85,6 +102,36 @@ internal fun SessionDetailScreen(
                 ),
             ),
         )
+
+        // Start session button
+        Button(
+            onClick = onStartSession,
+            enabled = isSessionExecutable,
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = if (startSessionDisabledReason != null) {
+                        "Start session, disabled: $startSessionDisabledReason"
+                    } else {
+                        "Start session"
+                    }
+                },
+        ) {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Start session", style = MaterialTheme.typography.labelLarge)
+        }
+        startSessionDisabledReason?.let { reason ->
+            Text(
+                text = reason,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
         // Session notes
         session.notes?.takeIf(String::isNotBlank)?.let { notes ->

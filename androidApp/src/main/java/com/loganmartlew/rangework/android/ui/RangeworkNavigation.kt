@@ -33,6 +33,7 @@ internal object RangeworkRoutes {
     const val SessionEdit = "sessions/{sessionId}/edit"
     const val Settings = "settings"
     const val ManageClubs = "settings/clubs"
+    const val RangeSession = "range-sessions/{rangeSessionId}"
 
     fun unitDetail(unitId: String): String = "units/$unitId"
 
@@ -41,6 +42,8 @@ internal object RangeworkRoutes {
     fun sessionDetail(sessionId: String): String = "sessions/$sessionId"
 
     fun sessionEdit(sessionId: String): String = "sessions/$sessionId/edit"
+
+    fun rangeSession(rangeSessionId: String): String = "range-sessions/$rangeSessionId"
 }
 
 internal val topLevelDestinations = listOf(

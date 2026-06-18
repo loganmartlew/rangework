@@ -100,6 +100,7 @@ data class PracticePlannerUiState(
     val savedSessionId: String? = null,
     val duplicatedUnitId: String? = null,
     val duplicatedSessionId: String? = null,
+    val startedRangeSessionId: String? = null,
     val status: PlannerStatus? = if (dataConfigured) null else PlannerStatus.Unavailable,
 ) {
     val isWorking: Boolean
@@ -182,6 +183,7 @@ class PracticePlannerViewModel(
                     savedSessionId = null,
                     duplicatedUnitId = null,
                     duplicatedSessionId = null,
+                    startedRangeSessionId = null,
                     status = if (dataFoundation == null) {
                         PlannerStatus.Unavailable
                     } else {
@@ -701,6 +703,33 @@ class PracticePlannerViewModel(
             unitEditorBaseline = null,
             sessionEditorBaseline = null,
         )
+    }
+
+    fun startRangeSession(sessionId: String) {
+        val foundation = dataFoundation ?: run {
+            _uiState.value = _uiState.value.copy(
+                status = PlannerStatus.Notification("Cannot start session: data not configured."),
+            )
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val rangeSession = foundation.startRangeSessionUseCase(sessionId)
+                _uiState.value = _uiState.value.copy(
+                    startedRangeSessionId = rangeSession.id,
+                )
+            } catch (exception: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    status = PlannerStatus.Notification(
+                        "Failed to start session: ${exception.message ?: "unknown error"}",
+                    ),
+                )
+            }
+        }
+    }
+
+    fun consumeStartedRangeSessionId() {
+        _uiState.value = _uiState.value.copy(startedRangeSessionId = null)
     }
 
     private fun refreshPlanning(

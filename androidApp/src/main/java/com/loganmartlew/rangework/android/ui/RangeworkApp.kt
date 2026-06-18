@@ -84,6 +84,7 @@ import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.sessionsUsingUnit
 import com.loganmartlew.rangework.android.ui.screens.OverviewScreen
+import com.loganmartlew.rangework.android.ui.screens.RangeSessionScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionDetailScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionEditorScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionListScreen
@@ -103,6 +104,7 @@ import com.loganmartlew.rangework.shared.usecase.AppBootstrapMessageUseCase
 
 private const val UnitIdArg = "unitId"
 private const val SessionIdArg = "sessionId"
+private const val RangeSessionIdArg = "rangeSessionId"
 
 @Composable
 fun RangeworkApp(
@@ -172,6 +174,13 @@ fun RangeworkApp(
                 }
                 launchSingleTop = true
             }
+        }
+    }
+
+    LaunchedEffect(plannerUiState.startedRangeSessionId) {
+        plannerUiState.startedRangeSessionId?.let { rangeSessionId ->
+            plannerViewModel.consumeStartedRangeSessionId()
+            rootNavController.navigate(RangeworkRoutes.rangeSession(rangeSessionId))
         }
     }
 
@@ -266,6 +275,26 @@ fun RangeworkApp(
                         onRefreshPlanningOnNavigation = plannerViewModel::refreshPlanningOnNavigation,
                         onRestoreUnit = plannerViewModel::restoreUnit,
                         onRestoreSession = plannerViewModel::restoreSession,
+                        onStartRangeSession = plannerViewModel::startRangeSession,
+                    )
+                }
+                composable(RangeworkRoutes.RangeSession) { backStackEntry ->
+                    val rangeSessionId = backStackEntry.arguments?.getString(RangeSessionIdArg).orEmpty()
+                    val rangeSessionViewModel: RangeSessionViewModel = viewModel(
+                        viewModelStoreOwner = backStackEntry,
+                        factory = remember(rangeSessionId, rangeworkFoundation) {
+                            RangeSessionViewModel.factory(
+                                rangeSessionId = rangeSessionId,
+                                dataFoundation = rangeworkFoundation?.dataFoundation,
+                            )
+                        },
+                    )
+                    val rangeSessionUiState by rangeSessionViewModel.uiState.collectAsStateWithLifecycle()
+                    RangeSessionScreen(
+                        uiState = rangeSessionUiState,
+                        onNextStep = rangeSessionViewModel::nextStep,
+                        onPreviousStep = rangeSessionViewModel::previousStep,
+                        onBack = { rootNavController.popBackStack() },
                     )
                 }
             }
@@ -364,6 +393,7 @@ private fun AuthenticatedAppShell(
     onRefreshPlanningOnNavigation: () -> Unit,
     onRestoreUnit: (PracticeUnit) -> Unit,
     onRestoreSession: (PracticeSession) -> Unit,
+    onStartRangeSession: (String) -> Unit,
 ) {
     if (authUiState.authState !is AuthState.SignedIn) {
         Box(modifier = Modifier.fillMaxSize())
@@ -987,6 +1017,7 @@ private fun AuthenticatedAppShell(
                                 sessionActions.onEdit(sessionId)
                                 shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
                             },
+                            onStartSession = { onStartRangeSession(sessionId) },
                         )
                     }
                     composable(RangeworkRoutes.SessionEdit) { backStackEntry ->
