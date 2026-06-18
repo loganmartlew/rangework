@@ -1,6 +1,6 @@
 # Rangework
 
-Phase 6 hardening, tests, and release-readiness implementation for the Android-first golf practice session planning app described in [baseline-plan.md](baseline-plan.md).
+Android-first golf practice session planning app described in [baseline-plan.md](baseline-plan.md).
 
 ## Modules
 
@@ -42,9 +42,8 @@ The repo-level Supabase CLI scaffold lives in `supabase/config.toml`. Keep the G
 
 - Java 17 is the Gradle toolchain target for Android and shared JVM compilation.
 - The repository is remote-first and leaves room for future Supabase schema work and local persistence.
-- `supabase/migrations` now contains the auth/profile foundation plus the Phase 3 planning-data schema used by the shared repositories.
+- `supabase/migrations` contains the auth/profile foundation, planning-data schema, club catalog, and atomic save RPCs used by the shared repositories.
 - Android auth/session state is owned by a lifecycle-aware ViewModel so restore/sign-out work survives recomposition and configuration changes cleanly.
-- The shared module now defines serializable models, validation, repository contracts, and Supabase-backed foundations for practice units, session templates, and user measurement preferences.
-- The Android app now has a Material 3 Compose shell with auth-gated navigation plus compact and expanded layout foundations for phone and tablet flows.
-- Practice units and reusable session templates can now be created, edited, deleted, reordered, and composed directly in the Android shell through the shared Supabase-backed planning foundation.
-- Phase 6 hardening adds broader Android/shared unit coverage, release assembly verification, and CI artifact retention for test reports.
+- The shared module defines serializable models, validation, use cases, repository contracts, and Supabase-backed foundations for practice units, session templates, clubs, and measurement preferences.
+- The Android app has a Material 3 Compose shell with auth-gated navigation, responsive phone/tablet layouts, and a full suite of screens for planning, settings, and an overview dashboard.
+- Practice units and reusable session templates can be created, edited, deleted, reordered, and composed directly in the Android shell through the shared Supabase-backed planning foundation.

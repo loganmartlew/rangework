@@ -4,12 +4,12 @@ Rangework is an Android-first golf practice planning app. This repository is a s
 
 ## Build and validation
 
-- Primary local validation on Windows: `.\gradlew.bat :shared:testDebugUnitTest :androidApp:testDebugUnitTest :androidApp:assembleDebug`
-- Equivalent macOS/Linux: `./gradlew :shared:testDebugUnitTest :androidApp:testDebugUnitTest :androidApp:assembleDebug`
+- Primary local validation on Windows: `.\gradlew.bat :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease`
+- Equivalent macOS/Linux: `./gradlew :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease`
 - Lint: `.\gradlew.bat :shared:lintDebug :androidApp:lintDebug`
 - Run tests first, then lint.
 - CI is defined in `.github/workflows/android.yml` and runs the same test-and-assemble command after installing Android SDK platform 35 and build-tools 35.0.0.
-- Module compilation targets Java 17; CI runs Temurin 21. Do not change SDK or toolchain versions casually.
+- Module compilation targets Java 17; CI runs Temurin 17. Do not change SDK or toolchain versions casually.
 - Gradle emits Gradle 9 deprecation warnings during successful builds — treat as background noise unless touching relevant build logic.
 
 ## Secrets and environment
@@ -26,14 +26,21 @@ Rangework is an Android-first golf practice planning app. This repository is a s
 - `baseline-plan.md` — product scope and architectural intent; consult before making structural product decisions.
 - `androidApp/src/main/java/com/loganmartlew/rangework/android/MainActivity.kt` — Android entry point.
 - `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/RangeworkApp.kt` — main Compose app shell (auth state, planner state, navigation, phone/tablet layout).
+- `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/RangeworkNavigation.kt` — navigation type detection (bottom bar vs rail) and route/destination definitions.
 - `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/AuthViewModel.kt` — auth/session restore and sign-in/sign-out state.
 - `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/PracticePlannerViewModel.kt` — planning screen loading, editing, save/delete flows, setup messaging.
+- `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/SettingsViewModel.kt` — theme mode, measurement preferences, and club management state.
+- `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/screens/` — 9 screen composables: Overview, UnitList, UnitDetail, UnitEditor, SessionList, SessionDetail, SessionEditor, ManageClubs, Settings.
+- `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/components/` — 30+ reusable UI components (cards, FABs, pickers, dialogs, steppers, bars, etc.).
 - `shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/auth` — auth state/repository/foundation code.
 - `shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/data/DataFoundation.kt` and `.../auth/AuthFoundation.kt` — assemble use cases from repositories.
-- `shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/data/Supabase*Repository.kt` — map shared models to PostgREST tables.
+- `shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/repository/` — repository interfaces: `PracticeUnitRepository`, `PracticeSessionRepository`, `MeasurementPreferencesRepository`, `ClubRepository`.
+- `shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/data/Supabase*Repository.kt` — Supabase-backed implementations for all four repository interfaces plus `SupabaseAuthRepository`.
+- `shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/usecase/` — use cases for units, sessions, clubs, measurement preferences, auth (observe, restore, sign-in, sign-out), and app bootstrap messaging.
 - `shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/model` — serializable domain models, draft models, validation helpers.
+- `shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/config/` — `AppEnvironment` and `GoogleAuthConfig`.
 - `shared/src/commonTest` and `androidApp/src/test` — main regression coverage for shared use cases and Android ViewModels.
-- `supabase/migrations` — schema and RLS rules. Planning data centers on `practice_units`, `practice_unit_instructions`, `practice_sessions`, `practice_session_items`, and `user_preferences`.
+- `supabase/migrations` — schema and RLS rules. Planning data centers on `practice_units`, `practice_unit_instructions`, `practice_sessions`, `practice_session_items`, `user_preferences`, `clubs` (catalog), and `user_enabled_clubs`. Includes atomic save RPCs.
 
 ## Working conventions
 
@@ -77,7 +84,7 @@ Rangework is an Android-first golf practice planning app. This repository is a s
 - This is a Gradle Kotlin DSL Android/KMP project. Keep shared build configuration centralized, especially SDK/version values in `gradle/libs.versions.toml`.
 - `settings.gradle.kts` includes exactly two modules: `:androidApp` and `:shared`. Do not add or rename modules casually.
 - Keep the documented validation command in `README.md` aligned with `.github/workflows/android.yml`.
-- CI installs Android SDK platform 35, build-tools 35.0.0, and runs on Java 21 while module compilation targets Java 17. Preserve that compatibility unless specifically upgrading the toolchain.
+- CI installs Android SDK platform 35, build-tools 35.0.0, and runs on Temurin Java 17 — the same toolchain target used by module compilation. Preserve that compatibility unless specifically upgrading the toolchain.
 
 ## Typography (`androidApp/src/main/java/**/ui/**/*.kt`, `**/ui/theme/*.kt`)
 
