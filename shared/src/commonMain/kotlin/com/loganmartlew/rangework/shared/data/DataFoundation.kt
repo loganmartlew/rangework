@@ -2,21 +2,34 @@ package com.loganmartlew.rangework.shared.data
 
 import com.loganmartlew.rangework.shared.auth.AuthFoundation
 import com.loganmartlew.rangework.shared.auth.createAuthFoundation
+import com.loganmartlew.rangework.shared.usecase.AbandonRangeSessionUseCase
+import com.loganmartlew.rangework.shared.usecase.CloseTimeEntryUseCase
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DuplicatePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeUnitUseCase
 import com.loganmartlew.rangework.shared.usecase.DuplicateUnitUseCase
+import com.loganmartlew.rangework.shared.usecase.FinishRangeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.GetClubCatalogUseCase
 import com.loganmartlew.rangework.shared.usecase.GetEnabledClubsUseCase
+import com.loganmartlew.rangework.shared.usecase.GetElapsedSecondsUseCase
 import com.loganmartlew.rangework.shared.usecase.GetMeasurementPreferencesUseCase
 import com.loganmartlew.rangework.shared.usecase.GetPracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.GetPracticeUnitUseCase
+import com.loganmartlew.rangework.shared.usecase.GetRangeSessionUseCase
+import com.loganmartlew.rangework.shared.usecase.HasActiveRangeSessionsUseCase
+import com.loganmartlew.rangework.shared.usecase.ListActiveRangeSessionsUseCase
+import com.loganmartlew.rangework.shared.usecase.ListCompletedRangeSessionsUseCase
 import com.loganmartlew.rangework.shared.usecase.ListPracticeSessionsUseCase
 import com.loganmartlew.rangework.shared.usecase.ListPracticeUnitsUseCase
+import com.loganmartlew.rangework.shared.usecase.OverrideStepClubUseCase
+import com.loganmartlew.rangework.shared.usecase.RecordTimeEntryUseCase
 import com.loganmartlew.rangework.shared.usecase.SaveMeasurementPreferencesUseCase
 import com.loganmartlew.rangework.shared.usecase.SavePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.SavePracticeUnitUseCase
 import com.loganmartlew.rangework.shared.usecase.SetClubEnabledUseCase
+import com.loganmartlew.rangework.shared.usecase.StartRangeSessionUseCase
+import com.loganmartlew.rangework.shared.usecase.ToggleStepCompleteUseCase
+import com.loganmartlew.rangework.shared.usecase.UpdateLastViewedStepUseCase
 import io.github.jan.supabase.SupabaseClient
 
 data class DataFoundation(
@@ -35,6 +48,19 @@ data class DataFoundation(
     val getClubCatalogUseCase: GetClubCatalogUseCase,
     val getEnabledClubsUseCase: GetEnabledClubsUseCase,
     val setClubEnabledUseCase: SetClubEnabledUseCase,
+    val startRangeSessionUseCase: StartRangeSessionUseCase,
+    val getRangeSessionUseCase: GetRangeSessionUseCase,
+    val listActiveRangeSessionsUseCase: ListActiveRangeSessionsUseCase,
+    val listCompletedRangeSessionsUseCase: ListCompletedRangeSessionsUseCase,
+    val toggleStepCompleteUseCase: ToggleStepCompleteUseCase,
+    val overrideStepClubUseCase: OverrideStepClubUseCase,
+    val updateLastViewedStepUseCase: UpdateLastViewedStepUseCase,
+    val finishRangeSessionUseCase: FinishRangeSessionUseCase,
+    val abandonRangeSessionUseCase: AbandonRangeSessionUseCase,
+    val recordTimeEntryUseCase: RecordTimeEntryUseCase,
+    val closeTimeEntryUseCase: CloseTimeEntryUseCase,
+    val getElapsedSecondsUseCase: GetElapsedSecondsUseCase,
+    val hasActiveRangeSessionsUseCase: HasActiveRangeSessionsUseCase,
 )
 
 data class RangeworkFoundation(
@@ -57,6 +83,7 @@ fun createDataFoundation(client: SupabaseClient): DataFoundation {
     val practiceSessionRepository = SupabasePracticeSessionRepository(client)
     val measurementPreferencesRepository = SupabaseMeasurementPreferencesRepository(client)
     val clubRepository = SupabaseClubRepository(client)
+    val rangeSessionRepository = SupabaseRangeSessionRepository(client)
 
     return DataFoundation(
         listPracticeUnitsUseCase = ListPracticeUnitsUseCase(practiceUnitRepository),
@@ -80,6 +107,19 @@ fun createDataFoundation(client: SupabaseClient): DataFoundation {
         getClubCatalogUseCase = GetClubCatalogUseCase(clubRepository),
         getEnabledClubsUseCase = GetEnabledClubsUseCase(clubRepository),
         setClubEnabledUseCase = SetClubEnabledUseCase(clubRepository),
+        startRangeSessionUseCase = StartRangeSessionUseCase(rangeSessionRepository),
+        getRangeSessionUseCase = GetRangeSessionUseCase(rangeSessionRepository),
+        listActiveRangeSessionsUseCase = ListActiveRangeSessionsUseCase(rangeSessionRepository),
+        listCompletedRangeSessionsUseCase = ListCompletedRangeSessionsUseCase(rangeSessionRepository),
+        toggleStepCompleteUseCase = ToggleStepCompleteUseCase(rangeSessionRepository),
+        overrideStepClubUseCase = OverrideStepClubUseCase(rangeSessionRepository),
+        updateLastViewedStepUseCase = UpdateLastViewedStepUseCase(rangeSessionRepository),
+        finishRangeSessionUseCase = FinishRangeSessionUseCase(rangeSessionRepository),
+        abandonRangeSessionUseCase = AbandonRangeSessionUseCase(rangeSessionRepository),
+        recordTimeEntryUseCase = RecordTimeEntryUseCase(rangeSessionRepository),
+        closeTimeEntryUseCase = CloseTimeEntryUseCase(rangeSessionRepository),
+        getElapsedSecondsUseCase = GetElapsedSecondsUseCase(rangeSessionRepository),
+        hasActiveRangeSessionsUseCase = HasActiveRangeSessionsUseCase(rangeSessionRepository),
     )
 }
 
