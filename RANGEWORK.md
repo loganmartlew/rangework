@@ -4,11 +4,13 @@ Rangework is an Android app for golfers who want to practice with purpose. Inste
 
 ## What it does
 
-The core idea is a two-level structure:
+The core idea is a three-level structure:
 
 **Practice Units** are individual drills. Each unit has a name, an ordered list of instructions (with optional ball counts per instruction), and optional context like notes, a mental focus cue, and a default club. A unit might be something like "50-yard pitch shots" with instructions for three different landing-zone targets, each consuming 10 balls.
 
 **Practice Sessions** are templates that combine units into a full practice plan. You pick which units to include, set how many times each one repeats, and optionally override the club or add session-specific notes for each slot. The app tallies the total ball count for the session so you know exactly what you're signing up for before you leave the house.
+
+**Range Sessions** are live execution records created when you start a practice session at the range. The session template is snapshotted at launch, expanding into an ordered list of individual steps (one per instruction × repetition). You work through each step one at a time, marking them complete as you go. Progress is persisted continuously so you can close the app and resume right where you left off.
 
 All data is saved to the cloud and tied to your account, so your plans are available whenever you open the app.
 
@@ -28,6 +30,19 @@ All data is saved to the cloud and tied to your account, so your plans are avail
 - View a list of all your sessions with their unit lineup and total ball count
 - Open a session to see the full breakdown
 - Edit, delete, or duplicate any session
+
+### Range Sessions (execution)
+
+- Start a range session directly from any session template
+- A snapshot of the session — units, instructions, clubs, notes, and focus cues — is captured at start time so the record is immune to later edits
+- Steps are flattened from the snapshot (unit × repetition × instruction) and presented one at a time
+- Mark each step complete with a single tap; completing the current step auto-advances to the next
+- Navigate freely with Previous / Next controls or jump to any step
+- Progress and the last viewed step index are persisted after every action — close the app and resume exactly where you left off
+- Time on range is recorded automatically and can be reviewed later
+- Finish a session when all work is done, or abandon it to discard the record
+- View active (in-progress) sessions and completed session history per template
+- The screen stays on while a range session is active
 
 ### Settings
 
