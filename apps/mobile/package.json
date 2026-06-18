@@ -1,0 +1,14 @@
+{
+  "name": "@rangework/mobile",
+  "private": true,
+  "devDependencies": {
+    "@rangework/ui-tokens": "workspace:*"
+  },
+  "scripts": {
+    "build": "pnpm run assemble:debug && pnpm run assemble:release",
+    "assemble:debug": "node ./scripts/run-gradle.mjs :androidApp:assembleDebug",
+    "assemble:release": "node ./scripts/run-gradle.mjs :androidApp:assembleRelease",
+    "test": "node ./scripts/run-gradle.mjs :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest",
+    "lint": "node ./scripts/run-gradle.mjs :shared:lintDebug :androidApp:lintDebug"
+  }
+}

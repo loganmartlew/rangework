@@ -1,5 +1,5 @@
 ---
-applyTo: "androidApp/src/main/java/com/loganmartlew/rangework/android/ui/**/*.kt,androidApp/src/main/java/com/loganmartlew/rangework/android/ui/theme/*.kt"
+applyTo: "apps/mobile/androidApp/src/main/java/com/loganmartlew/rangework/android/ui/**/*.kt,apps/mobile/androidApp/src/main/java/com/loganmartlew/rangework/android/ui/theme/*.kt"
 ---
 
 # Typography instructions
@@ -13,8 +13,8 @@ applyTo: "androidApp/src/main/java/com/loganmartlew/rangework/android/ui/**/*.kt
 | DM Sans | dm_sans_*.ttf | 300 · 400 · 500 | All UI text via MaterialTheme |
 | DM Mono | dm_mono_*.ttf | 400 · 500 | Numeric and timer contexts only |
 
-Font files live in `androidApp/src/main/res/font/`. The `FontFamily` declarations and all
-`TextStyle` definitions are in `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/theme/Type.kt`.
+Font files now source from `packages/ui-tokens/assets/fonts/` and are generated into Android resources during builds. The `FontFamily` declarations and all
+`TextStyle` definitions are in `apps/mobile/androidApp/src/main/java/com/loganmartlew/rangework/android/ui/theme/Type.kt`.
 
 ---
 

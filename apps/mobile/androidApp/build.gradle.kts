@@ -4,6 +4,10 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val tokenBuildTask = rootProject.tasks.named("generateUiTokens")
+val tokenKotlinDir = rootProject.rootDir.resolve("../../packages/ui-tokens/generated/android/kotlin")
+val tokenResDir = rootProject.rootDir.resolve("../../packages/ui-tokens/generated/android/res")
+
 fun org.gradle.api.provider.ProviderFactory.optionalBuildConfigValue(
     gradlePropertyName: String,
     environmentVariableName: String,
@@ -36,6 +40,11 @@ val googleWebClientId = providers.optionalBuildConfigValue(
 android {
     namespace = "com.loganmartlew.rangework.android"
     compileSdk = libs.versions.compileSdk.get().toInt()
+
+    sourceSets.getByName("main") {
+        java.srcDir(tokenKotlinDir)
+        res.srcDir(tokenResDir)
+    }
 
     defaultConfig {
         applicationId = "com.loganmartlew.rangework.android"
@@ -79,6 +88,10 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(tokenBuildTask)
 }
 
 dependencies {

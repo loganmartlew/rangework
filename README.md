@@ -2,29 +2,42 @@
 
 Android-first golf practice session planning app described in [baseline-plan.md](baseline-plan.md).
 
-## Modules
+## Monorepo layout
 
-- `androidApp`: Jetpack Compose Android shell (`com.loganmartlew.rangework.android`)
-- `shared`: Kotlin Multiplatform shared domain and data foundation (`com.loganmartlew.rangework.shared`)
+- `apps/mobile`: nested Gradle/Kotlin Multiplatform mobile app root
+- `apps/mobile/androidApp`: Jetpack Compose Android shell (`com.loganmartlew.rangework.android`)
+- `apps/mobile/shared`: Kotlin Multiplatform shared domain and data foundation (`com.loganmartlew.rangework.shared`)
+- `packages/ui-tokens`: Style Dictionary design-token package for Android and future web consumers
 - `supabase`: backend config, migrations, and seed data placeholders
 
 ## Common commands
 
+### Monorepo root
+
+```powershell
+pnpm install
+pnpm build
+pnpm test
+pnpm lint
+```
+
 ### Windows PowerShell
 
 ```powershell
+Set-Location apps/mobile
 .\gradlew.bat :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease
 ```
 
 ### macOS / Linux
 
 ```bash
+cd apps/mobile
 ./gradlew :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease
 ```
 
 ## CI
 
-The baseline GitHub Actions workflow lives in `.github/workflows/android.yml` and runs the same shared and Android unit-test plus assembly path used above for pull requests, pushes to `main`, and manual dispatches.
+The baseline GitHub Actions workflow lives in `.github/workflows/android.yml`. It installs pnpm dependencies, builds shared tokens, and runs the same shared and Android unit-test plus assembly path used above for pull requests, pushes to `main`, and manual dispatches.
 
 ## Auth config
 
@@ -41,6 +54,7 @@ The repo-level Supabase CLI scaffold lives in `supabase/config.toml`. Keep the G
 ## Notes
 
 - Java 17 is the Gradle toolchain target for Android and shared JVM compilation.
+- `apps/mobile/gradlew` triggers `packages/ui-tokens` generation automatically so Android Studio and direct Gradle builds stay in sync with token sources.
 - The repository is remote-first and leaves room for future Supabase schema work and local persistence.
 - `supabase/migrations` contains the auth/profile foundation, planning-data schema, club catalog, and atomic save RPCs used by the shared repositories.
 - Android auth/session state is owned by a lifecycle-aware ViewModel so restore/sign-out work survives recomposition and configuration changes cleanly.

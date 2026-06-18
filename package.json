@@ -1,0 +1,18 @@
+{
+  "name": "rangework",
+  "private": true,
+  "packageManager": "pnpm@10.12.1",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "tokens:build": "pnpm --filter @rangework/ui-tokens build",
+    "mobile:assemble:debug": "pnpm --filter @rangework/mobile assemble:debug",
+    "mobile:assemble:release": "pnpm --filter @rangework/mobile assemble:release",
+    "mobile:test": "pnpm --filter @rangework/mobile test",
+    "mobile:lint": "pnpm --filter @rangework/mobile lint"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4"
+  }
+}

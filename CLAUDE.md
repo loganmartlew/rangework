@@ -1,21 +1,21 @@
 # Rangework
 
-Rangework is an Android-first golf practice planning app. This repository is a small Kotlin monorepo with three important areas: `androidApp` for the Jetpack Compose Android shell, `shared` for Kotlin Multiplatform domain/data/auth logic, and `supabase` for backend configuration and SQL migrations.
+Rangework is an Android-first golf practice planning app. This repository is a pnpm/Turborepo monorepo with `apps/mobile` for the nested Gradle/KMP app, `packages/ui-tokens` for shared design tokens, and `supabase` for backend configuration and SQL migrations.
 
 ## Build and validation
 
-- Primary local validation on Windows: `.\gradlew.bat :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease`
-- Equivalent macOS/Linux: `./gradlew :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease`
-- Lint: `.\gradlew.bat :shared:lintDebug :androidApp:lintDebug`
+- Primary local validation on Windows: `Set-Location apps/mobile; .\gradlew.bat :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease`
+- Equivalent macOS/Linux: `cd apps/mobile && ./gradlew :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease`
+- Lint: `Set-Location apps/mobile; .\gradlew.bat :shared:lintDebug :androidApp:lintDebug`
 - Run tests first, then lint.
-- CI is defined in `.github/workflows/android.yml` and runs the same test-and-assemble command after installing Android SDK platform 35 and build-tools 35.0.0.
+- CI is defined in `.github/workflows/android.yml` and runs the pnpm/Turbo workspace build plus the same test-and-assemble path after installing Android SDK platform 35 and build-tools 35.0.0.
 - Module compilation targets Java 17; CI runs Temurin 17. Do not change SDK or toolchain versions casually.
 - Gradle emits Gradle 9 deprecation warnings during successful builds — treat as background noise unless touching relevant build logic.
 
 ## Secrets and environment
 
 - Never hardcode Supabase credentials, Google OAuth secrets, or service-role keys.
-- `androidApp/build.gradle.kts` wires runtime config into `BuildConfig` from Gradle properties or environment variables.
+- `apps/mobile/androidApp/build.gradle.kts` wires runtime config into `BuildConfig` from Gradle properties or environment variables.
 - Provide `rangeworkSupabaseUrl`, `rangeworkSupabaseAnonKey`, and `rangeworkGoogleWebClientId` via `~/.gradle/gradle.properties` or the matching environment variables documented in `README.md`.
 - `supabase/config.toml` may keep project metadata and blank provider placeholders, but real provider secrets stay out of source control.
 - Missing auth/data config should degrade to friendly setup messaging, not crashes.

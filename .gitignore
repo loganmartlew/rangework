@@ -2,5 +2,11 @@
 /.idea/
 /.kotlin/
 /local.properties
+apps/mobile/local.properties
+node_modules/
+.pnpm-store/
+.turbo/
+packages/ui-tokens/dist/
+packages/ui-tokens/generated/
 **/build/
 captures/

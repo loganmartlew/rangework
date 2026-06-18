@@ -21,6 +21,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -38,10 +52,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Ensure Gradle wrapper is executable
-        run: chmod +x gradlew
+        run: chmod +x apps/mobile/gradlew
 
       - name: Run baseline verification
-        run: ./gradlew :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease
+        run: pnpm build && pnpm test && pnpm lint
 
       - name: Upload Gradle test reports
         if: always()
@@ -49,6 +63,6 @@ jobs:
         with:
           name: gradle-test-reports
           path: |
-            shared/build/reports/tests
-            androidApp/build/reports/tests
+            apps/mobile/shared/build/reports/tests
+            apps/mobile/androidApp/build/reports/tests
           if-no-files-found: ignore
