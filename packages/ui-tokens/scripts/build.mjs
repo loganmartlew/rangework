@@ -1,46 +1,45 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import StyleDictionary from "style-dictionary";
-import styleDictionaryConfig from "../style-dictionary.config.mjs";
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import StyleDictionary from 'style-dictionary';
+import styleDictionaryConfig from '../style-dictionary.config.mjs';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const packageDir = path.resolve(currentDir, "..");
-const distDir = path.join(packageDir, "dist");
-const distFontDir = path.join(distDir, "fonts");
-const distTailwindDir = path.join(distDir, "tailwind");
-const distWebDir = path.join(distDir, "web");
-const generatedDir = path.join(packageDir, "generated");
+const packageDir = path.resolve(currentDir, '..');
+const distDir = path.join(packageDir, 'dist');
+const distFontDir = path.join(distDir, 'fonts');
+const distWebDir = path.join(distDir, 'web');
+const generatedDir = path.join(packageDir, 'generated');
 const androidKotlinDir = path.join(
   generatedDir,
-  "android",
-  "kotlin",
-  "com",
-  "loganmartlew",
-  "rangework",
-  "android",
-  "ui",
-  "theme"
+  'android',
+  'kotlin',
+  'com',
+  'loganmartlew',
+  'rangework',
+  'android',
+  'ui',
+  'theme',
 );
-const androidResDir = path.join(generatedDir, "android", "res");
-const androidFontDir = path.join(androidResDir, "font");
-const androidValuesDir = path.join(androidResDir, "values");
+const androidResDir = path.join(generatedDir, 'android', 'res');
+const androidFontDir = path.join(androidResDir, 'font');
+const androidValuesDir = path.join(androidResDir, 'values');
 const tokenFiles = [
-  path.join(packageDir, "tokens", "color.tokens.json"),
-  path.join(packageDir, "tokens", "typography.tokens.json"),
+  path.join(packageDir, 'tokens', 'color.tokens.json'),
+  path.join(packageDir, 'tokens', 'typography.tokens.json'),
 ];
 const tailwindScaleMap = {
-  "0": "50",
-  "10": "100",
-  "20": "200",
-  "30": "300",
-  "40": "400",
-  "50": "500",
-  "60": "600",
-  "70": "700",
-  "80": "800",
-  "90": "900",
-  "100": "950",
+  0: '50',
+  10: '100',
+  20: '200',
+  30: '300',
+  40: '400',
+  50: '500',
+  60: '600',
+  70: '700',
+  80: '800',
+  90: '900',
+  100: '950',
 };
 
 const allTokens = await loadAndResolveTokens(tokenFiles);
@@ -51,51 +50,50 @@ await fs.mkdir(androidKotlinDir, { recursive: true });
 await fs.mkdir(androidFontDir, { recursive: true });
 await fs.mkdir(androidValuesDir, { recursive: true });
 await fs.mkdir(distFontDir, { recursive: true });
-await fs.mkdir(distTailwindDir, { recursive: true });
 await fs.mkdir(distWebDir, { recursive: true });
 
 const styleDictionary = new StyleDictionary(styleDictionaryConfig);
 await styleDictionary.buildAllPlatforms();
 
 await fs.writeFile(
-  path.join(androidKotlinDir, "GeneratedRangeworkTokens.kt"),
+  path.join(androidKotlinDir, 'GeneratedRangeworkTokens.kt'),
   buildKotlinTokensFile(allTokens),
-  "utf8"
+  'utf8',
 );
 
 await fs.writeFile(
-  path.join(androidValuesDir, "rangework_tokens.xml"),
+  path.join(androidValuesDir, 'rangework_tokens.xml'),
   buildAndroidColorsFile(allTokens),
-  "utf8"
+  'utf8',
 );
 
 await fs.writeFile(
-  path.join(distTailwindDir, "preset.mjs"),
-  buildTailwindPresetFile(allTokens),
-  "utf8"
+  path.join(distWebDir, 'tailwind-theme.css'),
+  buildTailwindThemeFile(allTokens),
+  'utf8',
 );
 
 await fs.writeFile(
-  path.join(distWebDir, "fonts.css"),
+  path.join(distWebDir, 'fonts.css'),
   buildWebFontsFile(allTokens),
-  "utf8"
+  'utf8',
 );
 
 const fontAssets = Object.values(allTokens.typography.fontAsset);
 await Promise.all(
   fontAssets.flatMap(({ value }) => {
-    const source = path.join(packageDir, "assets", "fonts", value);
+    const source = path.join(packageDir, 'assets', 'fonts', value);
     return [
       fs.copyFile(source, path.join(androidFontDir, value)),
       fs.copyFile(source, path.join(distFontDir, value)),
     ];
-  })
+  }),
 );
 
 async function loadAndResolveTokens(pathsToLoad) {
   const merged = {};
   for (const filePath of pathsToLoad) {
-    const content = JSON.parse(await fs.readFile(filePath, "utf8"));
+    const content = JSON.parse(await fs.readFile(filePath, 'utf8'));
     deepMerge(merged, content);
   }
 
@@ -117,14 +115,14 @@ function deepMerge(target, source) {
 
 function resolveReferences(node, root) {
   if (Array.isArray(node)) {
-    return node.map((value) => resolveReferences(value, root));
+    return node.map(value => resolveReferences(value, root));
   }
 
   if (!isPlainObject(node)) {
     return node;
   }
 
-  if (Object.keys(node).length === 1 && Object.hasOwn(node, "value")) {
+  if (Object.keys(node).length === 1 && Object.hasOwn(node, 'value')) {
     return { value: resolveValue(node.value, root) };
   }
 
@@ -136,7 +134,7 @@ function resolveReferences(node, root) {
 }
 
 function resolveValue(value, root) {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return value;
   }
 
@@ -145,8 +143,11 @@ function resolveValue(value, root) {
     return value;
   }
 
-  const referencePath = referenceMatch[1].replace(/\.value$/, "").split(".");
-  const referenced = referencePath.reduce((current, segment) => current?.[segment], root);
+  const referencePath = referenceMatch[1].replace(/\.value$/, '').split('.');
+  const referenced = referencePath.reduce(
+    (current, segment) => current?.[segment],
+    root,
+  );
   if (!referenced) {
     throw new Error(`Unable to resolve token reference: ${value}`);
   }
@@ -156,33 +157,35 @@ function resolveValue(value, root) {
 
 function buildKotlinTokensFile(tokens) {
   const paletteEntries = [
-    ...flattenColorGroup("Primary", tokens.color.palette.primary),
-    ...flattenColorGroup("Secondary", tokens.color.palette.secondary),
-    ...flattenColorGroup("Tertiary", tokens.color.palette.tertiary),
-    ...flattenColorGroup("Neutral", tokens.color.palette.neutral),
-    ...flattenColorGroup("NeutralVariant", tokens.color.palette.neutralVariant),
-    ...flattenColorGroup("Error", tokens.color.palette.error),
-    ...flattenNamedColorGroup("LightSurface", tokens.color.surface.light),
-    ...flattenNamedColorGroup("DarkSurface", tokens.color.surface.dark),
-    ...flattenNamedColorGroup("LightScheme", tokens.color.scheme.light),
-    ...flattenNamedColorGroup("DarkScheme", tokens.color.scheme.dark),
+    ...flattenColorGroup('Primary', tokens.color.palette.primary),
+    ...flattenColorGroup('Secondary', tokens.color.palette.secondary),
+    ...flattenColorGroup('Tertiary', tokens.color.palette.tertiary),
+    ...flattenColorGroup('Neutral', tokens.color.palette.neutral),
+    ...flattenColorGroup('NeutralVariant', tokens.color.palette.neutralVariant),
+    ...flattenColorGroup('Error', tokens.color.palette.error),
+    ...flattenNamedColorGroup('LightSurface', tokens.color.surface.light),
+    ...flattenNamedColorGroup('DarkSurface', tokens.color.surface.dark),
+    ...flattenNamedColorGroup('LightScheme', tokens.color.scheme.light),
+    ...flattenNamedColorGroup('DarkScheme', tokens.color.scheme.dark),
   ];
 
   const materialTypography = Object.entries(tokens.typography.material)
-    .map(([roleName, roleTokens]) => buildTypographyConstants(roleName, roleTokens))
-    .join("\n");
+    .map(([roleName, roleTokens]) =>
+      buildTypographyConstants(roleName, roleTokens),
+    )
+    .join('\n');
   const monoTypography = Object.entries(tokens.typography.mono)
     .map(([roleName, roleTokens]) =>
-      buildTypographyConstants(`mono${capitalize(roleName)}`, roleTokens)
+      buildTypographyConstants(`mono${capitalize(roleName)}`, roleTokens),
     )
-    .join("\n");
+    .join('\n');
 
   return `package com.loganmartlew.rangework.android.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
 object GeneratedRangeworkColors {
-${paletteEntries.join("\n")}
+${paletteEntries.join('\n')}
 }
 
 object GeneratedRangeworkTypographyTokens {
@@ -212,136 +215,94 @@ function buildTypographyConstants(roleName, roleTokens) {
 
 function buildAndroidColorsFile(tokens) {
   const colorEntries = [
-    ...xmlColorGroup("primary", tokens.color.palette.primary),
-    ...xmlColorGroup("secondary", tokens.color.palette.secondary),
-    ...xmlColorGroup("tertiary", tokens.color.palette.tertiary),
-    ...xmlColorGroup("neutral", tokens.color.palette.neutral),
-    ...xmlColorGroup("neutral_variant", tokens.color.palette.neutralVariant),
-    ...xmlColorGroup("error", tokens.color.palette.error),
-    ...xmlNamedColorGroup("light_surface", tokens.color.surface.light),
-    ...xmlNamedColorGroup("dark_surface", tokens.color.surface.dark),
-    ...xmlNamedColorGroup("light_scheme", tokens.color.scheme.light),
-    ...xmlNamedColorGroup("dark_scheme", tokens.color.scheme.dark),
+    ...xmlColorGroup('primary', tokens.color.palette.primary),
+    ...xmlColorGroup('secondary', tokens.color.palette.secondary),
+    ...xmlColorGroup('tertiary', tokens.color.palette.tertiary),
+    ...xmlColorGroup('neutral', tokens.color.palette.neutral),
+    ...xmlColorGroup('neutral_variant', tokens.color.palette.neutralVariant),
+    ...xmlColorGroup('error', tokens.color.palette.error),
+    ...xmlNamedColorGroup('light_surface', tokens.color.surface.light),
+    ...xmlNamedColorGroup('dark_surface', tokens.color.surface.dark),
+    ...xmlNamedColorGroup('light_scheme', tokens.color.scheme.light),
+    ...xmlNamedColorGroup('dark_scheme', tokens.color.scheme.dark),
   ];
 
   return `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-${colorEntries.join("\n")}
+${colorEntries.join('\n')}
 </resources>
 `;
 }
 
-function buildTailwindPresetFile(tokens) {
-  const preset = {
-    theme: {
-      colors: buildTailwindColors(tokens),
-      fontFamily: buildTailwindFontFamilies(tokens),
-      fontSize: buildTailwindFontSizes(tokens),
-    },
-  };
-
-  return `const rangeworkTailwindPreset = ${JSON.stringify(preset, null, 2)};
-
-export default rangeworkTailwindPreset;
-`;
-}
-
-function buildTailwindColors(tokens) {
-  return {
-    inherit: "inherit",
-    current: "currentColor",
-    transparent: "transparent",
-    black: "#000000",
-    white: "#FFFFFF",
-    primary: buildTailwindPalette(tokens.color.palette.primary),
-    secondary: buildTailwindPalette(tokens.color.palette.secondary),
-    tertiary: buildTailwindPalette(tokens.color.palette.tertiary),
-    neutral: buildTailwindPalette(tokens.color.palette.neutral, {
-      extraShadeMap: { "88": "875" },
-    }),
-    "neutral-variant": buildTailwindPalette(tokens.color.palette.neutralVariant, {
-      extraShadeMap: { "88": "875" },
-    }),
-    error: buildTailwindPalette(tokens.color.palette.error),
-    surface: buildTailwindSurfaceColors(tokens.color.surface),
-    light: buildTailwindSemanticColors(tokens.color.scheme.light),
-    dark: buildTailwindSemanticColors(tokens.color.scheme.dark),
-  };
-}
-
-function buildTailwindPalette(group, options = {}) {
-  const palette = {};
-  const extraShadeMap = options.extraShadeMap ?? {};
-
-  for (const [key, token] of Object.entries(group)) {
-    const mappedKey = extraShadeMap[key] ?? tailwindScaleMap[key] ?? key;
-    palette[mappedKey] = token.value;
-  }
-
-  return palette;
-}
-
-function buildTailwindSurfaceColors(surfaceTokens) {
-  return Object.fromEntries(
-    Object.entries(surfaceTokens).map(([mode, modeTokens]) => [mode, buildTailwindSemanticColors(modeTokens)])
-  );
-}
-
-function buildTailwindSemanticColors(group) {
-  return Object.fromEntries(Object.entries(group).map(([key, token]) => [toKebabCase(key), token.value]));
-}
-
-function buildTailwindFontFamilies(tokens) {
-  return {
-    sans: [tokens.typography.family.sans.value, "ui-sans-serif", "system-ui", "sans-serif"],
-    mono: [tokens.typography.family.mono.value, "ui-monospace", "SFMono-Regular", "monospace"],
-  };
-}
-
-function buildTailwindFontSizes(tokens) {
-  const materialEntries = Object.entries(tokens.typography.material).map(([key, value]) => [
-    toKebabCase(key),
-    buildTailwindFontSizeEntry(value),
-  ]);
-  const monoEntries = Object.entries(tokens.typography.mono).map(([key, value]) => [
-    `mono-${toKebabCase(key)}`,
-    buildTailwindFontSizeEntry(value),
-  ]);
-
-  return Object.fromEntries([...materialEntries, ...monoEntries]);
-}
-
-function buildTailwindFontSizeEntry(roleTokens) {
-  return [
-    `${roleTokens.fontSize.value / 16}rem`,
-    {
-      lineHeight: `${roleTokens.lineHeight.value / 16}rem`,
-      letterSpacing: `${roleTokens.letterSpacing.value / 16}rem`,
-      fontWeight: `${roleTokens.fontWeight.value}`,
-    },
+function buildTailwindThemeFile(tokens) {
+  const lines = [
+    '@theme {',
+    ...buildDefaultTailwindColorVariables(tokens),
+    `  --font-sans: "${tokens.typography.family.sans.value}", ui-sans-serif, system-ui, sans-serif;`,
+    `  --font-mono: "${tokens.typography.family.mono.value}", ui-monospace, SFMono-Regular, monospace;`,
+    '}',
   ];
+
+  return `${lines.join('\n')}\n`;
+}
+
+function buildDefaultTailwindColorVariables(tokens) {
+  const paletteGroups = {
+    primary: tokens.color.palette.primary,
+    secondary: tokens.color.palette.secondary,
+    tertiary: tokens.color.palette.tertiary,
+    neutral: tokens.color.palette.neutral,
+  };
+
+  return Object.entries(paletteGroups)
+    .flatMap(([name, group]) =>
+      buildTailwindThemeVariablesForPalette(name, group, tokens),
+    )
+    .concat(buildTailwindThemeVariablesForSchemeColors(tokens));
+}
+
+function buildTailwindThemeVariablesForPalette(name, group, tokens) {
+  return Object.entries(group)
+    .filter(([key]) => tailwindScaleMap[key] !== undefined)
+    .map(
+      ([key, token]) =>
+        `  --color-${name}-${tailwindScaleMap[key]}: ${token.value};`,
+    );
+  // .concat(
+  //   !!tokens.color.scheme.dark[`${name}Container`]
+  //     ? [
+  //         `  --color-${name}: ${tokens.color.scheme.dark[`${name}Container`].value};`,
+  //       ]
+  //     : [],
+  // );
+}
+
+function buildTailwindThemeVariablesForSchemeColors(tokens) {
+  return Object.entries(tokens.color.scheme.dark).map(
+    ([key, token]) => `  --color-${key.toLowerCase()}: ${token.value};`,
+  );
 }
 
 function buildWebFontsFile(tokens) {
   const families = tokens.typography.family;
   const fontAssets = tokens.typography.fontAsset;
   const fontDefinitions = Object.entries(fontAssets).map(([key, token]) =>
-    buildFontFaceDefinition(key, token.value, families)
+    buildFontFaceDefinition(key, token.value, families),
   );
 
-  return `${fontDefinitions.join("\n\n")}
+  return `${fontDefinitions.join('\n\n')}
 `;
 }
 
 function buildFontFaceDefinition(key, fileName, families) {
   const normalizedKey = key.toLowerCase();
-  const family = normalizedKey.startsWith("sans")
+  const family = normalizedKey.startsWith('sans')
     ? families.sans.value
     : families.mono.value;
-  const fontStyle = normalizedKey.includes("italic") ? "italic" : "normal";
-  const fontWeight = normalizedKey.includes("light")
+  const fontStyle = normalizedKey.includes('italic') ? 'italic' : 'normal';
+  const fontWeight = normalizedKey.includes('light')
     ? 300
-    : normalizedKey.includes("medium")
+    : normalizedKey.includes('medium')
       ? 500
       : 400;
 
@@ -370,30 +331,28 @@ function flattenNamedColorGroup(prefix, group) {
 
 function xmlColorGroup(prefix, group) {
   return Object.entries(group).map(
-    ([key, token]) => `    <color name="rangework_${prefix}_${key}">${token.value}</color>`
+    ([key, token]) =>
+      `    <color name="rangework_${prefix}_${key}">${token.value}</color>`,
   );
 }
 
 function xmlNamedColorGroup(prefix, group) {
   return Object.entries(group).map(
-    ([key, token]) => `    <color name="rangework_${prefix}_${toSnakeCase(key)}">${token.value}</color>`
+    ([key, token]) =>
+      `    <color name="rangework_${prefix}_${toSnakeCase(key)}">${token.value}</color>`,
   );
 }
 
 function hexToComposeColor(hex) {
-  return `0xFF${hex.replace("#", "").toUpperCase()}`;
+  return `0xFF${hex.replace('#', '').toUpperCase()}`;
 }
 
 function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function toKebabCase(value) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
-}
-
 function toSnakeCase(value) {
-  return value.replace(/[A-Z]/g, (char) => `_${char.toLowerCase()}`);
+  return value.replace(/[A-Z]/g, char => `_${char.toLowerCase()}`);
 }
 
 function toKotlinFloat(value) {
@@ -401,5 +360,5 @@ function toKotlinFloat(value) {
 }
 
 function isPlainObject(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

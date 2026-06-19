@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./tailwind-preset": "./dist/tailwind/preset.mjs",
+    "./tailwind-theme.css": "./dist/web/tailwind-theme.css",
     "./fonts.css": "./dist/web/fonts.css",
     "./tokens.css": "./dist/css/tokens.css"
   },

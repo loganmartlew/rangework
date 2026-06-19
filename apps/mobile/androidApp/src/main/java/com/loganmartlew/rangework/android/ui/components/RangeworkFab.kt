@@ -57,10 +57,12 @@ internal fun RangeworkExtendedFab(
     )
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, backgroundColor = 0xFF161412)
 @Composable
 private fun RangeworkFabPreview() {
-    RangeworkTheme {
+    RangeworkTheme(
+        darkTheme = true,
+    ) {
         RangeworkFab(
             onClick = {},
             contentDescription = "New unit",
@@ -69,10 +71,12 @@ private fun RangeworkFabPreview() {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, backgroundColor = 0xFF161412)
 @Composable
 private fun RangeworkExtendedFabPreview() {
-    RangeworkTheme {
+    RangeworkTheme(
+        darkTheme = true,
+    ) {
         RangeworkExtendedFab(
             onClick = {},
             text = "New unit",

@@ -1,3 +1,3 @@
-@config "../../tailwind.config.mjs";
-@import '@rangework/ui-tokens/fonts.css';
 @import 'tailwindcss';
+@import '@rangework/ui-tokens/tailwind-theme.css';
+@import '@rangework/ui-tokens/fonts.css';
