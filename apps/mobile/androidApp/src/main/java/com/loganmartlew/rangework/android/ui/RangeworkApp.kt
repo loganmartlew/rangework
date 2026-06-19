@@ -294,6 +294,7 @@ fun RangeworkApp(
                         uiState = rangeSessionUiState,
                         onNextStep = rangeSessionViewModel::nextStep,
                         onPreviousStep = rangeSessionViewModel::previousStep,
+                        onNavigateToStep = rangeSessionViewModel::navigateToStep,
                         onToggleStepComplete = rangeSessionViewModel::toggleStepComplete,
                         onConsumeNotification = rangeSessionViewModel::consumeNotification,
                         onBack = { rootNavController.popBackStack() },
