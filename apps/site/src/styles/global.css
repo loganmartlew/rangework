@@ -2,3 +2,156 @@
 @import '@rangework/ui-tokens/tailwind-theme.css';
 @import '@rangework/ui-tokens/fonts.css';
 @import 'material-symbols';
+
+:root {
+  color-scheme: light;
+  --hero-bg: #ebf3ee;
+  --rail-bg: #eceae6;
+  --pin-bg: linear-gradient(160deg, #ebf3ee 0%, #dae9e1 100%);
+  --border-dash: #cac8c3;
+  --card-border: color-mix(
+    in srgb,
+    var(--color-outlinevariant) 86%,
+    transparent
+  );
+  --badge-bg: #e6f0ea;
+  --badge-on: var(--color-primary);
+  --tag-bg: rgba(45, 106, 79, 0.09);
+  --label-muted: #605e5a;
+  --body-soft: #3e3c38;
+  --phone-status: rgba(28, 26, 24, 0.7);
+  --phone-metric: var(--color-brandrod);
+  --toggle-bg: color-mix(
+    in srgb,
+    var(--color-outlinevariant) 74%,
+    var(--color-surface)
+  );
+  --toggle-bg-hover: color-mix(
+    in srgb,
+    var(--color-outlinevariant) 86%,
+    var(--color-surface)
+  );
+  --phone-shell-bg: color-mix(
+    in srgb,
+    var(--color-surfacehighest) 72%,
+    var(--color-neutral-900)
+  );
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --hero-bg: #1e1c1a;
+    --rail-bg: #191714;
+    --pin-bg: linear-gradient(160deg, #1e1c1a 0%, #141412 100%);
+    --border-dash: #383531;
+    --badge-bg: #252320;
+    --badge-on: var(--color-primary);
+    --tag-bg: rgba(107, 191, 143, 0.12);
+    --label-muted: #a8a6a2;
+    --body-soft: #d5d3cf;
+    --phone-status: rgba(232, 230, 226, 0.72);
+    --phone-metric: var(--color-primary);
+  }
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --hero-bg: #1e1c1a;
+  --rail-bg: #191714;
+  --pin-bg: linear-gradient(160deg, #1e1c1a 0%, #141412 100%);
+  --border-dash: #383531;
+  --badge-bg: #252320;
+  --badge-on: var(--color-primary);
+  --tag-bg: rgba(107, 191, 143, 0.12);
+  --label-muted: #a8a6a2;
+  --body-soft: #d5d3cf;
+  --phone-status: rgba(232, 230, 226, 0.72);
+  --phone-metric: var(--color-primary);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--color-background);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-onbackground);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  background: none;
+}
+
+.material-symbols-rounded {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+  line-height: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) [data-logo-mark] {
+    filter: brightness(0) invert(1);
+  }
+}
+
+[data-theme='dark'] [data-logo-mark] {
+  filter: brightness(0) invert(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

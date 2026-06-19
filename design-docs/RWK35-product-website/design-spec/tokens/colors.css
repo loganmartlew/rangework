@@ -1,0 +1,153 @@
+/* Rangework — Colour tokens
+   Material 3 scheme. "Combo A": Deep Fairway primary, Lighter Sage secondary,
+   Warm Graphite surfaces. Light is the default brand presentation; dark scope
+   follows under [data-theme="dark"].
+   Source of truth: androidApp/.../ui/theme/Color.kt */
+
+:root {
+  /* ---- Primary tonal palette — Deep Fairway ---- */
+  --primary-0:   #F0FAF5;
+  --primary-10:  #DDEEE6;
+  --primary-20:  #B8DCC8;
+  --primary-30:  #8FC8A8;
+  --primary-40:  #60A882;
+  --primary-50:  #2D6A4F;
+  --primary-60:  #235438;
+  --primary-70:  #1A3D28;
+  --primary-80:  #12291A;
+  --primary-90:  #09160D;
+  --primary-100: #030804;
+
+  /* ---- Secondary tonal palette — Lighter Sage ---- */
+  --secondary-0:   #F0F6F4;
+  --secondary-10:  #D6E8E4;
+  --secondary-20:  #B0D4CC;
+  --secondary-30:  #8ABFB6;
+  --secondary-40:  #6AA89E;
+  --secondary-50:  #52796F;
+  --secondary-60:  #3F6058;
+  --secondary-70:  #2E4740;
+  --secondary-80:  #1E302A;
+  --secondary-90:  #0F1A17;
+  --secondary-100: #050D0B;
+
+  /* ---- Tertiary tonal palette — Sage Mist ---- */
+  --tertiary-20:  #C6D2CC;
+  --tertiary-60:  #5A7470;
+  --tertiary-90:  #182020;
+
+  /* ---- Neutral — Warm Graphite surfaces ---- */
+  --neutral-0:   #FAFAF8;
+  --neutral-10:  #F5F3EF;
+  --neutral-20:  #EAE8E4;
+  --neutral-30:  #D5D3CF;
+  --neutral-50:  #8E8C88;
+  --neutral-60:  #605E5A;
+  --neutral-70:  #3E3C38;
+  --neutral-80:  #282624;
+  --neutral-88:  #1C1A18;
+  --neutral-90:  #161412;
+  --neutral-100: #0A0908;
+
+  /* ---- Neutral variant — borders ---- */
+  --neutral-variant-20: #D8D6D0;
+  --neutral-variant-30: #C4C2BB;
+  --neutral-variant-60: #5E5C58;
+  --neutral-variant-70: #3C3A37;
+
+  /* ---- Error ---- */
+  --error-20: #FFDAD6;
+  --error-70: #BA1A1A;
+  --error-90: #690005;
+
+  /* ---- Surface container stops (light) ---- */
+  --surface-bright:  #F9F7F3;
+  --surface-c-lowest: #F7F5F1;
+  --surface-c-low:    #F5F3EF;
+  --surface-c:        #EFEDEA;
+  --surface-c-high:   #EAE8E4;
+  --surface-c-highest:#E4E2DE;
+  --surface-dim:      #D5D3CF;
+
+  /* ================= Semantic roles (light) ================= */
+  --primary:               var(--primary-50);
+  --on-primary:            var(--neutral-0);
+  --primary-container:     var(--primary-20);
+  --on-primary-container:  var(--primary-90);
+
+  --secondary:               var(--secondary-50);
+  --on-secondary:            var(--secondary-0);
+  --secondary-container:     var(--secondary-20);
+  --on-secondary-container:  var(--secondary-90);
+
+  --tertiary:              var(--tertiary-60);
+  --tertiary-container:    var(--tertiary-20);
+
+  --error:               var(--error-70);
+  --on-error:            #FFFBFF;
+  --error-container:     var(--error-20);
+  --on-error-container:  var(--error-90);
+
+  --background:        var(--neutral-0);
+  --on-background:     var(--neutral-90);
+  --surface:           var(--neutral-10);
+  --on-surface:        var(--neutral-80);
+  --surface-variant:   var(--neutral-20);
+  --on-surface-variant:var(--neutral-variant-70);
+
+  --outline:           var(--neutral-variant-60);
+  --outline-variant:   var(--neutral-variant-20);
+
+  --inverse-surface:   var(--neutral-90);
+  --inverse-on-surface:var(--neutral-20);
+  --inverse-primary:   var(--primary-30);
+
+  /* Brand accent green used by the mark's rod + highlighted mono metrics */
+  --brand-rod:         #386044;
+  --scrim:             rgba(0,0,0,0.4);
+}
+
+/* ================= Dark scheme ================= */
+[data-theme="dark"] {
+  --surface-bright:  #363432;
+  --surface-c-lowest: #161412;
+  --surface-c-low:    #1C1A18;
+  --surface-c:        #222020;
+  --surface-c-high:   #282624;
+  --surface-c-highest:#2E2C2A;
+  --surface-dim:      #161412;
+
+  --primary:               var(--primary-30);
+  --on-primary:            var(--primary-90);
+  --primary-container:     var(--primary-70);
+  --on-primary-container:  var(--primary-20);
+
+  --secondary:               var(--secondary-30);
+  --on-secondary:            var(--secondary-90);
+  --secondary-container:     var(--secondary-70);
+  --on-secondary-container:  var(--secondary-20);
+
+  --tertiary:              #AABCB4;
+  --tertiary-container:    #425858;
+
+  --error:               #FFB4AB;
+  --on-error:            #93000A;
+  --error-container:     var(--error-70);
+  --on-error-container:  var(--error-20);
+
+  --background:        var(--neutral-90);
+  --on-background:     var(--neutral-20);
+  --surface:           var(--neutral-88);
+  --on-surface:        var(--neutral-30);
+  --surface-variant:   var(--neutral-variant-70);
+  --on-surface-variant:var(--neutral-variant-30);
+
+  --outline:           var(--neutral-50);
+  --outline-variant:   var(--neutral-variant-70);
+
+  --inverse-surface:   var(--neutral-20);
+  --inverse-on-surface:var(--neutral-80);
+  --inverse-primary:   var(--primary-60);
+
+  --brand-rod:         #93C8A8;
+}

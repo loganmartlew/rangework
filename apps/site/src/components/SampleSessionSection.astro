@@ -1,0 +1,122 @@
+---
+import YardageMarker from './YardageMarker.astro';
+import {
+  cardClass,
+  chipClass,
+  eyebrowClass,
+  revealClass,
+  sectionClass,
+} from '../lib/ui';
+
+const drills = [
+  {
+    index: '01',
+    name: 'Wedge distance ladder',
+    detail: 'PW · 56° · 3 distances',
+    balls: '15 balls',
+    time: '~6 min',
+  },
+  {
+    index: '02',
+    name: '7-iron stock shot',
+    detail: '7-iron · same target every ball',
+    balls: '15 balls',
+    time: '~6 min',
+  },
+  {
+    index: '03',
+    name: 'Driver rhythm swings',
+    detail: 'Driver · 80% effort',
+    balls: '15 balls',
+    time: '~7 min',
+  },
+  {
+    index: '04',
+    name: '60-yard flop to a pin',
+    detail: '60° · one specific flag',
+    balls: '15 balls',
+    time: '~6 min',
+  },
+];
+---
+
+<section
+  id="sample-session"
+  aria-labelledby="sample-session-heading"
+  class:list={[sectionClass, 'bg-background']}
+>
+  <div class="mx-auto max-w-[1200px]">
+    <YardageMarker yard="200Y" label="Sample session" />
+
+    <div class="grid gap-8 lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-14">
+      <div class={revealClass} data-reveal style="--stagger: 40ms;">
+        <h2
+          id="sample-session-heading"
+          class="text-[2.2rem] leading-[1.04] font-light tracking-[-0.05em] text-onbackground md:text-[2.9rem] lg:text-[3.2rem]"
+        >
+          A real session.
+        </h2>
+        <p class="mt-4 max-w-[27ch] text-[1rem] leading-7 text-[var(--body-soft)] md:text-[1.08rem] md:leading-8">
+          This is the session a low-handicap player would actually run before a Saturday morning
+          round. Nothing invented.
+        </p>
+
+        <div class="mt-6 flex flex-wrap gap-2.5">
+          <span class={chipClass}>4 drills</span>
+          <span class={chipClass}>60 balls</span>
+          <span class={chipClass}>~25 minutes</span>
+        </div>
+      </div>
+
+      <article
+        class:list={[cardClass, revealClass, 'overflow-hidden']}
+        data-reveal
+        style="--stagger: 170ms;"
+      >
+        <header class="border-b border-outlinevariant/80 px-6 py-6 md:px-7">
+          <div class:list={[eyebrowClass, 'text-[0.6rem]']}>Session</div>
+          <h3 class="mt-2 text-[1.35rem] leading-tight font-medium tracking-[-0.03em] text-onbackground md:text-[1.5rem]">
+            Pre-round warm-up
+          </h3>
+        </header>
+
+        <div class="px-6 md:px-7">
+          {drills.map((drill) => (
+            <div class="grid gap-2 border-b border-outlinevariant/80 py-5 last:border-b-0 md:grid-cols-[2rem_minmax(0,1fr)_5.5rem_5rem] md:items-center md:gap-3">
+              <span class="font-mono text-[0.76rem] uppercase tracking-[0.12em] text-[var(--label-muted)]">
+                {drill.index}
+              </span>
+
+              <div>
+                <div class="text-[1rem] leading-6 font-medium text-onbackground">{drill.name}</div>
+                <div class="mt-1 font-mono text-[0.62rem] uppercase tracking-[0.13em] text-[var(--label-muted)]">
+                  {drill.detail}
+                </div>
+              </div>
+
+              <span class="font-mono text-[0.8rem] font-medium text-brandrod md:text-right">{drill.balls}</span>
+              <span class="font-mono text-[0.72rem] uppercase tracking-[0.13em] text-[var(--label-muted)] md:text-right">
+                {drill.time}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <footer class="flex justify-end gap-8 bg-[var(--badge-bg)] px-6 py-5 md:px-7">
+          <div class="text-right">
+            <div class="font-mono text-[1.6rem] font-medium leading-none text-primary">60</div>
+            <div class="mt-1 font-mono text-[0.58rem] uppercase tracking-[0.16em] text-[var(--badge-on)]">
+              Total balls
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="font-mono text-[1.6rem] font-medium leading-none text-primary">~25</div>
+            <div class="mt-1 font-mono text-[0.58rem] uppercase tracking-[0.16em] text-[var(--badge-on)]">
+              Minutes
+            </div>
+          </div>
+        </footer>
+      </article>
+    </div>
+  </div>
+</section>

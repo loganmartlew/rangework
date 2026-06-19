@@ -1,0 +1,43 @@
+/* Rangework — Typography tokens
+   DM Sans for all UI text; DM Mono reserved for numeric/timer/metric values.
+   Scale mirrors the Material 3 type scale defined in Type.kt. */
+
+:root {
+  --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Weights actually shipped in the brand (do not invent others) */
+  --weight-light:  300;
+  --weight-regular:400;
+  --weight-medium: 500;
+
+  /* ---- Display ---- */
+  --display-large-size: 57px;   --display-large-line: 64px;   --display-large-weight: 300; --display-large-spacing: -0.25px;
+  --display-medium-size: 45px;  --display-medium-line: 52px;  --display-medium-weight: 300;
+  --display-small-size: 36px;   --display-small-line: 44px;   --display-small-weight: 400;
+
+  /* ---- Headline ---- */
+  --headline-large-size: 32px;  --headline-large-line: 40px;  --headline-large-weight: 400;
+  --headline-medium-size: 28px; --headline-medium-line: 36px; --headline-medium-weight: 400;
+  --headline-small-size: 24px;  --headline-small-line: 32px;  --headline-small-weight: 400;
+
+  /* ---- Title ---- */
+  --title-large-size: 22px;     --title-large-line: 28px;     --title-large-weight: 500;
+  --title-medium-size: 16px;    --title-medium-line: 24px;    --title-medium-weight: 500;  --title-medium-spacing: 0.15px;
+  --title-small-size: 14px;     --title-small-line: 20px;     --title-small-weight: 500;   --title-small-spacing: 0.1px;
+
+  /* ---- Body ---- */
+  --body-large-size: 16px;      --body-large-line: 24px;      --body-large-weight: 400;    --body-large-spacing: 0.5px;
+  --body-medium-size: 14px;     --body-medium-line: 20px;     --body-medium-weight: 400;   --body-medium-spacing: 0.25px;
+  --body-small-size: 12px;      --body-small-line: 16px;      --body-small-weight: 400;    --body-small-spacing: 0.4px;
+
+  /* ---- Label ---- */
+  --label-large-size: 14px;     --label-large-line: 20px;     --label-large-weight: 500;   --label-large-spacing: 0.1px;
+  --label-medium-size: 12px;    --label-medium-line: 16px;    --label-medium-weight: 500;  --label-medium-spacing: 0.5px;
+  --label-small-size: 11px;     --label-small-line: 16px;     --label-small-weight: 500;   --label-small-spacing: 0.5px;
+
+  /* ---- Mono numeric (RangeworkMono) ---- */
+  --mono-large-size: 32px;      --mono-large-line: 36px;      --mono-large-weight: 500;    --mono-large-spacing: -0.5px;
+  --mono-medium-size: 20px;     --mono-medium-line: 24px;     --mono-medium-weight: 500;
+  --mono-small-size: 13px;      --mono-small-line: 18px;      --mono-small-weight: 400;
+}

@@ -241,6 +241,16 @@ function buildTailwindThemeFile(tokens) {
     `  --font-sans: "${tokens.typography.family.sans.value}", ui-sans-serif, system-ui, sans-serif;`,
     `  --font-mono: "${tokens.typography.family.mono.value}", ui-monospace, SFMono-Regular, monospace;`,
     '}',
+    '',
+    '@media (prefers-color-scheme: dark) {',
+    '  :root:not([data-theme="light"]) {',
+    ...buildTailwindThemeVariablesForThemeScope(tokens, 'dark').map(line => `  ${line}`),
+    '  }',
+    '}',
+    '',
+    '[data-theme="dark"] {',
+    ...buildTailwindThemeVariablesForThemeScope(tokens, 'dark'),
+    '}',
   ];
 
   return `${lines.join('\n')}\n`;
@@ -258,7 +268,7 @@ function buildDefaultTailwindColorVariables(tokens) {
     .flatMap(([name, group]) =>
       buildTailwindThemeVariablesForPalette(name, group, tokens),
     )
-    .concat(buildTailwindThemeVariablesForSchemeColors(tokens));
+    .concat(buildTailwindThemeVariablesForThemeScope(tokens, 'light'));
 }
 
 function buildTailwindThemeVariablesForPalette(name, group, tokens) {
@@ -277,10 +287,18 @@ function buildTailwindThemeVariablesForPalette(name, group, tokens) {
   // );
 }
 
-function buildTailwindThemeVariablesForSchemeColors(tokens) {
-  return Object.entries(tokens.color.scheme.dark).map(
-    ([key, token]) => `  --color-${key.toLowerCase()}: ${token.value};`,
-  );
+function buildTailwindThemeVariablesForThemeScope(tokens, schemeName) {
+  const scheme = tokens.color.scheme[schemeName];
+  const surface = tokens.color.surface[schemeName];
+
+  return [
+    ...Object.entries(scheme).map(
+      ([key, token]) => `  --color-${key.toLowerCase()}: ${token.value};`,
+    ),
+    ...Object.entries(surface).map(
+      ([key, token]) => `  --color-surface${key.toLowerCase()}: ${token.value};`,
+    ),
+  ];
 }
 
 function buildWebFontsFile(tokens) {

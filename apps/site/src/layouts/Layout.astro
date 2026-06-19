@@ -1,6 +1,21 @@
 ---
 import '../styles/global.css';
-import Header from '../components/Header.astro';
+
+const {
+  title = 'Rangework — Practice with purpose',
+  description = 'Build drills, plan sessions, and execute them at the range. Rangework helps golfers make every ball count.',
+  canonical = 'https://rangework.app',
+  ogImage = 'https://rangework.app/favicon.svg',
+} = Astro.props;
+
+const themeInitScript = `(function () {
+  try {
+    var savedTheme = window.localStorage.getItem('theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  } catch {}
+})();`;
 ---
 
 <!DOCTYPE html>
@@ -8,32 +23,53 @@ import Header from '../components/Header.astro';
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width" />
+		<meta name="description" content={description} />
+		<meta name="theme-color" content="#FAFAF8" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="icon" href="/favicon.ico" />
+		<link rel="canonical" href={canonical} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content={canonical} />
+		<meta property="og:image" content={ogImage} />
 		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
+		<script is:inline set:html={themeInitScript}></script>
+		<title>{title}</title>
 	</head>
-	<body class="bg-background">
-		<Header />
+	<body>
+		<a
+			href="#main-content"
+			class="focus-visible:translate-y-0 absolute top-4 left-4 z-[100] -translate-y-[150%] rounded-full bg-primary px-4 py-[0.8rem] text-onprimary transition-transform duration-200 ease-[var(--ease-standard)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+		>
+			Skip to content
+		</a>
 		<slot />
+
+		<script is:inline>
+			if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+				const observer = new IntersectionObserver(
+					(entries) => {
+						for (const entry of entries) {
+							if (entry.isIntersecting) {
+								entry.target.classList.remove('opacity-0', 'translate-y-5');
+								entry.target.classList.add('opacity-100', 'translate-y-0');
+								observer.unobserve(entry.target);
+							}
+						}
+					},
+					{ threshold: 0.12, rootMargin: '0px 0px -6% 0px' },
+				);
+
+				document.querySelectorAll('[data-reveal]').forEach((element) => {
+					observer.observe(element);
+				});
+			} else {
+				document.querySelectorAll('[data-reveal]').forEach((element) => {
+					element.classList.remove('opacity-0', 'translate-y-5');
+					element.classList.add('opacity-100', 'translate-y-0');
+				});
+			}
+		</script>
 	</body>
 </html>
-
-<style>
-	html,
-	body {
-		margin: 0;
-		width: 100%;
-		height: 100%;
-		color: var(--color-neutral-200);
-	}
-
-	:root {
-		font-family: 'dm_sans', sans-serif;
-	}
-
-	pre,
-	code {
-		font-family: 'dm_mono', monospace;
-	}
-</style>

@@ -1,0 +1,66 @@
+---
+import YardageMarker from './YardageMarker.astro';
+import { liftedCardClass, revealClass, sectionClass } from '../lib/ui';
+
+const features = [
+  {
+    icon: 'calculate',
+    title: 'Ball count planning',
+    body: 'Know the exact number of balls your session needs before you leave the house. Medium bucket or large, no guessing.',
+  },
+  {
+    icon: 'golf_course',
+    title: 'Your bag, your rules',
+    body: 'Enable only the clubs you carry, chosen from a catalogue of thirty. Every club picker reflects your real bag.',
+  },
+  {
+    icon: 'linear_scale',
+    title: 'One step in focus',
+    body: 'During a live session, only the current instruction is shown. Tap to complete and auto-advance without searching around.',
+  },
+  {
+    icon: 'cloud_done',
+    title: 'Never lose your place',
+    body: 'Progress is saved after every tap and synced to your account, so you can come back to the exact step mid-drill.',
+  },
+];
+---
+
+<section
+  id="features"
+  aria-labelledby="features-heading"
+  class:list={[sectionClass, 'bg-surface']}
+>
+  <div class="mx-auto max-w-[1200px]">
+    <YardageMarker yard="150Y" label="Built for range" />
+
+    <div class={revealClass} data-reveal style="--stagger: 40ms;">
+      <h2
+        id="features-heading"
+        class="max-w-[14ch] text-[2.2rem] leading-[1.04] font-light tracking-[-0.05em] text-onbackground md:text-[2.9rem] lg:text-[3.2rem]"
+      >
+        Built for the range, not the round.
+      </h2>
+    </div>
+
+    <div class="mt-10 grid gap-5 md:mt-12 md:grid-cols-2">
+      {features.map((feature, index) => (
+        <article
+          class:list={[liftedCardClass, revealClass, 'grid gap-4 px-6 py-6 md:grid-cols-[auto_1fr] md:gap-5 md:px-7']}
+          data-reveal
+          style={`--stagger: ${140 + index * 80}ms;`}
+        >
+          <span class="material-symbols-rounded mt-0.5 text-[1.75rem] text-primary" aria-hidden="true">
+            {feature.icon}
+          </span>
+          <div>
+            <h3 class="text-[1.12rem] leading-tight font-medium tracking-[-0.02em] text-onbackground">
+              {feature.title}
+            </h3>
+            <p class="mt-2 text-[0.97rem] leading-7 text-[var(--body-soft)]">{feature.body}</p>
+          </div>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>

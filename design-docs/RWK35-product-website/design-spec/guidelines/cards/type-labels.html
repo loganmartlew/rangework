@@ -1,0 +1,24 @@
+<!-- @dsCard group="Type" viewport="700x180" name="Labels & uppercase — DM Sans" subtitle="Section headers, chips, buttons; often .uppercase()" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--background); }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .line { display: flex; align-items: baseline; gap: 16px; }
+  .tag { font-family: var(--font-mono); font-size: 11px; color: var(--on-surface-variant); width: 130px; flex: none; }
+  .upper { text-transform: uppercase; }
+  .muted { color: var(--on-surface-variant); }
+  .spec { color: var(--on-surface); }
+</style>
+</head>
+<body>
+  <div class="stack">
+    <div class="line"><span class="tag">label-large 14</span><span class="spec rw-label-large">Start session</span></div>
+    <div class="line"><span class="tag">label-medium 12</span><span class="spec muted upper rw-label-medium">Recently used</span></div>
+    <div class="line"><span class="tag">label-small 11</span><span class="spec muted upper rw-label-small">Units</span></div>
+  </div>
+</body>
+</html>

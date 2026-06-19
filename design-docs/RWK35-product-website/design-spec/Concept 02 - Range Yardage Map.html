@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rangework — Range Yardage Map</title>
+<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,-50..200&display=block">
+<style>
+  /* ── TOKENS ── */
+  :root, [data-theme="light"] {
+    /* Warm graphite base — green only on primary actions and accents */
+    --bg:          #F5F4F1;
+    --surface:     #FAFAF8;
+    --surface-2:   #F0EFEB;
+    --border:      #E0DDD9;
+    --border-dash: #CAC8C3;
+    --rail-bg:     #ECEAE6;
+    --on-bg:       #1C1A18;
+    --on-bg-2:     #3E3C38;
+    --on-muted:    #605E5A;
+    --on-faint:    #908E89;
+    --primary:     #2D6A4F;
+    --primary-on:  #FAFAF8;
+    --num:         #386044;
+    --card-bg:     #FAFAF8;
+    --card-border: #E0DDD9;
+    --hero-bg:     #EBF3EE;
+    --hero-on:     #1C1A18;
+    --hero-num:    #2D6A4F;
+    --pin-bg:      linear-gradient(160deg, #EBF3EE 0%, #DAE9E1 100%);
+    --pin-on:      #1C1A18;
+    --toggle-bg:   #E0DDD9;
+    --toggle-knob: #2D6A4F;
+    --shell-bg:    #F5F4F1;
+    --nav-bg:      #FAFAF8;
+    --badge-bg:    #E6F0EA;
+    --badge-on:    #2D6A4F;
+    --tag-bg:      rgba(45,106,79,0.09);
+    --tag-on:      #2D6A4F;
+  }
+  [data-theme="dark"] {
+    /* Near-black grey — matches app; green reserved for CTAs & accents only */
+    --bg:          #141412;
+    --surface:     #1E1C1A;
+    --surface-2:   #252320;
+    --border:      #2E2C29;
+    --border-dash: #383531;
+    --rail-bg:     #191714;
+    --on-bg:       #E8E6E2;
+    --on-bg-2:     #A8A6A2;
+    --on-muted:    #706E6A;
+    --on-faint:    #4A4845;
+    --primary:     #6BBF8F;
+    --primary-on:  #0D1F14;
+    --num:         #6BBF8F;
+    --card-bg:     #242220;
+    --card-border: #2E2C29;
+    --hero-bg:     #1E1C1A;
+    --hero-on:     #E8E6E2;
+    --hero-num:    #6BBF8F;
+    --pin-bg:      linear-gradient(160deg, #1E1C1A 0%, #141412 100%);
+    --pin-on:      #E8E6E2;
+    --toggle-bg:   #2E2C29;
+    --toggle-knob: #6BBF8F;
+    --shell-bg:    #141412;
+    --nav-bg:      #1E1C1A;
+    --badge-bg:    #252320;
+    --badge-on:    #6BBF8F;
+    --tag-bg:      rgba(107,191,143,0.12);
+    --tag-on:      #6BBF8F;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--shell-bg); font-family: var(--font-sans); color: var(--on-bg); transition: background 0.3s, color 0.3s; }
+  .msr { font-family: 'Material Symbols Rounded'; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-style: normal; line-height: 1; }
+  button { font-family: var(--font-sans); cursor: pointer; }
+  a { color: inherit; text-decoration: none; }
+
+  /* ── TRANSITIONS ── */
+  nav, section, aside, .card, .phone-shell { transition: background 0.3s, border-color 0.3s, color 0.3s; }
+
+  /* ── TOGGLE ── */
+  .mode-toggle {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--toggle-bg); border: 0; border-radius: 999px;
+    padding: 7px 14px; cursor: pointer; transition: background 0.3s;
+  }
+  .mode-toggle .knob {
+    width: 18px; height: 18px; border-radius: 50%; background: var(--toggle-knob);
+    display: grid; place-items: center; transition: background 0.3s;
+  }
+  .mode-toggle .knob .msr { font-size: 13px; color: var(--surface); }
+  .mode-toggle span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--on-muted); }
+
+  /* ── YARDAGE RAIL ── */
+  .yard-rail {
+    position: sticky; top: 0; width: 160px; flex: none;
+    background: var(--rail-bg); border-right: 1px dashed var(--border-dash);
+    min-height: 100vh; padding: 100px 0 64px;
+    display: flex; flex-direction: column;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .yard-marker {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 0 24px; flex: 1; min-height: 120px;
+    justify-content: flex-start; padding-top: 32px;
+    border-top: 1px dashed var(--border-dash);
+  }
+  .yard-marker:first-child { border-top: none; }
+  .yard-num { font-family: var(--font-mono); font-weight: 500; font-size: 22px; color: var(--primary); line-height: 1; }
+  .yard-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--on-faint); margin-top: 4px; }
+
+  /* ── CONTENT SECTIONS ── */
+  .content-col { flex: 1; min-width: 0; }
+  .rw-section { padding: 80px 72px; border-top: 1px solid var(--border); transition: background 0.3s, border-color 0.3s; }
+  .rw-section:first-child { border-top: none; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 12px; transition: background 0.3s, border-color 0.3s;
+  }
+
+  /* ── PHONE SHELL ── */
+  .phone-shell {
+    width: 260px; flex: none;
+    background: var(--surface-2); border-radius: 36px; padding: 9px;
+    box-shadow: 0 36px 64px rgba(0,0,0,0.24);
+  }
+  .phone-screen {
+    background: var(--surface); border-radius: 28px;
+    height: 520px; padding: 18px;
+    display: flex; flex-direction: column;
+    transition: background 0.3s;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     NAV
+══════════════════════════════════════════════ -->
+<nav style="position: sticky; top: 0; z-index: 100; background: var(--nav-bg); border-bottom: 1px solid var(--border); padding: 0 64px; display: flex; justify-content: space-between; align-items: center; height: 64px; transition: background 0.3s, border-color 0.3s;">
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <img src="./assets/rangework-mark.svg" width="22" height="22" alt="" id="nav-mark">
+    <span class="rw-title-medium" style="color: var(--on-bg);">Rangework</span>
+  </div>
+  <div style="display: flex; gap: 36px; align-items: center;">
+    <a class="rw-label-large" style="color: var(--on-bg-2);" href="#how-it-works">How it works</a>
+    <a class="rw-label-large" style="color: var(--on-bg-2);" href="#sample">Sample session</a>
+  </div>
+  <div style="display: flex; gap: 12px; align-items: center;">
+    <button class="mode-toggle" onclick="toggleMode()" aria-label="Toggle dark mode">
+      <div class="knob"><span class="msr" id="mode-icon">light_mode</span></div>
+      <span id="mode-label">Light</span>
+    </button>
+    <button class="rw-label-large" style="background: var(--primary); color: var(--primary-on); border: 0; padding: 10px 20px; border-radius: 999px;">Get Rangework</button>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════
+     MAIN — two-column: yardage rail + content
+══════════════════════════════════════════════ -->
+<div style="display: flex; align-items: flex-start;">
+
+  <!-- YARDAGE RAIL -->
+  <div class="yard-rail">
+    <div class="yard-marker" style="border-top: none; padding-top: 0;">
+      <div class="yard-num">0Y</div>
+      <div class="yard-label">Tee box</div>
+    </div>
+    <div class="yard-marker">
+      <div class="yard-num">50Y</div>
+      <div class="yard-label">The gap</div>
+    </div>
+    <div class="yard-marker">
+      <div class="yard-num">100Y</div>
+      <div class="yard-label">The system</div>
+    </div>
+    <div class="yard-marker">
+      <div class="yard-num">150Y</div>
+      <div class="yard-label">Built for range</div>
+    </div>
+    <div class="yard-marker">
+      <div class="yard-num">200Y</div>
+      <div class="yard-label">Sample session</div>
+    </div>
+    <div class="yard-marker">
+      <div class="yard-num">250Y</div>
+      <div class="yard-label" style="color: var(--primary);">Pin</div>
+    </div>
+  </div>
+
+  <!-- CONTENT COLUMN -->
+  <div class="content-col">
+
+    <!-- 0Y · HERO -->
+    <section class="rw-section" style="background: var(--hero-bg); padding: 88px 72px 96px;">
+      <div style="display: grid; grid-template-columns: 1fr 300px; gap: 56px; align-items: center;">
+        <div>
+          <div style="font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--on-muted); margin-bottom: 24px;">Where rounds are actually built</div>
+          <h1 style="font-family: var(--font-sans); font-weight: 300; font-size: 84px; line-height: 0.96; letter-spacing: -1.5px; margin: 0 0 24px; color: var(--hero-on);">Aim every ball.</h1>
+          <p class="rw-body-large" style="margin: 0 0 36px; color: var(--on-bg-2); max-width: 44ch;">Build drills. Compose them into sessions. Execute step by step at the range — with a ball count, a focus cue, and a way back to where you left off.</p>
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <button class="rw-label-large" style="background: var(--primary); color: var(--primary-on); border: 0; padding: 14px 26px; border-radius: 999px;">Get Rangework</button>
+            <a class="rw-label-large" style="color: var(--primary); padding: 14px 8px; display: flex; align-items: center; gap: 6px;" href="#how-it-works">Walk the range <span class="msr" style="font-size: 18px;">arrow_downward</span></a>
+          </div>
+        </div>
+
+        <!-- phone -->
+        <div class="phone-shell">
+          <div class="phone-screen">
+            <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 10px; color: var(--on-bg); margin-bottom: 16px; opacity: 0.7;"><span>9:41</span><span>●●●</span></div>
+            <div style="font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--on-muted);">Pre-round warm-up · Step 02</div>
+            <div class="rw-title-large" style="margin-top: 6px; color: var(--on-bg); font-size: 20px;">7-iron stock shot</div>
+            <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div style="background: var(--badge-bg); border-radius: 10px; padding: 10px;">
+                <div style="font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--badge-on);">Carry</div>
+                <div style="font-family: var(--font-mono); font-weight: 500; font-size: 20px; color: var(--on-bg); margin-top: 2px;">150Y</div>
+              </div>
+              <div style="background: var(--badge-bg); border-radius: 10px; padding: 10px;">
+                <div style="font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--badge-on);">Tempo</div>
+                <div class="rw-body-medium" style="color: var(--on-bg); margin-top: 2px;">3:1 down</div>
+              </div>
+            </div>
+            <p class="rw-body-small" style="margin: 14px 0 0; color: var(--on-bg-2);">Same target. Same tempo. Same start line every ball.</p>
+            <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end;">
+              <div>
+                <div style="font-family: var(--font-mono); font-weight: 500; font-size: 36px; color: var(--num); line-height: 1;">15</div>
+                <div style="font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--on-muted); margin-top: 3px;">Balls</div>
+              </div>
+              <button style="background: var(--primary); color: var(--primary-on); border: 0; padding: 10px 16px; border-radius: 999px; font-weight: 500; font-size: 11px;">Complete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 50Y · REFRAME -->
+    <section class="rw-section" style="background: var(--surface);">
+      <h2 style="font-family: var(--font-sans); font-weight: 300; font-size: 56px; line-height: 1.05; margin: 0 0 28px; color: var(--on-bg); max-width: 18ch;">You've got the tools.<br>You're missing the plan.</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 56px;">
+        <p class="rw-body-large" style="margin: 0; color: var(--on-bg-2);">A launch monitor. A swing app. A GPS watch. A stat tracker. And still, when you get to the range, you're standing over a pile of balls trying to remember what your coach said and whether to start with driver or wedges.</p>
+        <p class="rw-body-large" style="margin: 0; color: var(--on-bg);">The gap is structure. Rangework fills it. Build your session at home, walk through it on the mats, pick up exactly where you left off if your phone dies or your mate wants to chat.</p>
+      </div>
+    </section>
+
+    <!-- 100Y · HOW IT WORKS -->
+    <section class="rw-section" id="how-it-works" style="background: var(--bg);">
+      <h2 style="font-family: var(--font-sans); font-weight: 300; font-size: 44px; line-height: 1.05; margin: 0 0 48px; color: var(--on-bg);">Build. Plan. Execute.</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;">
+
+        <div class="card" style="padding: 32px; position: relative; overflow: hidden;">
+          <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--primary); border-radius: 12px 12px 0 0;"></div>
+          <div style="font-family: var(--font-mono); font-weight: 500; font-size: 32px; color: var(--num); margin-bottom: 20px;">01</div>
+          <div class="rw-title-large" style="color: var(--on-bg); margin-bottom: 12px;">Build a drill</div>
+          <p class="rw-body-medium" style="margin: 0 0 20px; color: var(--on-bg-2);">Create reusable practice units with step-by-step instructions, a ball count, a default club, and a mental focus cue. Write it once, use it forever.</p>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--on-muted); padding-top: 16px; border-top: 1px dashed var(--border-dash);">e.g. "50-yard pitch · 3 landing zones · 10 balls each"</div>
+        </div>
+
+        <div class="card" style="padding: 32px; position: relative; overflow: hidden;">
+          <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--primary); border-radius: 12px 12px 0 0;"></div>
+          <div style="font-family: var(--font-mono); font-weight: 500; font-size: 32px; color: var(--num); margin-bottom: 20px;">02</div>
+          <div class="rw-title-large" style="color: var(--on-bg); margin-bottom: 12px;">Plan a session</div>
+          <p class="rw-body-medium" style="margin: 0 0 20px; color: var(--on-bg-2);">Combine drills into a session template. Set repeats and club overrides per slot. The ball count updates live as you build — so you know exactly which bucket to buy.</p>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--on-muted); padding-top: 16px; border-top: 1px dashed var(--border-dash);">Total updates live as you add drills</div>
+        </div>
+
+        <div class="card" style="padding: 32px; position: relative; overflow: hidden;">
+          <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--primary); border-radius: 12px 12px 0 0;"></div>
+          <div style="font-family: var(--font-mono); font-weight: 500; font-size: 32px; color: var(--num); margin-bottom: 20px;">03</div>
+          <div class="rw-title-large" style="color: var(--on-bg); margin-bottom: 12px;">Execute on the range</div>
+          <p class="rw-body-medium" style="margin: 0 0 20px; color: var(--on-bg-2);">Hit start and Rangework walks you through one step at a time. Tap to complete, auto-advance to the next. Walk away, come back — your exact step is saved.</p>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--on-muted); padding-top: 16px; border-top: 1px dashed var(--border-dash);">Resumes mid-step on cold start</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 150Y · FEATURES -->
+    <section class="rw-section" style="background: var(--surface);">
+      <h2 style="font-family: var(--font-sans); font-weight: 300; font-size: 44px; line-height: 1.05; margin: 0 0 48px; color: var(--on-bg);">Built for the range, not the round.</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+
+        <div class="card" style="padding: 28px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start;">
+          <span class="msr" style="font-size: 28px; color: var(--primary); margin-top: 2px;">calculate</span>
+          <div>
+            <div class="rw-title-medium" style="color: var(--on-bg); margin-bottom: 8px;">Ball count planning</div>
+            <p class="rw-body-medium" style="margin: 0; color: var(--on-bg-2);">Know the exact number of balls your session needs before you leave the house. Medium bucket or large — no guessing.</p>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 28px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start;">
+          <span class="msr" style="font-size: 28px; color: var(--primary); margin-top: 2px;">golf_course</span>
+          <div>
+            <div class="rw-title-medium" style="color: var(--on-bg); margin-bottom: 8px;">Your bag, your rules</div>
+            <p class="rw-body-medium" style="margin: 0; color: var(--on-bg-2);">Enable only the clubs you carry, chosen from a catalogue of thirty. Every club picker in every drill reflects your real bag.</p>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 28px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start;">
+          <span class="msr" style="font-size: 28px; color: var(--primary); margin-top: 2px;">linear_scale</span>
+          <div>
+            <div class="rw-title-medium" style="color: var(--on-bg); margin-bottom: 8px;">One step in focus</div>
+            <p class="rw-body-medium" style="margin: 0; color: var(--on-bg-2);">During a live session, only the current instruction is shown. Tap to complete, auto-advance. No searching, no context-switching.</p>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 28px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start;">
+          <span class="msr" style="font-size: 28px; color: var(--primary); margin-top: 2px;">cloud_done</span>
+          <div>
+            <div class="rw-title-medium" style="color: var(--on-bg); margin-bottom: 8px;">Never lose your place</div>
+            <p class="rw-body-medium" style="margin: 0; color: var(--on-bg-2);">Progress is saved after every tap and synced to your account. Take a call, switch devices, come back to the exact step mid-drill.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 200Y · SAMPLE SESSION -->
+    <section class="rw-section" id="sample" style="background: var(--bg);">
+      <div style="display: grid; grid-template-columns: 320px 1fr; gap: 56px; align-items: start;">
+        <div>
+          <h2 style="font-family: var(--font-sans); font-weight: 300; font-size: 44px; line-height: 1.05; margin: 0 0 16px; color: var(--on-bg);">A real session.</h2>
+          <p class="rw-body-large" style="margin: 0 0 28px; color: var(--on-bg-2);">This is the session a low-handicap player would actually run before a Saturday morning round. Nothing invented.</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <span style="font-family: var(--font-mono); font-size: 12px; padding: 5px 12px; background: var(--tag-bg); color: var(--tag-on); border-radius: 999px;">4 drills</span>
+            <span style="font-family: var(--font-mono); font-size: 12px; padding: 5px 12px; background: var(--tag-bg); color: var(--tag-on); border-radius: 999px;">60 balls</span>
+            <span style="font-family: var(--font-mono); font-size: 12px; padding: 5px 12px; background: var(--tag-bg); color: var(--tag-on); border-radius: 999px;">~25 minutes</span>
+          </div>
+        </div>
+
+        <div class="card" style="overflow: hidden;">
+          <div style="padding: 24px 28px; border-bottom: 1px solid var(--border);">
+            <div style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--on-muted);">Session</div>
+            <div class="rw-title-large" style="color: var(--on-bg); margin-top: 4px;">Pre-round warm-up</div>
+          </div>
+
+          <div style="padding: 0 28px;">
+            <div style="padding: 20px 0; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 32px 1fr 80px 80px; gap: 12px; align-items: center;">
+              <span style="font-family: var(--font-mono); font-size: 12px; color: var(--on-muted);">01</span>
+              <div>
+                <div class="rw-body-large" style="color: var(--on-bg);">Wedge distance ladder</div>
+                <div style="font-family: var(--font-mono); font-size: 10px; color: var(--on-muted); margin-top: 2px;">PW · 56° · 3 distances</div>
+              </div>
+              <span style="font-family: var(--font-mono); font-size: 13px; color: var(--num); text-align: right;">15 balls</span>
+              <span style="font-family: var(--font-mono); font-size: 12px; color: var(--on-muted); text-align: right;">~6 min</span>
+            </div>
+            <div style="padding: 20px 0; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 32px 1fr 80px 80px; gap: 12px; align-items: center;">
+              <span style="font-family: var(--font-mono); font-size: 12px; color: var(--on-muted);">02</span>
+              <div>
+                <div class="rw-body-large" style="color: var(--on-bg);">7-iron stock shot</div>
+                <div style="font-family: var(--font-mono); font-size: 10px; color: var(--on-muted); margin-top: 2px;">7-iron · same target every ball</div>
+              </div>
+              <span style="font-family: var(--font-mono); font-size: 13px; color: var(--num); text-align: right;">15 balls</span>
+              <span style="font-family: var(--font-mono); font-size: 12px; color: var(--on-muted); text-align: right;">~6 min</span>
+            </div>
+            <div style="padding: 20px 0; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 32px 1fr 80px 80px; gap: 12px; align-items: center;">
+              <span style="font-family: var(--font-mono); font-size: 12px; color: var(--on-muted);">03</span>
+              <div>
+                <div class="rw-body-large" style="color: var(--on-bg);">Driver rhythm swings</div>
+                <div style="font-family: var(--font-mono); font-size: 10px; color: var(--on-muted); margin-top: 2px;">Driver · 80% effort</div>
+              </div>
+              <span style="font-family: var(--font-mono); font-size: 13px; color: var(--num); text-align: right;">15 balls</span>
+              <span style="font-family: var(--font-mono); font-size: 12px; color: var(--on-muted); text-align: right;">~7 min</span>
+            </div>
+            <div style="padding: 20px 0; display: grid; grid-template-columns: 32px 1fr 80px 80px; gap: 12px; align-items: center;">
+              <span style="font-family: var(--font-mono); font-size: 12px; color: var(--on-muted);">04</span>
+              <div>
+                <div class="rw-body-large" style="color: var(--on-bg);">60-yard flop to a pin</div>
+                <div style="font-family: var(--font-mono); font-size: 10px; color: var(--on-muted); margin-top: 2px;">60° · one specific flag</div>
+              </div>
+              <span style="font-family: var(--font-mono); font-size: 13px; color: var(--num); text-align: right;">15 balls</span>
+              <span style="font-family: var(--font-mono); font-size: 12px; color: var(--on-muted); text-align: right;">~6 min</span>
+            </div>
+          </div>
+
+          <div style="padding: 20px 28px; background: var(--badge-bg); display: flex; justify-content: flex-end; gap: 36px;">
+            <div style="text-align: right;">
+              <div style="font-family: var(--font-mono); font-weight: 500; font-size: 24px; color: var(--primary);">60</div>
+              <div style="font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--badge-on);">Total balls</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-family: var(--font-mono); font-weight: 500; font-size: 24px; color: var(--primary);">~25</div>
+              <div style="font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--badge-on);">Minutes</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 250Y · PIN · CTA -->
+    <section style="padding: 120px 72px; background: var(--pin-bg);">
+      <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 32px;">
+        <span style="font-family: var(--font-mono); font-weight: 500; font-size: 22px; color: var(--primary);">250Y</span>
+        <span style="font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--on-muted);">Pin</span>
+      </div>
+      <h2 style="font-family: var(--font-sans); font-weight: 300; font-size: 64px; line-height: 1; margin: 0 0 20px; color: var(--pin-on); letter-spacing: -1px;">Stop winging it at the range.</h2>
+      <p class="rw-body-large" style="margin: 0 0 40px; color: var(--on-bg-2); max-width: 50ch;">Build your first session in under two minutes. Free on Google Play.</p>
+      <div style="display: flex; gap: 16px; align-items: center;">
+        <button class="rw-label-large" style="background: var(--primary); color: var(--primary-on); border: 0; padding: 16px 32px; border-radius: 999px; font-size: 15px;">Download Rangework</button>
+        <span style="font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--on-muted);">Free · Google Play</span>
+      </div>
+    </section>
+
+  </div><!-- /content-col -->
+</div><!-- /main grid -->
+
+<script>
+  function toggleMode() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    document.getElementById('mode-icon').textContent = isDark ? 'light_mode' : 'dark_mode';
+    document.getElementById('mode-label').textContent = isDark ? 'Light' : 'Dark';
+    // invert mark in dark mode
+    const mark = document.getElementById('nav-mark');
+    mark.style.filter = isDark ? '' : 'brightness(0) invert(1)';
+  }
+</script>
+</body>
+</html>

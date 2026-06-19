@@ -1,0 +1,24 @@
+---
+import { textButtonClass, themeTransitionClass } from '../lib/ui';
+---
+
+<footer class:list={[themeTransitionClass, 'border-t border-outlinevariant/80 bg-background px-5 py-8 md:px-8 lg:px-14 xl:px-[4.5rem]']}>
+  <div class="mx-auto flex max-w-[1200px] flex-col gap-4 text-[0.92rem] text-[var(--body-soft)] md:flex-row md:items-center md:justify-between">
+    <div class="flex items-center gap-3">
+      <img
+        src="/rangework-mark.svg"
+        alt=""
+        width="18"
+        height="18"
+        data-logo-mark
+        class="h-[1.125rem] w-[1.125rem] transition-[filter,opacity] duration-[220ms] ease-[var(--ease-standard)]"
+      />
+      <span>© 2026 Rangework. Practice with purpose.</span>
+    </div>
+
+    <a href="#hero" class:list={[textButtonClass, 'w-fit']}>
+      Back to tee
+      <span class="material-symbols-rounded text-[1rem]" aria-hidden="true">arrow_upward</span>
+    </a>
+  </div>
+</footer>

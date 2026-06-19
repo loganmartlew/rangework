@@ -1,0 +1,25 @@
+<!-- @dsCard group="Type" viewport="700x220" name="Title & Body — DM Sans" subtitle="Titles (500), body (400); the everyday UI workhorses" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--background); }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .line { display: flex; align-items: baseline; gap: 16px; }
+  .tag { font-family: var(--font-mono); font-size: 11px; color: var(--on-surface-variant); width: 130px; flex: none; }
+  .spec { color: var(--on-surface); }
+  .muted { color: var(--on-surface-variant); }
+</style>
+</head>
+<body>
+  <div class="stack">
+    <div class="line"><span class="tag">title-large 22</span><span class="spec rw-title-large">50-yard pitch shots</span></div>
+    <div class="line"><span class="tag">title-medium 16</span><span class="spec rw-title-medium">Landing zone drill</span></div>
+    <div class="line"><span class="tag">body-large 16</span><span class="spec rw-body-large">Hit ten balls to each of three targets.</span></div>
+    <div class="line"><span class="tag">body-medium 14</span><span class="spec rw-body-medium">Keep tempo smooth; reset between zones.</span></div>
+    <div class="line"><span class="tag">body-small 12</span><span class="spec muted rw-body-small">Optional notes &amp; metadata sit at this size.</span></div>
+  </div>
+</body>
+</html>

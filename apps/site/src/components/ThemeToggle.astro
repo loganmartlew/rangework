@@ -1,0 +1,97 @@
+---
+import { focusRingClass } from '../lib/ui';
+---
+
+<button
+  type="button"
+  class:list={[
+    focusRingClass,
+    'inline-flex items-center gap-2 rounded-full bg-[var(--toggle-bg)] px-3 py-1.5 pl-[0.45rem] text-[var(--label-muted)] transition-[background-color,color,box-shadow] duration-[220ms] ease-[var(--ease-standard)] hover:bg-[var(--toggle-bg-hover)]',
+  ]}
+  data-theme-toggle
+  aria-label="Switch to dark mode"
+  aria-pressed="false"
+>
+  <span
+    aria-hidden="true"
+    class="grid h-[1.375rem] w-[1.375rem] shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-onprimary"
+  >
+    <span
+      class="material-symbols-rounded block text-[0.75rem] leading-none [font-variation-settings:'FILL'_1,'wght'_400,'GRAD'_0,'opsz'_20]"
+      style="font-size: 1rem;"
+      data-theme-toggle-icon
+    >
+      light_mode
+    </span>
+  </span>
+  <span
+    class="font-mono text-[0.65rem] uppercase tracking-[0.18em]"
+    data-theme-toggle-label
+  >
+    Light
+  </span>
+</button>
+
+<script is:inline>
+  const storageKey = 'theme';
+  const root = document.documentElement;
+  const toggle = document.querySelector('[data-theme-toggle]');
+  const icon = document.querySelector('[data-theme-toggle-icon]');
+  const label = document.querySelector('[data-theme-toggle-label]');
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+  const getEffectiveTheme = () => {
+    const explicitTheme = root.getAttribute('data-theme');
+    if (explicitTheme === 'light' || explicitTheme === 'dark') {
+      return explicitTheme;
+    }
+
+    return mediaQuery.matches ? 'dark' : 'light';
+  };
+
+  const syncToggle = theme => {
+    if (!toggle || !icon || !label) {
+      return;
+    }
+
+    const isDark = theme === 'dark';
+    icon.textContent = isDark ? 'dark_mode' : 'light_mode';
+    label.textContent = isDark ? 'Dark' : 'Light';
+    toggle.setAttribute(
+      'aria-label',
+      isDark ? 'Switch to light mode' : 'Switch to dark mode',
+    );
+    toggle.setAttribute('aria-pressed', String(isDark));
+  };
+
+  syncToggle(getEffectiveTheme());
+
+  toggle?.addEventListener('click', () => {
+    const nextTheme = getEffectiveTheme() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', nextTheme);
+
+    try {
+      window.localStorage.setItem(storageKey, nextTheme);
+    } catch {}
+
+    syncToggle(nextTheme);
+  });
+
+  const handleSystemThemeChange = () => {
+    let savedTheme = null;
+
+    try {
+      savedTheme = window.localStorage.getItem(storageKey);
+    } catch {}
+
+    if (savedTheme !== 'light' && savedTheme !== 'dark' && !root.hasAttribute('data-theme')) {
+      syncToggle(getEffectiveTheme());
+    }
+  };
+
+  if (typeof mediaQuery.addEventListener === 'function') {
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+  } else if (typeof mediaQuery.addListener === 'function') {
+    mediaQuery.addListener(handleSystemThemeChange);
+  }
+</script>

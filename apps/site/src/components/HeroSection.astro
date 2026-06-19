@@ -1,0 +1,61 @@
+---
+import PhoneMockup from './PhoneMockup.astro';
+import YardageMarker from './YardageMarker.astro';
+import {
+  eyebrowClass,
+  pillButtonClass,
+  revealClass,
+  sectionClass,
+  textButtonClass,
+} from '../lib/ui';
+
+const { ctaHref } = Astro.props;
+---
+
+<section
+  id="hero"
+  aria-labelledby="hero-heading"
+  class:list={[
+    sectionClass,
+    'relative bg-(--hero-bg) md:py-24 lg:border-t-0 lg:py-24 h-[calc(100vh-(--spacing(16)))] overflow-hidden flex items-center',
+  ]}
+>
+  <div class="mx-auto max-w-300">
+    <YardageMarker yard="0Y" label="Tee box" />
+
+    <div class="grid items-center gap-14 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-16">
+      <div class={revealClass} data-reveal style="--stagger: 40ms;">
+        <div class={eyebrowClass}>Where rounds are actually built</div>
+        <h1
+          id="hero-heading"
+          class="max-w-[10ch] text-[3.35rem] leading-[0.95] font-light tracking-[-0.06em] text-onbackground sm:text-[4.1rem] md:text-[4.8rem] lg:text-[5.5rem] xl:text-[6.05rem]"
+        >
+          Practice with <span class="text-primary font-medium">purpose.</span>
+        </h1>
+        <p class="mt-6 max-w-[43ch] text-[1rem] leading-7 text-(--body-soft) md:text-[1.1rem] md:leading-8">
+          Build drills. Compose them into sessions. Execute step by step at the range, with a
+          ball count, a focus cue, and a way back to where you left off.
+        </p>
+
+        <div class="mt-8 flex flex-wrap items-center gap-3">
+          <a href={ctaHref} class:list={[pillButtonClass, 'px-6 py-3 text-[0.95rem]']}>
+            Get Rangework
+          </a>
+          <a href="#how-it-works" class={textButtonClass}>
+            Walk the range
+            <span class="material-symbols-rounded text-[1rem]" aria-hidden="true">arrow_downward</span>
+          </a>
+        </div>
+      </div>
+
+      <div
+        class:list={[revealClass, 'mx-auto w-full max-w-76 justify-self-center lg:justify-self-end']}
+        data-reveal
+        style="--stagger: 180ms;"
+      >
+        <PhoneMockup />
+      </div>
+    </div>
+  </div>
+  <div class=" absolute bottom-0 left-0 right-0 w-full shadow-[0px_0px_30px_20px_var(--hero-bg)]" aria-hidden="true" />
+</section>

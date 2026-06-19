@@ -131,6 +131,7 @@
         "inverseOnSurface": { "value": "{color.palette.neutral.20.value}" },
         "inversePrimary": { "value": "{color.palette.primary.30.value}" },
         "surfaceTint": { "value": "{color.palette.primary.50.value}" },
+        "brandRod": { "value": "#386044" },
         "scrim": { "value": "#000000" }
       },
       "dark": {
@@ -162,6 +163,7 @@
         "inverseOnSurface": { "value": "{color.palette.neutral.80.value}" },
         "inversePrimary": { "value": "{color.palette.primary.60.value}" },
         "surfaceTint": { "value": "{color.palette.primary.30.value}" },
+        "brandRod": { "value": "#93C8A8" },
         "scrim": { "value": "#000000" }
       }
     }

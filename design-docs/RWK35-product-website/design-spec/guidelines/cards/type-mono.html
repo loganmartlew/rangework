@@ -1,0 +1,24 @@
+<!-- @dsCard group="Type" viewport="700x200" name="Mono numerics — RangeworkMono" subtitle="DM Mono for timers, ball/rep counts, metrics ONLY" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--background); }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  .line { display: flex; align-items: baseline; gap: 16px; }
+  .tag { font-family: var(--font-mono); font-size: 11px; color: var(--on-surface-variant); width: 130px; flex: none; }
+  .green { color: var(--secondary); }
+  .ink { color: var(--on-surface); }
+  .muted { color: var(--on-surface-variant); }
+</style>
+</head>
+<body>
+  <div class="stack">
+    <div class="line"><span class="tag">mono-large 32</span><span class="green rw-mono-large">02:30</span><span class="green rw-mono-large">68%</span></div>
+    <div class="line"><span class="tag">mono-medium 20</span><span class="ink rw-mono-medium">40 balls</span><span class="ink rw-mono-medium">×12 reps</span></div>
+    <div class="line"><span class="tag">mono-small 13</span><span class="muted rw-mono-small">3 instructions · 120 yds</span></div>
+  </div>
+</body>
+</html>

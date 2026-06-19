@@ -1,0 +1,30 @@
+<!-- @dsCard group="Brand" viewport="700x220" name="The mark" subtitle="Receding range bands + a teed rod. Two-colour & monochrome" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--background); display: flex; gap: 24px; }
+  .tile { flex: 1; border: 1px solid var(--outline-variant); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px 0; }
+  .tile img { width: 88px; height: 88px; }
+  .dark { background: var(--neutral-90); color: var(--neutral-30); }
+  .cap { font-family: var(--font-mono); font-size: 11px; color: var(--on-surface-variant); }
+  .dark .cap { color: var(--neutral-50); }
+</style>
+</head>
+<body>
+  <div class="tile">
+    <img src="../../assets/rangework-mark.svg" alt="Rangework two-colour mark">
+    <div class="cap">two-colour · light</div>
+  </div>
+  <div class="tile" style="color:var(--on-surface)">
+    <img src="../../assets/rangework-mark-mono.svg" alt="Rangework monochrome mark" style="color:var(--on-surface)">
+    <div class="cap">monochrome · currentColor</div>
+  </div>
+  <div class="tile dark" style="color:#93C8A8">
+    <img src="../../assets/rangework-mark-mono.svg" alt="Rangework mark on dark" style="color:#D5D3CF">
+    <div class="cap">on dark surface</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,44 @@
+---
+import YardageMarker from './YardageMarker.astro';
+import { revealClass, sectionClass } from '../lib/ui';
+---
+
+<section
+  id="the-gap"
+  aria-labelledby="reframe-heading"
+  class:list={[sectionClass, 'bg-surface']}
+>
+  <div class="mx-auto max-w-[1200px]">
+    <YardageMarker yard="50Y" label="The gap" />
+
+    <div class={revealClass} data-reveal style="--stagger: 40ms;">
+      <h2
+        id="reframe-heading"
+        class="max-w-[11ch] text-[2.4rem] leading-[1.02] font-light tracking-[-0.05em] text-onbackground md:text-[3.15rem] lg:text-[3.6rem]"
+      >
+        You&apos;ve got the tools. You&apos;re missing the plan.
+      </h2>
+    </div>
+
+    <div class="mt-8 grid gap-8 md:mt-10 md:grid-cols-2 md:gap-12">
+      <p
+        class:list={[revealClass, 'text-[1rem] leading-7 text-[var(--body-soft)] md:text-[1.08rem] md:leading-8']}
+        data-reveal
+        style="--stagger: 120ms;"
+      >
+        A launch monitor. A swing app. A GPS watch. A stat tracker. And still, when you get to
+        the range, you&apos;re standing over a pile of balls trying to remember what your coach said
+        and whether to start with driver or wedges.
+      </p>
+      <p
+        class:list={[revealClass, 'text-[1rem] leading-7 text-onbackground md:text-[1.08rem] md:leading-8']}
+        data-reveal
+        style="--stagger: 220ms;"
+      >
+        The gap is structure. Rangework fills it. Build your session at home, walk through it on
+        the mats, and pick up exactly where you left off if your phone dies or your mate wants to
+        chat.
+      </p>
+    </div>
+  </div>
+</section>
