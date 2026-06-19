@@ -5,6 +5,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.loganmartlew.rangework.shared.data.DataFoundation
 import com.loganmartlew.rangework.shared.model.RangeSession
+import com.loganmartlew.rangework.shared.model.completedBalls
+import com.loganmartlew.rangework.shared.model.completedStepCount
+import com.loganmartlew.rangework.shared.model.completionPercentage
+import com.loganmartlew.rangework.shared.model.totalBalls
+import com.loganmartlew.rangework.shared.model.totalStepCount
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -15,6 +20,16 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
+data class FinishSummaryData(
+    val sessionName: String,
+    val totalBalls: Int,
+    val completedBalls: Int,
+    val completionPercentage: Double,
+    val completedStepCount: Int,
+    val totalStepCount: Int,
+    val elapsedSeconds: Long?,
+)
+
 data class RangeSessionUiState(
     val rangeSession: RangeSession? = null,
     val currentStepIndex: Int = 0,
@@ -24,6 +39,10 @@ data class RangeSessionUiState(
     val notification: String? = null,
     val elapsedSeconds: Long = 0,
     val isTimerRunning: Boolean = false,
+    val showAbandonDialog: Boolean = false,
+    val finishSummary: FinishSummaryData? = null,
+    val isFinishing: Boolean = false,
+    val isAbandoning: Boolean = false,
 )
 
 class RangeSessionViewModel(
@@ -160,6 +179,114 @@ class RangeSessionViewModel(
 
     fun consumeNotification() {
         _uiState.value = _uiState.value.copy(notification = null)
+    }
+
+    fun overrideStepClub(stepIndex: Int, clubCode: String) {
+        val foundation = dataFoundation ?: return
+        viewModelScope.launch {
+            try {
+                val updatedSession = foundation.overrideStepClubUseCase(
+                    rangeSessionId = rangeSessionId,
+                    stepIndex = stepIndex,
+                    clubCode = clubCode,
+                )
+                _uiState.value = _uiState.value.copy(rangeSession = updatedSession)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    notification = "Failed to override club: ${e.message ?: "unknown error"}"
+                )
+            }
+        }
+    }
+
+    fun finishSession() {
+        val state = _uiState.value
+        val session = state.rangeSession ?: return
+        if (state.isFinishing) return
+
+        _uiState.value = state.copy(isFinishing = true)
+
+        val enteredAt = currentEnteredAt
+        currentEnteredAt = null
+        stopTick()
+        val finalElapsed = state.elapsedSeconds
+
+        val foundation = dataFoundation ?: run {
+            _uiState.value = _uiState.value.copy(isFinishing = false)
+            return
+        }
+
+        viewModelScope.launch {
+            if (enteredAt != null) {
+                try {
+                    foundation.closeTimeEntryUseCase(rangeSessionId, enteredAt, Clock.System.now())
+                } catch (_: Exception) { }
+            }
+            try {
+                foundation.finishRangeSessionUseCase(rangeSessionId)
+                val summary = FinishSummaryData(
+                    sessionName = session.sessionName,
+                    totalBalls = session.totalBalls(),
+                    completedBalls = session.completedBalls(),
+                    completionPercentage = session.completionPercentage(),
+                    completedStepCount = session.completedStepCount(),
+                    totalStepCount = session.totalStepCount(),
+                    elapsedSeconds = finalElapsed,
+                )
+                _uiState.value = _uiState.value.copy(
+                    isFinishing = false,
+                    finishSummary = summary,
+                    isTimerRunning = false,
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isFinishing = false,
+                    notification = "Failed to finish session: ${e.message ?: "unknown error"}",
+                )
+            }
+        }
+    }
+
+    fun requestAbandon() {
+        _uiState.value = _uiState.value.copy(showAbandonDialog = true)
+    }
+
+    fun dismissAbandon() {
+        _uiState.value = _uiState.value.copy(showAbandonDialog = false)
+    }
+
+    fun confirmAbandon(onNavigateBack: () -> Unit) {
+        val state = _uiState.value
+        if (state.isAbandoning) return
+
+        _uiState.value = state.copy(isAbandoning = true, showAbandonDialog = false)
+
+        val enteredAt = currentEnteredAt
+        currentEnteredAt = null
+        stopTick()
+
+        val foundation = dataFoundation ?: run {
+            _uiState.value = _uiState.value.copy(isAbandoning = false)
+            onNavigateBack()
+            return
+        }
+
+        viewModelScope.launch {
+            if (enteredAt != null) {
+                try {
+                    foundation.closeTimeEntryUseCase(rangeSessionId, enteredAt, Clock.System.now())
+                } catch (_: Exception) { }
+            }
+            try {
+                foundation.abandonRangeSessionUseCase(rangeSessionId)
+                onNavigateBack()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isAbandoning = false,
+                    notification = "Failed to abandon session: ${e.message ?: "unknown error"}",
+                )
+            }
+        }
     }
 
     fun onScreenEnter() {

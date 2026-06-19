@@ -30,11 +30,13 @@ import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.AuthUiState
 import com.loganmartlew.rangework.android.ui.PlannerStatus
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
+import com.loganmartlew.rangework.android.ui.components.ActiveRangeSessionCard
 import com.loganmartlew.rangework.android.ui.components.EmptyStateCard
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.auth.AuthState
+import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.NextMoveState
 import com.loganmartlew.rangework.shared.model.PracticeSession
@@ -52,10 +54,12 @@ internal fun OverviewScreen(
     onNavigateToSessions: () -> Unit,
     onNavigateToUnitDetail: (String) -> Unit,
     onNavigateToSessionDetail: (String) -> Unit,
+    onNavigateToRangeSession: (String) -> Unit = {},
     onCreateUnit: () -> Unit,
     onCreateSession: () -> Unit,
     onEditUnit: (String) -> Unit,
     onEditSession: (String) -> Unit,
+    onStartSession: () -> Unit = {},
 ) {
     val signedInState = authUiState.authState as? AuthState.SignedIn
     val isFirstRun = plannerUiState.hasLoaded &&
@@ -100,6 +104,10 @@ internal fun OverviewScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     GreetingStrip(greeting = greeting, email = email)
+                    ActiveSessionsCarousel(
+                        activeSessions = plannerUiState.activeRangeSessions,
+                        onSessionSelected = onNavigateToRangeSession,
+                    )
                     StatCardRow(
                         unitCount = plannerUiState.units.size,
                         sessionCount = plannerUiState.sessions.size,
@@ -131,6 +139,10 @@ internal fun OverviewScreen(
             }
         } else {
             GreetingStrip(greeting = greeting, email = email)
+            ActiveSessionsCarousel(
+                activeSessions = plannerUiState.activeRangeSessions,
+                onSessionSelected = onNavigateToRangeSession,
+            )
             StatCardRow(
                 unitCount = plannerUiState.units.size,
                 sessionCount = plannerUiState.sessions.size,
@@ -426,6 +438,32 @@ private fun RecentCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+    }
+}
+
+@Composable
+private fun ActiveSessionsCarousel(
+    activeSessions: List<ActiveRangeSessionSummary>,
+    onSessionSelected: (String) -> Unit,
+) {
+    if (activeSessions.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Active sessions".uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(activeSessions, key = { it.id }) { session ->
+                ActiveRangeSessionCard(
+                    session = session,
+                    onClick = { onSessionSelected(session.id) },
+                )
+            }
         }
     }
 }

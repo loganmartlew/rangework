@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.GolfCourse
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AssistChip
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -38,6 +39,7 @@ import com.loganmartlew.rangework.android.ui.components.BriefingRow
 import com.loganmartlew.rangework.android.ui.components.EmptyStateCard
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.NumberBadge
+import com.loganmartlew.rangework.android.ui.components.RangeSessionHistoryItem
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
@@ -53,7 +55,11 @@ internal fun SessionDetailScreen(
     onCreateSession: () -> Unit,
     onEditSession: () -> Unit,
     onStartSession: () -> Unit = {},
+    onSessionDetailViewed: () -> Unit = {},
 ) {
+    LaunchedEffect(sessionId) {
+        onSessionDetailViewed()
+    }
     val session = plannerUiState.sessions.firstOrNull { it.id == sessionId }
     val unitsById = remember(plannerUiState.units) {
         plannerUiState.units.associateBy(PracticeUnit::id)
@@ -170,6 +176,33 @@ internal fun SessionDetailScreen(
                         if (index != session.items.lastIndex) {
                             HorizontalDivider()
                         }
+                    }
+                }
+            }
+        }
+
+        // Range session history section
+        val history = plannerUiState.completedRangeSessionHistory[sessionId] ?: emptyList()
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = "Session history",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                if (history.isEmpty()) {
+                    Text(
+                        text = "No completed sessions yet.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    history.forEach { completedSession ->
+                        RangeSessionHistoryItem(session = completedSession)
                     }
                 }
             }

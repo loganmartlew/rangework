@@ -79,6 +79,7 @@ import com.loganmartlew.rangework.android.ui.components.DeleteConfirmationDialog
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.OverflowMenu
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.SessionPickerDialog
 import com.loganmartlew.rangework.android.ui.components.showUndoSnackbar
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeUnit
@@ -276,6 +277,12 @@ fun RangeworkApp(
                         onRestoreUnit = plannerViewModel::restoreUnit,
                         onRestoreSession = plannerViewModel::restoreSession,
                         onStartRangeSession = plannerViewModel::startRangeSession,
+                        onLoadActiveRangeSessions = plannerViewModel::loadActiveRangeSessions,
+                        onStartRangeSessionFromPicker = plannerViewModel::startRangeSessionFromPicker,
+                        onLoadRangeSessionHistory = plannerViewModel::loadRangeSessionHistory,
+                        onNavigateToRangeSession = { rangeSessionId ->
+                            rootNavController.navigate(RangeworkRoutes.rangeSession(rangeSessionId))
+                        },
                     )
                 }
                 composable(RangeworkRoutes.RangeSession) { backStackEntry ->
@@ -300,6 +307,16 @@ fun RangeworkApp(
                         onScreenEnter = rangeSessionViewModel::onScreenEnter,
                         onScreenExit = rangeSessionViewModel::onScreenExit,
                         onBack = { rootNavController.popBackStack() },
+                        enabledClubs = plannerUiState.clubCatalog.filter { it.code in plannerUiState.enabledClubCodes },
+                        onClubOverride = { stepIndex, clubCode ->
+                            rangeSessionViewModel.overrideStepClub(stepIndex, clubCode)
+                        },
+                        onFinish = rangeSessionViewModel::finishSession,
+                        onRequestAbandon = rangeSessionViewModel::requestAbandon,
+                        onDismissAbandon = rangeSessionViewModel::dismissAbandon,
+                        onConfirmAbandon = {
+                            rangeSessionViewModel.confirmAbandon { rootNavController.popBackStack() }
+                        },
                     )
                 }
             }
@@ -399,6 +416,10 @@ private fun AuthenticatedAppShell(
     onRestoreUnit: (PracticeUnit) -> Unit,
     onRestoreSession: (PracticeSession) -> Unit,
     onStartRangeSession: (String) -> Unit,
+    onLoadActiveRangeSessions: () -> Unit,
+    onStartRangeSessionFromPicker: (String) -> Unit,
+    onLoadRangeSessionHistory: (String) -> Unit,
+    onNavigateToRangeSession: (String) -> Unit,
 ) {
     if (authUiState.authState !is AuthState.SignedIn) {
         Box(modifier = Modifier.fillMaxSize())
@@ -425,6 +446,10 @@ private fun AuthenticatedAppShell(
     var justDeletedUnit by remember { mutableStateOf<PracticeUnit?>(null) }
     var justDeletedSession by remember { mutableStateOf<PracticeSession?>(null) }
 
+    // Session picker state (for FAB action on Overview)
+    var showSessionPickerDialog by remember { mutableStateOf(false) }
+    var isStartingRangeSession by remember { mutableStateOf(false) }
+
     LaunchedEffect(plannerUiState.status) {
         val s = plannerUiState.status
         if (s?.showAsSnackbar == true && s is PlannerStatus.Notification) {
@@ -443,6 +468,13 @@ private fun AuthenticatedAppShell(
         plannerUiState.duplicatedUnitId?.let { unitId ->
             unitActions.onClearDuplicatedId()
             shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
+        }
+    }
+
+    LaunchedEffect(plannerUiState.startedRangeSessionId) {
+        if (plannerUiState.startedRangeSessionId != null) {
+            isStartingRangeSession = false
+            showSessionPickerDialog = false
         }
     }
 
@@ -467,6 +499,9 @@ private fun AuthenticatedAppShell(
     LaunchedEffect(currentRoute) {
         if (currentRoute.shouldRefreshPlanningOnEnter()) {
             onRefreshPlanningOnNavigation()
+        }
+        if (currentRoute == RangeworkRoutes.Overview) {
+            onLoadActiveRangeSessions()
         }
     }
 
@@ -587,12 +622,36 @@ private fun AuthenticatedAppShell(
         )
     }
 
+    if (showSessionPickerDialog) {
+        val unitsById = remember(plannerUiState.units) {
+            plannerUiState.units.associateBy { it.id }
+        }
+        SessionPickerDialog(
+            sessions = plannerUiState.sessions,
+            unitsByIdMap = unitsById,
+            isLoading = isStartingRangeSession,
+            onSessionSelected = { sessionId ->
+                isStartingRangeSession = true
+                onStartRangeSessionFromPicker(sessionId)
+            },
+            onDismiss = {
+                showSessionPickerDialog = false
+            },
+        )
+    }
+
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.safeDrawing,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             when (currentRoute) {
+                RangeworkRoutes.Overview -> {
+                    RangeworkFab(
+                        onClick = { showSessionPickerDialog = true },
+                        contentDescription = "Start a session",
+                    )
+                }
                 RangeworkRoutes.Units -> {
                     when (listFabStyleForCount(plannerUiState.units.size)) {
                         ListFabStyle.Hidden -> Unit
@@ -835,6 +894,7 @@ private fun AuthenticatedAppShell(
                             onNavigateToSessionDetail = { sessionId ->
                                 shellNavController.navigate(RangeworkRoutes.sessionDetail(sessionId))
                             },
+                            onNavigateToRangeSession = onNavigateToRangeSession,
                             onCreateUnit = {
                                 unitActions.onBeginNew()
                                 shellNavController.navigate(RangeworkRoutes.UnitCreate)
@@ -850,6 +910,10 @@ private fun AuthenticatedAppShell(
                             onEditSession = { sessionId ->
                                 sessionActions.onEdit(sessionId)
                                 shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
+                            },
+                            onStartSession = {
+                                showSessionPickerDialog = true
+                                onLoadActiveRangeSessions()
                             },
                         )
                     }
@@ -1023,6 +1087,9 @@ private fun AuthenticatedAppShell(
                                 shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
                             },
                             onStartSession = { onStartRangeSession(sessionId) },
+                            onSessionDetailViewed = {
+                                onLoadRangeSessionHistory(sessionId)
+                            },
                         )
                     }
                     composable(RangeworkRoutes.SessionEdit) { backStackEntry ->

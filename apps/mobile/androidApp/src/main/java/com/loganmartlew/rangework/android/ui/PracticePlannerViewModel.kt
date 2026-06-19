@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.config.AppEnvironment
 import com.loganmartlew.rangework.shared.data.DataFoundation
+import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.Club
+import com.loganmartlew.rangework.shared.model.CompletedRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
 import com.loganmartlew.rangework.shared.model.PracticeInstructionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSession
@@ -101,6 +103,8 @@ data class PracticePlannerUiState(
     val duplicatedUnitId: String? = null,
     val duplicatedSessionId: String? = null,
     val startedRangeSessionId: String? = null,
+    val activeRangeSessions: List<ActiveRangeSessionSummary> = emptyList(),
+    val completedRangeSessionHistory: Map<String, List<CompletedRangeSessionSummary>> = emptyMap(),
     val status: PlannerStatus? = if (dataConfigured) null else PlannerStatus.Unavailable,
 ) {
     val isWorking: Boolean
@@ -184,6 +188,8 @@ class PracticePlannerViewModel(
                     duplicatedUnitId = null,
                     duplicatedSessionId = null,
                     startedRangeSessionId = null,
+                    activeRangeSessions = emptyList(),
+                    completedRangeSessionHistory = emptyMap(),
                     status = if (dataFoundation == null) {
                         PlannerStatus.Unavailable
                     } else {
@@ -881,6 +887,60 @@ class PracticePlannerViewModel(
                 )
             } catch (e: Exception) {
                 // Club catalog failures are non-fatal; picker will show empty options
+            }
+        }
+    }
+
+    fun loadActiveRangeSessions() {
+        val foundation = dataFoundation ?: return
+        viewModelScope.launch {
+            try {
+                val activeSessions = foundation.listActiveRangeSessionsUseCase()
+                _uiState.value = _uiState.value.copy(activeRangeSessions = activeSessions)
+            } catch (e: Exception) {
+                // Non-fatal: active sessions simply won't be shown
+            }
+        }
+    }
+
+    fun loadRangeSessionHistory(sessionId: String) {
+        val foundation = dataFoundation ?: return
+        viewModelScope.launch {
+            try {
+                val history = foundation.listCompletedRangeSessionsUseCase(sessionId)
+                _uiState.value = _uiState.value.copy(
+                    completedRangeSessionHistory = _uiState.value.completedRangeSessionHistory.toMutableMap()
+                        .apply { put(sessionId, history) }
+                )
+            } catch (e: Exception) {
+                // Non-fatal: history simply won't be shown
+            }
+        }
+    }
+
+    fun startRangeSessionFromPicker(sessionId: String) {
+        val foundation = dataFoundation ?: return
+        viewModelScope.launch {
+            try {
+                val newSession = foundation.startRangeSessionUseCase(sessionId)
+                _uiState.value = _uiState.value.copy(startedRangeSessionId = newSession.id)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    status = PlannerStatus.Notification("Failed to start session: ${e.message ?: "unknown error"}")
+                )
+            }
+        }
+    }
+
+    fun checkActiveSessionsForTemplate(sessionId: String, onResult: (Boolean) -> Unit) {
+        val foundation = dataFoundation ?: return
+        viewModelScope.launch {
+            try {
+                val hasActive = foundation.hasActiveRangeSessionsUseCase(sessionId)
+                onResult(hasActive)
+            } catch (e: Exception) {
+                // Default to no active sessions on error
+                onResult(false)
             }
         }
     }

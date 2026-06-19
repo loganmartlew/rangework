@@ -17,15 +17,19 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
+import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.SnapshotStep
 
 @Composable
@@ -35,8 +39,11 @@ internal fun ExecutionStepCard(
     totalSteps: Int,
     isCompleted: Boolean,
     onToggleComplete: () -> Unit,
+    enabledClubs: List<Club> = emptyList(),
+    onClubOverride: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val showClubPicker = remember { mutableStateOf(false) }
     val contextLabel = buildString {
         append(step.unitTitle)
         append(" — Step ")
@@ -130,23 +137,64 @@ internal fun ExecutionStepCard(
                         }
                     }
                     step.clubDisplayName?.takeIf(String::isNotBlank)?.let { name ->
+                        val canOverride = enabledClubs.isNotEmpty() && step.club != null
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically,
+                            modifier = if (canOverride) {
+                                Modifier
+                                    .semantics { contentDescription = "Club: $name, tap to change" }
+                            } else {
+                                Modifier
+                            },
                         ) {
                             Icon(
                                 imageVector = Icons.Default.GolfCourse,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Text(
-                                text = name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
+                            if (canOverride) {
+                                Text(
+                                    text = name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.semantics { contentDescription = "Club override: $name, tap to change" },
+                                )
+                            } else {
+                                Text(
+                                    text = name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                            if (canOverride) {
+                                IconButton(
+                                    onClick = { showClubPicker.value = true },
+                                    modifier = Modifier.semantics { contentDescription = "Change club" },
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.GolfCourse,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
+            }
+
+            val stepClub = step.club
+            if (showClubPicker.value && enabledClubs.isNotEmpty() && stepClub != null) {
+                ClubOverridePickerDialog(
+                    currentClubCode = stepClub,
+                    availableClubs = enabledClubs,
+                    onClubSelected = { newClubCode ->
+                        onClubOverride(newClubCode)
+                        showClubPicker.value = false
+                    },
+                    onDismiss = { showClubPicker.value = false },
+                )
             }
 
             // Focus cue
