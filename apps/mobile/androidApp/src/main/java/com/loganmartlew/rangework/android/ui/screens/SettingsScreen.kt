@@ -403,7 +403,7 @@ internal fun SettingsScreen(
             ) {
                 Text("Help", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    text = "Rangework helps you plan focused golf practice sessions. Build reusable units — each with ordered instructions and a ball count — then combine them into sessions. Use the Overview screen to review your plan at a glance.",
+                    text = "Rangework helps you plan focused golf practice sessions. Build reusable units, each with ordered instructions and a ball count, then combine them into sessions. Use the Overview screen to review your plan at a glance.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

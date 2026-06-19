@@ -24,7 +24,7 @@ class AppBootstrapMessageUseCase {
             detail = if (environment.isAuthConfigured) {
                 "Build repeatable units, assemble them into sessions, and pick up the same plan on $platformName."
             } else {
-                "Rangework is set up for focused practice planning — enable sign-in before plans can sync across devices."
+                "Rangework is set up for focused practice planning. Enable sign-in before plans can sync across devices."
             },
         )
     }

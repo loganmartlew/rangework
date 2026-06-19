@@ -153,7 +153,7 @@ private fun ReorderableItemRowPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "First item — can't move up")
+@Preview(showBackground = true, name = "First item, can't move up")
 @Composable
 private fun ReorderableItemRowFirstPreview() {
     RangeworkTheme {
