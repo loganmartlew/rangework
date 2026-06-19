@@ -29,7 +29,7 @@ export const buttonVariants = cva(
 );
 
 export const buttonTextVariants = cva(
-  "whitespace-nowrap text-sm font-medium transition-colors text-onprimarycontainer",
+  "whitespace-nowrap text-sm font-medium transition-colors text-onprimarycontainer flex items-center gap-2",
   {
     variants: {
       variant: {
@@ -43,7 +43,7 @@ export const buttonTextVariants = cva(
       size: {
         default: "",
         sm: "",
-        lg: "text-lg",
+        lg: "text-xl",
         icon: "",
       },
     },

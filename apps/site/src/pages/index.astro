@@ -1,7 +1,18 @@
 ---
+import Button from '../components/Button.astro';
 import Layout from '../layouts/Layout.astro';
+import SessionCard from '../assets/session-card.svg';
 ---
 
-<Layout>
-	<h1>Rangework</h1>
+<Layout class="flex flex-col items-center justify-center h-screen">
+	<section class="h-screen w-screen grid grid-cols-2">
+		<div class="flex flex-col items-start justify-center px-16 gap-8">
+			<h1 class="text-5xl font-bold">Practice with <span class="text-primary">Purpose.</span></h1>
+			<p>Rangework helps you build structured drills, compose them into full sessions, and execute them step-by-step at the range, so every ball has a purpose.</p>
+			<Button size="lg" class="flex items-center">Get Started <span class="material-symbols-outlined">arrow_forward</span></Button>
+		</div>
+		<div class="flex items-center justify-center px-16">
+			<SessionCard width="80%" height="80%" />
+		</div>
+	</section>
 </Layout>

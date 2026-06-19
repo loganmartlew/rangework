@@ -32,6 +32,9 @@ importers:
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
+      material-symbols:
+        specifier: ^0.45.2
+        version: 0.45.2
       tailwindcss:
         specifier: ^4.3.1
         version: 4.3.1
@@ -1526,6 +1529,9 @@ packages:
 
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
+
+  material-symbols@0.45.2:
+    resolution: {integrity: sha512-TxcmySpXFc+03tgyl0Z6J1Yvn5/eY9b9vnizJu5Xg3RrrL5jFLp3KlZKq5k2ttKj3SqH/omofH7BwZMO/zk1mw==}
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -3740,6 +3746,8 @@ snapshots:
       source-map-js: 1.2.1
 
   markdown-table@3.0.4: {}
+
+  material-symbols@0.45.2: {}
 
   math-intrinsics@1.1.0: {}
 

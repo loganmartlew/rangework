@@ -1,0 +1,63 @@
+<svg width="920" height="720" viewBox="-60 -40 920 720" fill="none"
+  xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&amp;family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&amp;display=swap');
+      
+      .font-mono { font-family: 'DM Mono', monospace; font-weight: 500; }
+      .font-sans { font-family: 'DM Sans', sans-serif; }
+      .font-sans-bold { font-family: 'DM Sans', sans-serif; font-weight: 700; }
+      
+      .text-white { fill: #FFFFFF; }
+      .text-muted { fill: #8E8E8E; }
+      .text-green { fill: #82CBB2; }
+    </style>
+
+    <filter id="card-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="5" stdDeviation="12" flood-color="#8FC8A8" flood-opacity="0.15" />
+    </filter>
+  </defs>
+
+  <rect width="800" height="640" rx="24" fill="#000000" filter="url(#card-shadow)" />
+
+  <rect width="800" height="640" rx="24" fill="#131211" />
+
+  <rect x="40" y="32" width="720" height="6" rx="3" fill="#2E2D2B" />
+  <rect x="40" y="32" width="360" height="6" rx="3" fill="#82CBB2" />
+  <circle cx="757" cy="35" r="2" fill="#82CBB2" />
+
+  <text x="64" y="92" class="font-mono text-white" font-size="36">12/24</text>
+  <text x="175" y="90" class="font-sans text-muted" font-size="16">steps</text>
+
+  <text x="370" y="92" class="font-mono text-white" font-size="36">40/61</text>
+  <text x="480" y="90" class="font-sans text-muted" font-size="16">balls</text>
+
+  <text x="736" y="92" class="font-mono text-green" font-size="32" text-anchor="end">50%</text>
+
+  <circle cx="74" cy="126" r="6" fill="#82CBB2" />
+  <circle cx="94" cy="126" r="6" fill="#82CBB2" />
+  <circle cx="114" cy="126" r="6" fill="#2E2D2B" />
+
+  <rect x="72" y="160" width="656" height="440" rx="28" fill="#292724" />
+
+  <text x="112" y="218" class="font-sans-bold text-white" font-size="26" letter-spacing="-0.5">3
+    Shot Shaping Drill</text>
+  <text x="112" y="250" class="font-sans text-muted" font-size="16">Step 17 of 24 • Rep 5 of 7</text>
+
+  <line x1="112" y1="280" x2="688" y2="280" stroke="#3A3835" stroke-width="1" />
+
+  <text x="112" y="332" class="font-sans text-white" font-size="24">Hit a shot with draw spin</text>
+
+  <text x="112" y="410" class="font-mono text-white" font-size="36">1</text>
+  <text x="112" y="440" class="font-sans text-muted" font-size="16">balls</text>
+
+  <g transform="translate(210, 395)">
+    <path d="M4 24H6V2H4V24ZM6 2L22 9L6 16V2Z" fill="#8E8E8E" />
+    <circle cx="26" cy="23" r="3" fill="#8E8E8E" />
+    <text x="46" y="18" class="font-sans text-white" font-size="22">7-Iron</text>
+  </g>
+
+  <rect x="112" y="484" width="576" height="68" rx="34" fill="#2D463E" />
+  <text x="400" y="525" class="font-sans-bold text-green" font-size="20" text-anchor="middle"
+    letter-spacing="0.2">Mark Complete</text>
+</svg>
