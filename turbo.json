@@ -24,6 +24,10 @@
         "androidApp/build/reports/lint-results-*.html",
         "shared/build/reports/lint-results-*.html"
       ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
     }
   }
 }

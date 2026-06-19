@@ -6,6 +6,7 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
+    "dev": "turbo run dev",
     "tokens:build": "pnpm --filter @rangework/ui-tokens build",
     "mobile:assemble:debug": "pnpm --filter @rangework/mobile assemble:debug",
     "mobile:assemble:release": "pnpm --filter @rangework/mobile assemble:release",
