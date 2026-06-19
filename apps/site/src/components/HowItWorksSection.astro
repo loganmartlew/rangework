@@ -32,13 +32,13 @@ const steps = [
   aria-labelledby="how-it-works-heading"
   class:list={[sectionClass, 'bg-background']}
 >
-  <div class="mx-auto max-w-[1200px]">
+  <div class="mx-auto max-w-300">
     <YardageMarker yard="100Y" label="The system" />
 
     <div class={revealClass} data-reveal style="--stagger: 40ms;">
       <h2
         id="how-it-works-heading"
-        class="text-[2.2rem] leading-[1.04] font-light tracking-[-0.05em] text-onbackground md:text-[2.9rem] lg:text-[3.2rem]"
+        class="text-[2.2rem] leading-[1.04] font-light tracking-tighter text-onbackground md:text-[2.9rem] lg:text-[3.2rem]"
       >
         Build. Plan. Execute.
       </h2>
@@ -56,8 +56,8 @@ const steps = [
           <h3 class="mt-6 text-[1.3rem] leading-tight font-medium tracking-[-0.03em] text-onbackground">
             {step.title}
           </h3>
-          <p class="mt-3 text-[0.97rem] leading-7 text-[var(--body-soft)]">{step.body}</p>
-          <div class="mt-5 border-t border-dashed border-[var(--border-dash)] pt-4 font-mono text-[0.68rem] uppercase tracking-[0.12em] text-[var(--label-muted)]">
+          <p class="mt-3 text-[0.97rem] leading-7 text-(--body-soft)">{step.body}</p>
+          <div class="mt-5 border-t border-dashed border-(--border-dash) pt-4 font-mono text-[0.68rem] uppercase tracking-[0.12em] text-(--label-muted)">
             {step.note}
           </div>
         </article>

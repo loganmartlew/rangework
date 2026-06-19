@@ -3,8 +3,8 @@ const { yard, label } = Astro.props;
 ---
 
 <div class="mb-8 flex items-center gap-3 lg:hidden">
-  <span class="inline-flex rounded-full bg-[var(--badge-bg)] px-3 py-1 font-mono text-[0.78rem] font-medium tracking-[0.14em] text-[var(--badge-on)]">
+  <span class="inline-flex rounded-full bg-(--badge-bg) px-3 py-1 font-mono text-[0.78rem] font-medium tracking-[0.14em] text-(--badge-on)">
     {yard}
   </span>
-  <span class="font-mono text-[0.7rem] uppercase tracking-[0.18em] text-[var(--label-muted)]">{label}</span>
+  <span class="font-mono text-[0.7rem] uppercase tracking-[0.18em] text-(--label-muted)">{label}</span>
 </div>

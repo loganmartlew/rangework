@@ -6,7 +6,7 @@ import { focusRingClass } from '../lib/ui';
   type="button"
   class:list={[
     focusRingClass,
-    'inline-flex items-center gap-2 rounded-full bg-[var(--toggle-bg)] px-3 py-1.5 pl-[0.45rem] text-[var(--label-muted)] transition-[background-color,color,box-shadow] duration-[220ms] ease-[var(--ease-standard)] hover:bg-[var(--toggle-bg-hover)]',
+    'inline-flex items-center gap-2 rounded-full bg-(--toggle-bg) px-3 py-1.5 pl-[0.45rem] text-(--label-muted) transition-[background-color,color,box-shadow] duration-220 ease-(--ease-standard) hover:bg-(--toggle-bg-hover)',
   ]}
   data-theme-toggle
   aria-label="Switch to dark mode"
@@ -14,10 +14,10 @@ import { focusRingClass } from '../lib/ui';
 >
   <span
     aria-hidden="true"
-    class="grid h-[1.375rem] w-[1.375rem] shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-onprimary"
+    class="grid h-5.5 w-5.5 shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-onprimary"
   >
     <span
-      class="material-symbols-rounded block text-[0.75rem] leading-none [font-variation-settings:'FILL'_1,'wght'_400,'GRAD'_0,'opsz'_20]"
+      class="material-symbols-rounded block text-xs leading-none [font-variation-settings:'FILL'_1,'wght'_400,'GRAD'_0,'opsz'_20]"
       style="font-size: 1rem;"
       data-theme-toggle-icon
     >
@@ -72,7 +72,7 @@ import { focusRingClass } from '../lib/ui';
 
     try {
       window.localStorage.setItem(storageKey, nextTheme);
-    } catch {}
+    } catch {} // eslint-disable-line no-empty
 
     syncToggle(nextTheme);
   });
@@ -82,7 +82,7 @@ import { focusRingClass } from '../lib/ui';
 
     try {
       savedTheme = window.localStorage.getItem(storageKey);
-    } catch {}
+    } catch {} // eslint-disable-line no-empty
 
     if (savedTheme !== 'light' && savedTheme !== 'dark' && !root.hasAttribute('data-theme')) {
       syncToggle(getEffectiveTheme());

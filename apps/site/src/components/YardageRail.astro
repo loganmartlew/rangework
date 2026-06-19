@@ -1,24 +1,28 @@
 ---
 import { focusRingClass, themeTransitionClass } from '../lib/ui';
 
+interface Props {
+  markers: { href: string; yard: string; label: string }[];
+}
+
 const { markers } = Astro.props;
 ---
 
 <aside class:list={[themeTransitionClass, 'hidden lg:block']} aria-label="Section map">
-  <div class="sticky top-16 min-h-[calc(100vh-4rem)] border-r border-dashed border-[var(--border-dash)] bg-[var(--rail-bg)]">
+  <div class="sticky top-16 min-h-[calc(100vh-4rem)] border-r border-dashed border-(--border-dash) bg-(--rail-bg)">
     <ol class="flex min-h-[calc(100vh-4rem)] flex-col">
       {markers.map((marker, index) => (
-        <li class="flex min-h-[7.25rem] flex-1 border-t border-dashed border-[var(--border-dash)] first:border-t-0">
+        <li class="flex min-h-29 flex-1 border-t border-dashed border-(--border-dash) first:border-t-0">
           <a
             href={marker.href}
             class:list={[
               focusRingClass,
-              'flex w-full flex-col gap-1 px-6 py-8 transition-[background-color,color,box-shadow] duration-200 ease-[var(--ease-standard)] hover:bg-[var(--tag-bg)]',
+              'flex w-full flex-col gap-1 px-6 py-8 transition-[background-color,color,box-shadow] duration-200 ease-(--ease-standard) hover:bg-(--tag-bg)',
             ]}
           >
             <span class="font-mono text-[1.35rem] font-medium leading-none text-primary">{marker.yard}</span>
             <span class:list={[
-              'font-mono text-[0.62rem] uppercase tracking-[0.18em] text-[var(--label-muted)]',
+              'font-mono text-[0.62rem] uppercase tracking-[0.18em] text-(--label-muted)',
               index === markers.length - 1 && 'text-primary',
             ]}>
               {marker.label}

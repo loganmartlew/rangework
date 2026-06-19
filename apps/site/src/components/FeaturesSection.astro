@@ -31,13 +31,13 @@ const features = [
   aria-labelledby="features-heading"
   class:list={[sectionClass, 'bg-surface']}
 >
-  <div class="mx-auto max-w-[1200px]">
+  <div class="mx-auto max-w-300">
     <YardageMarker yard="150Y" label="Built for range" />
 
     <div class={revealClass} data-reveal style="--stagger: 40ms;">
       <h2
         id="features-heading"
-        class="max-w-[14ch] text-[2.2rem] leading-[1.04] font-light tracking-[-0.05em] text-onbackground md:text-[2.9rem] lg:text-[3.2rem]"
+        class="max-w-[14ch] text-[2.2rem] leading-[1.04] font-light tracking-tighter text-onbackground md:text-[2.9rem] lg:text-[3.2rem]"
       >
         Built for the range, not the round.
       </h2>
@@ -57,7 +57,7 @@ const features = [
             <h3 class="text-[1.12rem] leading-tight font-medium tracking-[-0.02em] text-onbackground">
               {feature.title}
             </h3>
-            <p class="mt-2 text-[0.97rem] leading-7 text-[var(--body-soft)]">{feature.body}</p>
+            <p class="mt-2 text-[0.97rem] leading-7 text-(--body-soft)">{feature.body}</p>
           </div>
         </article>
       ))}
