@@ -4,7 +4,13 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/ui-tokens/**'
   pull_request:
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/ui-tokens/**'
   workflow_dispatch:
 
 concurrency:
