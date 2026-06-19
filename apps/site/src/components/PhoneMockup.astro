@@ -5,22 +5,22 @@ import { themeTransitionClass } from '../lib/ui';
 <div
   class:list={[
     themeTransitionClass,
-    'w-full max-w-[19rem] rounded-[2.25rem] bg-[var(--phone-shell-bg)] p-[0.55rem] shadow-[0_2rem_4rem_rgba(0,0,0,0.22),0_0_0_1px_rgba(255,255,255,0.04)_inset]',
+    'w-full max-w-76 rounded-[2.25rem] bg-(--phone-shell-bg) p-[0.55rem] shadow-[0_2rem_4rem_rgba(0,0,0,0.22),0_0_0_1px_rgba(255,255,255,0.04)_inset]',
   ]}
   aria-hidden="true"
 >
   <div
     class:list={[
       themeTransitionClass,
-      'flex min-h-[32.5rem] flex-col rounded-[1.75rem] bg-surface p-[1.15rem]',
+      'flex min-h-130 flex-col rounded-[1.75rem] bg-surface p-[1.15rem]',
     ]}
   >
-    <div class="mb-4 flex items-center justify-between font-mono text-[0.62rem] tracking-[0.14em] text-[var(--phone-status)]">
+    <div class="mb-4 flex items-center justify-between font-mono text-[0.62rem] tracking-[0.14em] text-(--phone-status)">
       <span>9:41</span>
       <span>●●●</span>
     </div>
 
-    <div class="font-mono text-[0.58rem] uppercase tracking-[0.18em] text-[var(--label-muted)]">
+    <div class="font-mono text-[0.58rem] uppercase tracking-[0.18em] text-(--label-muted)">
       Pre-round warm-up · Step 02
     </div>
     <p class="mt-2 text-[1.35rem] leading-tight font-medium tracking-[-0.02em] text-onbackground">
@@ -28,24 +28,24 @@ import { themeTransitionClass } from '../lib/ui';
     </p>
 
     <div class="mt-4 grid grid-cols-2 gap-2.5">
-      <div class="rounded-[0.9rem] bg-[var(--badge-bg)] p-3">
-        <div class="font-mono text-[0.58rem] uppercase tracking-[0.16em] text-[var(--badge-on)]">Carry</div>
+      <div class="rounded-[0.9rem] bg-(--badge-bg) p-3">
+        <div class="font-mono text-[0.58rem] uppercase tracking-[0.16em] text-(--badge-on)">Carry</div>
         <div class="mt-1 font-mono text-[1.3rem] font-medium leading-none text-onbackground">150Y</div>
       </div>
-      <div class="rounded-[0.9rem] bg-[var(--badge-bg)] p-3">
-        <div class="font-mono text-[0.58rem] uppercase tracking-[0.16em] text-[var(--badge-on)]">Tempo</div>
+      <div class="rounded-[0.9rem] bg-(--badge-bg) p-3">
+        <div class="font-mono text-[0.58rem] uppercase tracking-[0.16em] text-(--badge-on)">Tempo</div>
         <div class="mt-1 text-[0.95rem] font-medium text-onbackground">3:1 down</div>
       </div>
     </div>
 
-    <p class="mt-4 max-w-[20ch] text-[0.9rem] leading-6 text-[var(--body-soft)]">
+    <p class="mt-4 max-w-[20ch] text-[0.9rem] leading-6 text-(--body-soft)">
       Same target. Same tempo. Same start line every ball.
     </p>
 
     <div class="mt-auto flex items-end justify-between gap-4">
       <div>
-        <div class="font-mono text-[2.35rem] font-medium leading-none text-[var(--phone-metric)]">15</div>
-        <div class="mt-1 font-mono text-[0.58rem] uppercase tracking-[0.16em] text-[var(--label-muted)]">Balls</div>
+        <div class="font-mono text-[2.35rem] font-medium leading-none text-(--phone-metric)">15</div>
+        <div class="mt-1 font-mono text-[0.58rem] uppercase tracking-[0.16em] text-(--label-muted)">Balls</div>
       </div>
 
       <div class="inline-flex items-center rounded-full bg-primary px-4 py-2.5 text-[0.72rem] font-medium uppercase tracking-[0.08em] text-onprimary">

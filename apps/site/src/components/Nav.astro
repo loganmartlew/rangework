@@ -24,7 +24,7 @@ const { ctaHref } = Astro.props;
         width="22"
         height="22"
         data-logo-mark
-        class="h-[1.375rem] w-[1.375rem] shrink-0 transition-[filter,opacity] duration-[220ms] ease-[var(--ease-standard)]"
+        class="h-5.5 w-5.5 shrink-0 transition-[filter,opacity] duration-220 ease-(--ease-standard)"
       />
       <span class="text-[1rem] font-medium tracking-[-0.02em] text-onbackground">Rangework</span>
     </a>
@@ -34,7 +34,7 @@ const { ctaHref } = Astro.props;
         href="#how-it-works"
         class:list={[
           focusRingClass,
-          'rounded-full px-1 py-1 text-[0.95rem] font-medium text-[var(--body-soft)] transition-[color,background-color,box-shadow] duration-200 ease-[var(--ease-standard)] hover:text-onbackground',
+          'rounded-full px-1 py-1 text-[0.95rem] font-medium text-(--body-soft) transition-[color,background-color,box-shadow] duration-200 ease-(--ease-standard) hover:text-onbackground',
         ]}
       >
         How it works
@@ -43,7 +43,7 @@ const { ctaHref } = Astro.props;
         href="#sample-session"
         class:list={[
           focusRingClass,
-          'rounded-full px-1 py-1 text-[0.95rem] font-medium text-[var(--body-soft)] transition-[color,background-color,box-shadow] duration-200 ease-[var(--ease-standard)] hover:text-onbackground',
+          'rounded-full px-1 py-1 text-[0.95rem] font-medium text-(--body-soft) transition-[color,background-color,box-shadow] duration-200 ease-(--ease-standard) hover:text-onbackground',
         ]}
       >
         Sample session
