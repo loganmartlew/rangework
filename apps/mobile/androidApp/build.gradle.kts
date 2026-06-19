@@ -117,10 +117,10 @@ dependencies {
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
     implementation(libs.reorderable)
+    implementation(libs.kotlinx.datetime)
 
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.kotlinx.datetime)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.test.ext.junit)

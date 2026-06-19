@@ -5,10 +5,15 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.loganmartlew.rangework.shared.data.DataFoundation
 import com.loganmartlew.rangework.shared.model.RangeSession
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 data class RangeSessionUiState(
     val rangeSession: RangeSession? = null,
@@ -17,6 +22,8 @@ data class RangeSessionUiState(
     val statusMessage: String? = null,
     val completedStepIndices: Set<Int> = emptySet(),
     val notification: String? = null,
+    val elapsedSeconds: Long = 0,
+    val isTimerRunning: Boolean = false,
 )
 
 class RangeSessionViewModel(
@@ -26,6 +33,9 @@ class RangeSessionViewModel(
 
     private val _uiState = MutableStateFlow(RangeSessionUiState())
     val uiState: StateFlow<RangeSessionUiState> = _uiState.asStateFlow()
+
+    private var tickJob: Job? = null
+    private var currentEnteredAt: Instant? = null
 
     init {
         loadSession()
@@ -150,6 +160,68 @@ class RangeSessionViewModel(
 
     fun consumeNotification() {
         _uiState.value = _uiState.value.copy(notification = null)
+    }
+
+    fun onScreenEnter() {
+        val foundation = dataFoundation ?: return
+        if (currentEnteredAt != null) return
+        val enteredAt = Clock.System.now()
+        currentEnteredAt = enteredAt
+        viewModelScope.launch {
+            val elapsed = try {
+                foundation.getElapsedSecondsUseCase(rangeSessionId)
+            } catch (_: Exception) {
+                0L
+            }
+            _uiState.value = _uiState.value.copy(
+                elapsedSeconds = elapsed,
+                isTimerRunning = true,
+            )
+            try {
+                foundation.recordTimeEntryUseCase(rangeSessionId, enteredAt)
+            } catch (_: Exception) {
+                // fire-and-forget: network failures don't affect local timer
+            }
+            startTick()
+        }
+    }
+
+    fun onScreenExit() {
+        val enteredAt = currentEnteredAt ?: return
+        currentEnteredAt = null
+        stopTick()
+        _uiState.value = _uiState.value.copy(isTimerRunning = false)
+        val foundation = dataFoundation ?: return
+        val exitedAt = Clock.System.now()
+        viewModelScope.launch {
+            try {
+                foundation.closeTimeEntryUseCase(rangeSessionId, enteredAt, exitedAt)
+            } catch (_: Exception) {
+                // fire-and-forget: network failures don't affect local timer
+            }
+        }
+    }
+
+    private fun startTick() {
+        tickJob?.cancel()
+        tickJob = viewModelScope.launch(Dispatchers.Default) {
+            while (true) {
+                delay(1000)
+                _uiState.value = _uiState.value.copy(
+                    elapsedSeconds = _uiState.value.elapsedSeconds + 1,
+                )
+            }
+        }
+    }
+
+    private fun stopTick() {
+        tickJob?.cancel()
+        tickJob = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        onScreenExit()
     }
 
     private fun persistLastViewedStep(index: Int) {

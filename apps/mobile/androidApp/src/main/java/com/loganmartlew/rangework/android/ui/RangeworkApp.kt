@@ -297,6 +297,8 @@ fun RangeworkApp(
                         onNavigateToStep = rangeSessionViewModel::navigateToStep,
                         onToggleStepComplete = rangeSessionViewModel::toggleStepComplete,
                         onConsumeNotification = rangeSessionViewModel::consumeNotification,
+                        onScreenEnter = rangeSessionViewModel::onScreenEnter,
+                        onScreenExit = rangeSessionViewModel::onScreenExit,
                         onBack = { rootNavController.popBackStack() },
                     )
                 }

@@ -60,6 +60,8 @@ internal fun RangeSessionScreen(
     onNavigateToStep: (Int) -> Unit,
     onToggleStepComplete: (Int) -> Unit,
     onConsumeNotification: () -> Unit,
+    onScreenEnter: () -> Unit,
+    onScreenExit: () -> Unit,
     onBack: () -> Unit,
 ) {
     val view = LocalView.current
@@ -69,6 +71,10 @@ internal fun RangeSessionScreen(
         onDispose {
             window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
+    }
+    DisposableEffect(Unit) {
+        onScreenEnter()
+        onDispose { onScreenExit() }
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -240,6 +246,7 @@ private fun PhoneRangeSessionLayout(
                                 RangeSessionProgressHeader(
                                     rangeSession = uiState.rangeSession,
                                     completedStepIndices = uiState.completedStepIndices,
+                                    elapsedSeconds = uiState.elapsedSeconds,
                                 )
                                 Column(
                                     modifier = Modifier
@@ -348,6 +355,7 @@ private fun TabletRangeSessionLayout(
                         RangeSessionProgressHeader(
                             rangeSession = uiState.rangeSession,
                             completedStepIndices = uiState.completedStepIndices,
+                            elapsedSeconds = uiState.elapsedSeconds,
                         )
                         Column(
                             modifier = Modifier

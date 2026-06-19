@@ -26,6 +26,7 @@ import com.loganmartlew.rangework.shared.model.RangeSession
 internal fun RangeSessionProgressHeader(
     rangeSession: RangeSession,
     completedStepIndices: Set<Int>,
+    elapsedSeconds: Long = 0,
     modifier: Modifier = Modifier,
 ) {
     val steps = rangeSession.snapshot.steps
@@ -48,6 +49,9 @@ internal fun RangeSessionProgressHeader(
         val completedInUnit = stepsForUnit.count { (i, _) -> i in completedStepIndices }
         Triple(unit.unitTitle, completedInUnit, stepsForUnit.size)
     }
+
+    val elapsedFormatted = formatElapsedTime(elapsedSeconds)
+    val elapsedAccessible = accessibleElapsedDescription(elapsedSeconds)
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -79,6 +83,7 @@ internal fun RangeSessionProgressHeader(
                                 append("$completedStepCount of $totalSteps steps completed")
                                 if (hasAnyBalls) append(", $completedBalls of $totalBalls balls")
                                 append(", $completionPercent percent")
+                                append(", $elapsedAccessible")
                             }
                         },
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -117,6 +122,11 @@ internal fun RangeSessionProgressHeader(
                         }
                     }
                     Text(
+                        text = elapsedFormatted,
+                        style = RangeworkMono.medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
                         text = "$completionPercent%",
                         style = RangeworkMono.medium,
                         color = MaterialTheme.colorScheme.secondary,
@@ -148,5 +158,30 @@ internal fun RangeSessionProgressHeader(
                 }
             }
         }
+    }
+}
+
+private fun formatElapsedTime(totalSeconds: Long): String {
+    val h = totalSeconds / 3600
+    val m = (totalSeconds % 3600) / 60
+    val s = totalSeconds % 60
+    val mm = m.toString().padStart(2, '0')
+    val ss = s.toString().padStart(2, '0')
+    return if (h > 0L) "$h:$mm:$ss" else "$mm:$ss"
+}
+
+private fun accessibleElapsedDescription(totalSeconds: Long): String {
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return buildString {
+        append("elapsed time: ")
+        if (hours > 0L) {
+            append("$hours ${if (hours == 1L) "hour" else "hours"} ")
+        }
+        if (minutes > 0L || hours > 0L) {
+            append("$minutes ${if (minutes == 1L) "minute" else "minutes"} ")
+        }
+        append("$seconds ${if (seconds == 1L) "second" else "seconds"}")
     }
 }

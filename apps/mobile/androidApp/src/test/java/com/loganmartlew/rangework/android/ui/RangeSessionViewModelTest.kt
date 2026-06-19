@@ -346,6 +346,118 @@ class RangeSessionViewModelTest {
         viewModel.consumeNotification()
         assertNull(viewModel.uiState.value.notification)
     }
+
+    @Test
+    fun timerIsNotRunningInitially() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isTimerRunning)
+        assertEquals(0L, viewModel.uiState.value.elapsedSeconds)
+    }
+
+    @Test
+    fun timerStartsOnScreenEnter() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session), getElapsedSecondsResult = 45L)
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.onScreenEnter()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isTimerRunning)
+        assertEquals(45L, viewModel.uiState.value.elapsedSeconds)
+
+        viewModel.onScreenExit()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun recordTimeEntryCalledOnScreenEnter() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.onScreenEnter()
+        advanceUntilIdle()
+
+        assertEquals(1, repo.recordedTimeEntries.size)
+        assertEquals(session.id, repo.recordedTimeEntries.first().first)
+
+        viewModel.onScreenExit()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun timerStopsOnScreenExit() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.onScreenEnter()
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isTimerRunning)
+
+        viewModel.onScreenExit()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isTimerRunning)
+    }
+
+    @Test
+    fun closeTimeEntryCalledOnScreenExit() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.onScreenEnter()
+        advanceUntilIdle()
+        viewModel.onScreenExit()
+        advanceUntilIdle()
+
+        assertEquals(1, repo.closedTimeEntries.size)
+        assertEquals(session.id, repo.closedTimeEntries.first().first)
+    }
+
+    @Test
+    fun doubleEnterGuardPreventsMultipleTimeEntries() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.onScreenEnter()
+        viewModel.onScreenEnter()
+        advanceUntilIdle()
+
+        assertEquals(1, repo.recordedTimeEntries.size)
+
+        viewModel.onScreenExit()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun closeTimeEntryEnteredAtMatchesRecordedEnteredAt() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.onScreenEnter()
+        advanceUntilIdle()
+        viewModel.onScreenExit()
+        advanceUntilIdle()
+
+        val recordedEnteredAt = repo.recordedTimeEntries.first().second
+        val closedEnteredAt = repo.closedTimeEntries.first().second
+        assertEquals(recordedEnteredAt, closedEnteredAt)
+    }
 }
 
 private fun makeViewModel(
@@ -403,9 +515,12 @@ private fun buildDataFoundation(rangeRepo: RangeSessionRepository): DataFoundati
 private class FakeRangeSessionRepo(
     val sessions: MutableList<RangeSession> = mutableListOf(),
     var shouldFailOnToggle: Boolean = false,
+    var getElapsedSecondsResult: Long = 0L,
 ) : RangeSessionRepository {
     val lastViewedStepUpdates = mutableMapOf<String, Int>()
     val toggleInvocations = mutableListOf<Triple<String, Int, Boolean>>()
+    val recordedTimeEntries = mutableListOf<Pair<String, Instant>>()
+    val closedTimeEntries = mutableListOf<Triple<String, Instant, Instant>>()
 
     override suspend fun startSession(rangeSessionId: String, sessionId: String): RangeSession =
         error("Not called in these tests")
@@ -438,9 +553,13 @@ private class FakeRangeSessionRepo(
     override suspend fun finishSession(rangeSessionId: String): RangeSession =
         error("Not called in these tests")
     override suspend fun abandonSession(rangeSessionId: String) = Unit
-    override suspend fun recordTimeEntry(rangeSessionId: String, enteredAt: Instant) = Unit
-    override suspend fun closeTimeEntry(rangeSessionId: String, enteredAt: Instant, exitedAt: Instant) = Unit
-    override suspend fun getElapsedSeconds(rangeSessionId: String): Long = 0L
+    override suspend fun recordTimeEntry(rangeSessionId: String, enteredAt: Instant) {
+        recordedTimeEntries.add(Pair(rangeSessionId, enteredAt))
+    }
+    override suspend fun closeTimeEntry(rangeSessionId: String, enteredAt: Instant, exitedAt: Instant) {
+        closedTimeEntries.add(Triple(rangeSessionId, enteredAt, exitedAt))
+    }
+    override suspend fun getElapsedSeconds(rangeSessionId: String): Long = getElapsedSecondsResult
     override suspend fun hasActiveSessionsForTemplate(sessionId: String): Boolean = false
 }
 
