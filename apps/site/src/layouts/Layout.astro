@@ -1,5 +1,7 @@
 ---
+import Nav from '../components/Nav.astro';
 import '../styles/global.css';
+import { playStoreHref } from '../lib/links.ts';
 
 const {
   title = 'Rangework - Practice with purpose',
@@ -44,6 +46,7 @@ const themeInitScript = `(function () {
 		>
 			Skip to content
 		</a>
+		<Nav ctaHref={playStoreHref} />
 		<slot />
 
 		<script is:inline>

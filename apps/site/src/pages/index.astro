@@ -4,13 +4,13 @@ import FeaturesSection from '../components/FeaturesSection.astro';
 import Footer from '../components/Footer.astro';
 import HeroSection from '../components/HeroSection.astro';
 import HowItWorksSection from '../components/HowItWorksSection.astro';
-import Nav from '../components/Nav.astro';
 import ReframeSection from '../components/ReframeSection.astro';
 import SampleSessionSection from '../components/SampleSessionSection.astro';
 import YardageRail from '../components/YardageRail.astro';
 import Layout from '../layouts/Layout.astro';
+import { playStoreHref } from '../lib/links.ts';
 
-const playStoreHref = 'https://play.google.com/store';
+
 const yardageMarkers = [
   { yard: '0Y', label: 'Tee box', href: '#hero' },
   { yard: '50Y', label: 'The gap', href: '#the-gap' },
@@ -27,8 +27,6 @@ const yardageMarkers = [
 	canonical="https://rangework.app"
 	ogImage="https://rangework.app/favicon.svg"
 >
-	<Nav ctaHref={playStoreHref} />
-
 	<main id="main-content" class="lg:grid lg:grid-cols-[10rem_minmax(0,1fr)]">
 		<YardageRail markers={yardageMarkers} />
 
