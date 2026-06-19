@@ -144,32 +144,67 @@ class PracticePlannerViewModel(
     val uiState: StateFlow<PracticePlannerUiState> = _uiState.asStateFlow()
 
     fun onAuthStateChanged(authState: AuthState) {
+        val previousUserId = activeUserId
+        val previousState = _uiState.value
         when (authState) {
             is AuthState.SignedIn -> {
                 activeUserId = authState.userId
+                val needsFreshLoad = previousUserId != authState.userId || !previousState.hasLoaded
+                val refreshStatus = if (previousState.units.isEmpty() && previousState.sessions.isEmpty()) {
+                    PlannerStatus.Info("Planning workspace ready.")
+                } else {
+                    previousState.status
+                }
+                if (needsFreshLoad) {
+                    operationToken += 1
+                    _uiState.value = previousState.copy(
+                        isLoading = true,
+                        isSaving = false,
+                        hasLoaded = false,
+                        units = emptyList(),
+                        sessions = emptyList(),
+                        clubCatalog = emptyList(),
+                        enabledClubCodes = emptySet(),
+                        unitEditor = PracticeUnitEditorState(),
+                        sessionEditor = PracticeSessionEditorState(),
+                        unitEditorBaseline = null,
+                        sessionEditorBaseline = null,
+                        savedUnitId = null,
+                        savedSessionId = null,
+                        duplicatedUnitId = null,
+                        duplicatedSessionId = null,
+                        startedRangeSessionId = null,
+                        activeRangeSessions = emptyList(),
+                        completedRangeSessionHistory = emptyMap(),
+                        status = null,
+                    )
+                }
                 if (dataFoundation == null) {
                     _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        isSaving = false,
+                        hasLoaded = true,
                         status = PlannerStatus.Unavailable,
                     )
                     return
                 }
-                refreshPlanning(
-                    status = if (_uiState.value.units.isEmpty() && _uiState.value.sessions.isEmpty()) {
-                        PlannerStatus.Info("Planning workspace ready.")
-                    } else {
-                        _uiState.value.status
-                    },
-                )
+                refreshPlanning(status = refreshStatus)
                 loadClubs()
             }
 
             AuthState.Restoring -> {
-                _uiState.value = _uiState.value.copy(isLoading = true)
+                operationToken += 1
+                _uiState.value = _uiState.value.copy(
+                    isLoading = true,
+                    isSaving = false,
+                    hasLoaded = false,
+                )
             }
 
             AuthState.SignedOut,
             is AuthState.Error,
             -> {
+                operationToken += 1
                 activeUserId = null
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -804,6 +839,7 @@ class PracticePlannerViewModel(
         _uiState.value = _uiState.value.copy(
             isLoading = false,
             isSaving = false,
+            hasLoaded = true,
             status = plannerStatus(exception = exception, fallback = fallback),
         )
     }

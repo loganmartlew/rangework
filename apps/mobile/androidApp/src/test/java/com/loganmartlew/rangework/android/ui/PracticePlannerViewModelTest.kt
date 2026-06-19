@@ -48,6 +48,7 @@ import com.loganmartlew.rangework.shared.usecase.SetClubEnabledUseCase
 import com.loganmartlew.rangework.android.ui.PlannerStatus
 import com.loganmartlew.rangework.shared.model.NextMoveState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
@@ -331,6 +332,48 @@ class PracticePlannerViewModelTest {
     }
 
     @Test
+    fun hasLoadedFlipsAfterFailedRefresh() = runTest {
+        val repositories = FakePlannerRepositories(
+            listUnitsException = RuntimeException("Network error"),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+
+        assertEquals(false, viewModel.uiState.value.hasLoaded)
+
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        assertEquals(true, viewModel.uiState.value.hasLoaded)
+        assertEquals(false, viewModel.uiState.value.isLoading)
+    }
+
+    @Test
+    fun signOutInvalidatesInFlightRefresh() = runTest {
+        val repositories = FakePlannerRepositories(listDelayMs = 50)
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        assertTrue(viewModel.uiState.value.isLoading)
+        assertEquals(false, viewModel.uiState.value.hasLoaded)
+
+        viewModel.onAuthStateChanged(AuthState.SignedOut)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.units.isEmpty())
+        assertTrue(viewModel.uiState.value.sessions.isEmpty())
+        assertEquals(false, viewModel.uiState.value.hasLoaded)
+        assertEquals(null, viewModel.uiState.value.status)
+    }
+
+    @Test
     fun intBallCountStepperUpdatesInstructionAndPersistsOnSave() = runTest {
         val repositories = FakePlannerRepositories()
         val viewModel = PracticePlannerViewModel(
@@ -537,11 +580,14 @@ private class FakePlannerRepositories :
     ClubRepository {
     constructor(
         listUnitsException: Throwable? = null,
+        listDelayMs: Long = 0L,
     ) {
         this.listUnitsException = listUnitsException
+        this.listDelayMs = listDelayMs
     }
 
     private var listUnitsException: Throwable? = null
+    private var listDelayMs: Long = 0L
     val units = mutableListOf<PracticeUnit>()
     val sessions = mutableListOf<PracticeSession>()
     val savedUnitDrafts = mutableListOf<PracticeUnitDraft>()
@@ -551,6 +597,9 @@ private class FakePlannerRepositories :
 
     override suspend fun listPracticeUnits(): List<PracticeUnit> {
         listUnitsCallCount += 1
+        if (listDelayMs > 0) {
+            delay(listDelayMs)
+        }
         listUnitsException?.let { throw it }
         return units.toList()
     }
@@ -590,6 +639,9 @@ private class FakePlannerRepositories :
 
     override suspend fun listPracticeSessions(): List<PracticeSession> {
         listSessionsCallCount += 1
+        if (listDelayMs > 0) {
+            delay(listDelayMs)
+        }
         return sessions.toList()
     }
 

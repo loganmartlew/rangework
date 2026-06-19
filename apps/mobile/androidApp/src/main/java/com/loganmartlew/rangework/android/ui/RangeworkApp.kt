@@ -110,6 +110,7 @@ private const val RangeSessionIdArg = "rangeSessionId"
 @Composable
 fun RangeworkApp(
     activity: ComponentActivity,
+    onReady: () -> Unit = {},
 ) {
     val androidAuthConfig = remember { baselineAndroidAppAuthConfig() }
     val rangeworkFoundation = remember(androidAuthConfig.environment.supabaseConfig) {
@@ -155,6 +156,21 @@ fun RangeworkApp(
     val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val rootRoute = remember(authUiState.authState) {
         rootRouteForAuthState(authUiState.authState)
+    }
+
+    val isReady = remember(authUiState.authState, plannerUiState.hasLoaded) {
+        when (authUiState.authState) {
+            AuthState.Restoring -> false
+            AuthState.SignedOut, is AuthState.Error -> true
+            is AuthState.SignedIn -> plannerUiState.hasLoaded
+        }
+    }
+    LaunchedEffect(isReady) {
+        if (isReady) onReady()
+    }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(5_000L)
+        onReady()
     }
 
     LaunchedEffect(authUiState.authState) {
@@ -423,6 +439,10 @@ private fun AuthenticatedAppShell(
 ) {
     if (authUiState.authState !is AuthState.SignedIn) {
         Box(modifier = Modifier.fillMaxSize())
+        return
+    }
+    if (!plannerUiState.hasLoaded) {
+        AuthenticatedLoadingScreen()
         return
     }
 
@@ -1148,6 +1168,37 @@ private fun AuthenticatedAppShell(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AuthenticatedLoadingScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 28.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            BrandMarkContainer(size = 84.dp, markSize = 60.dp, twoColor = true, contentDescription = null)
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Loading your practice plan",
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Fetching your units, sessions, and settings before opening the overview.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }
