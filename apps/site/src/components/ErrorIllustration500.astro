@@ -1,0 +1,51 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div class:list={['w-full max-w-70', className]}>
+  <svg viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="w-full h-auto">
+    <!-- Ground -->
+    <ellipse cx="140" cy="172" rx="130" ry="14" fill="var(--color-surfacevariant)" opacity="0.5" />
+    <line x1="40" y1="172" x2="240" y2="172" stroke="var(--color-primary)" stroke-width="1.5" opacity="0.3" />
+
+    <!-- Tee bottom half (stuck in ground) -->
+    <path d="M138,172 L136,148 Q137,145 140,145 L140,145 Q143,145 144,148 L142,172" fill="var(--color-onbackground)" opacity="0.7" />
+
+    <!-- Tee top half (broken, tilted) -->
+    <g transform="rotate(-35, 140, 130)">
+      <path d="M138,142 L137,120 Q137,116 140,115 L140,115 Q143,116 143,120 L142,142" fill="var(--color-onbackground)" opacity="0.7" />
+      <!-- Tee cup -->
+      <path d="M130,116 Q131,110 140,108 Q149,110 150,116" stroke="var(--color-onbackground)" stroke-width="2" fill="none" opacity="0.7" stroke-linecap="round" />
+    </g>
+
+    <!-- Break point burst -->
+    <g opacity="0.6">
+      <line x1="132" y1="140" x2="126" y2="135" stroke="var(--color-primary)" stroke-width="1.5" stroke-linecap="round" />
+      <line x1="148" y1="138" x2="154" y2="133" stroke="var(--color-primary)" stroke-width="1.5" stroke-linecap="round" />
+      <line x1="136" y1="134" x2="132" y2="127" stroke="var(--color-primary)" stroke-width="1.5" stroke-linecap="round" />
+      <line x1="145" y1="143" x2="152" y2="141" stroke="var(--color-primary)" stroke-width="1.5" stroke-linecap="round" />
+    </g>
+
+    <!-- Golf ball rolling away -->
+    <circle cx="195" cy="158" r="12" fill="var(--color-background)" stroke="var(--color-onbackground)" stroke-width="1.5" />
+    <circle cx="191" cy="154" r="1.2" fill="none" stroke="var(--color-onbackground)" stroke-width="0.6" opacity="0.4" />
+    <circle cx="197" cy="152" r="1.2" fill="none" stroke="var(--color-onbackground)" stroke-width="0.6" opacity="0.4" />
+    <circle cx="194" cy="159" r="1.2" fill="none" stroke="var(--color-onbackground)" stroke-width="0.6" opacity="0.4" />
+    <circle cx="200" cy="157" r="1.2" fill="none" stroke="var(--color-onbackground)" stroke-width="0.6" opacity="0.4" />
+    <circle cx="189" cy="160" r="1.2" fill="none" stroke="var(--color-onbackground)" stroke-width="0.6" opacity="0.4" />
+
+    <!-- Motion lines -->
+    <line x1="170" y1="155" x2="178" y2="157" stroke="var(--color-onbackground)" stroke-width="1" opacity="0.3" stroke-linecap="round" />
+    <line x1="172" y1="160" x2="179" y2="161" stroke="var(--color-onbackground)" stroke-width="1" opacity="0.25" stroke-linecap="round" />
+    <line x1="174" y1="165" x2="180" y2="165" stroke="var(--color-onbackground)" stroke-width="1" opacity="0.2" stroke-linecap="round" />
+
+    <!-- Small grass tufts for context -->
+    <path d="M80,172 Q78,160 84,152" stroke="var(--color-primary)" stroke-width="2" fill="none" opacity="0.3" stroke-linecap="round" />
+    <path d="M90,172 Q92,162 88,154" stroke="var(--color-primary)" stroke-width="2" fill="none" opacity="0.25" stroke-linecap="round" />
+    <path d="M215,172 Q213,161 218,153" stroke="var(--color-primary)" stroke-width="2" fill="none" opacity="0.3" stroke-linecap="round" />
+  </svg>
+</div>

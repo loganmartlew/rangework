@@ -1,0 +1,48 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div class:list={['w-full max-w-70', className]}>
+  <svg viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="w-full h-auto">
+    <!-- Ground -->
+    <ellipse cx="140" cy="170" rx="120" ry="18" fill="var(--color-surfacevariant)" opacity="0.5" />
+
+    <!-- Distant flag -->
+    <line x1="228" y1="100" x2="228" y2="140" stroke="var(--color-outlinevariant)" stroke-width="1.5" />
+    <polygon points="228,100 246,107 228,114" fill="var(--color-primary)" opacity="0.4" />
+
+    <!-- Tall grass blades (back layer) -->
+    <path d="M80,170 Q78,120 90,80" stroke="var(--color-primary)" stroke-width="2.5" fill="none" opacity="0.3" stroke-linecap="round" />
+    <path d="M100,170 Q105,115 95,70" stroke="var(--color-primary)" stroke-width="2.5" fill="none" opacity="0.25" stroke-linecap="round" />
+    <path d="M155,170 Q150,125 162,78" stroke="var(--color-primary)" stroke-width="2.5" fill="none" opacity="0.3" stroke-linecap="round" />
+    <path d="M170,170 Q175,118 165,72" stroke="var(--color-primary)" stroke-width="2.5" fill="none" opacity="0.25" stroke-linecap="round" />
+
+    <!-- Tall grass blades (mid layer) -->
+    <path d="M90,170 Q85,110 100,65" stroke="var(--color-primary)" stroke-width="3" fill="none" opacity="0.5" stroke-linecap="round" />
+    <path d="M115,170 Q120,105 108,58" stroke="var(--color-primary)" stroke-width="3" fill="none" opacity="0.45" stroke-linecap="round" />
+    <path d="M140,170 Q135,108 148,60" stroke="var(--color-primary)" stroke-width="3" fill="none" opacity="0.5" stroke-linecap="round" />
+    <path d="M160,170 Q165,112 152,62" stroke="var(--color-primary)" stroke-width="3" fill="none" opacity="0.45" stroke-linecap="round" />
+
+    <!-- Golf ball (partially hidden) -->
+    <circle cx="128" cy="148" r="12" fill="var(--color-background)" stroke="var(--color-onbackground)" stroke-width="1.5" />
+    <circle cx="124" cy="144" r="1.2" fill="none" stroke="var(--color-onbackground)" stroke-width="0.6" opacity="0.4" />
+    <circle cx="130" cy="142" r="1.2" fill="none" stroke="var(--color-onbackground)" stroke-width="0.6" opacity="0.4" />
+    <circle cx="127" cy="149" r="1.2" fill="none" stroke="var(--color-onbackground)" stroke-width="0.6" opacity="0.4" />
+    <circle cx="133" cy="147" r="1.2" fill="none" stroke="var(--color-onbackground)" stroke-width="0.6" opacity="0.4" />
+    <circle cx="122" cy="150" r="1.2" fill="none" stroke="var(--color-onbackground)" stroke-width="0.6" opacity="0.4" />
+
+    <!-- Tall grass blades (front layer, overlapping ball) -->
+    <path d="M105,170 Q100,115 112,68" stroke="var(--color-primary)" stroke-width="3.5" fill="none" opacity="0.7" stroke-linecap="round" />
+    <path d="M125,170 Q130,100 118,55" stroke="var(--color-primary)" stroke-width="3.5" fill="none" opacity="0.65" stroke-linecap="round" />
+    <path d="M145,170 Q140,105 155,58" stroke="var(--color-primary)" stroke-width="3.5" fill="none" opacity="0.7" stroke-linecap="round" />
+
+    <!-- Short accent grass tufts -->
+    <path d="M70,170 Q68,150 75,138" stroke="var(--color-primary)" stroke-width="2" fill="none" opacity="0.35" stroke-linecap="round" />
+    <path d="M180,170 Q183,148 178,135" stroke="var(--color-primary)" stroke-width="2" fill="none" opacity="0.35" stroke-linecap="round" />
+    <path d="M190,170 Q188,152 195,142" stroke="var(--color-primary)" stroke-width="2" fill="none" opacity="0.3" stroke-linecap="round" />
+  </svg>
+</div>
