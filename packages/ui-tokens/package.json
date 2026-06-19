@@ -2,6 +2,11 @@
   "name": "@rangework/ui-tokens",
   "private": true,
   "type": "module",
+  "exports": {
+    "./tailwind-preset": "./dist/tailwind/preset.mjs",
+    "./fonts.css": "./dist/web/fonts.css",
+    "./tokens.css": "./dist/css/tokens.css"
+  },
   "scripts": {
     "build": "node ./scripts/build.mjs"
   },

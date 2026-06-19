@@ -6,6 +6,10 @@ import styleDictionaryConfig from "../style-dictionary.config.mjs";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const packageDir = path.resolve(currentDir, "..");
+const distDir = path.join(packageDir, "dist");
+const distFontDir = path.join(distDir, "fonts");
+const distTailwindDir = path.join(distDir, "tailwind");
+const distWebDir = path.join(distDir, "web");
 const generatedDir = path.join(packageDir, "generated");
 const androidKotlinDir = path.join(
   generatedDir,
@@ -25,14 +29,30 @@ const tokenFiles = [
   path.join(packageDir, "tokens", "color.tokens.json"),
   path.join(packageDir, "tokens", "typography.tokens.json"),
 ];
+const tailwindScaleMap = {
+  "0": "50",
+  "10": "100",
+  "20": "200",
+  "30": "300",
+  "40": "400",
+  "50": "500",
+  "60": "600",
+  "70": "700",
+  "80": "800",
+  "90": "900",
+  "100": "950",
+};
 
 const allTokens = await loadAndResolveTokens(tokenFiles);
 
-await fs.rm(path.join(packageDir, "dist"), { recursive: true, force: true });
+await fs.rm(distDir, { recursive: true, force: true });
 await fs.rm(generatedDir, { recursive: true, force: true });
 await fs.mkdir(androidKotlinDir, { recursive: true });
 await fs.mkdir(androidFontDir, { recursive: true });
 await fs.mkdir(androidValuesDir, { recursive: true });
+await fs.mkdir(distFontDir, { recursive: true });
+await fs.mkdir(distTailwindDir, { recursive: true });
+await fs.mkdir(distWebDir, { recursive: true });
 
 const styleDictionary = new StyleDictionary(styleDictionaryConfig);
 await styleDictionary.buildAllPlatforms();
@@ -49,12 +69,26 @@ await fs.writeFile(
   "utf8"
 );
 
+await fs.writeFile(
+  path.join(distTailwindDir, "preset.mjs"),
+  buildTailwindPresetFile(allTokens),
+  "utf8"
+);
+
+await fs.writeFile(
+  path.join(distWebDir, "fonts.css"),
+  buildWebFontsFile(allTokens),
+  "utf8"
+);
+
 const fontAssets = Object.values(allTokens.typography.fontAsset);
 await Promise.all(
-  fontAssets.map(async ({ value }) => {
+  fontAssets.flatMap(({ value }) => {
     const source = path.join(packageDir, "assets", "fonts", value);
-    const destination = path.join(androidFontDir, value);
-    await fs.copyFile(source, destination);
+    return [
+      fs.copyFile(source, path.join(androidFontDir, value)),
+      fs.copyFile(source, path.join(distFontDir, value)),
+    ];
   })
 );
 
@@ -138,7 +172,9 @@ function buildKotlinTokensFile(tokens) {
     .map(([roleName, roleTokens]) => buildTypographyConstants(roleName, roleTokens))
     .join("\n");
   const monoTypography = Object.entries(tokens.typography.mono)
-    .map(([roleName, roleTokens]) => buildTypographyConstants(`mono${capitalize(roleName)}`, roleTokens))
+    .map(([roleName, roleTokens]) =>
+      buildTypographyConstants(`mono${capitalize(roleName)}`, roleTokens)
+    )
     .join("\n");
 
   return `package com.loganmartlew.rangework.android.ui.theme
@@ -195,6 +231,129 @@ ${colorEntries.join("\n")}
 `;
 }
 
+function buildTailwindPresetFile(tokens) {
+  const preset = {
+    theme: {
+      colors: buildTailwindColors(tokens),
+      fontFamily: buildTailwindFontFamilies(tokens),
+      fontSize: buildTailwindFontSizes(tokens),
+    },
+  };
+
+  return `const rangeworkTailwindPreset = ${JSON.stringify(preset, null, 2)};
+
+export default rangeworkTailwindPreset;
+`;
+}
+
+function buildTailwindColors(tokens) {
+  return {
+    inherit: "inherit",
+    current: "currentColor",
+    transparent: "transparent",
+    black: "#000000",
+    white: "#FFFFFF",
+    primary: buildTailwindPalette(tokens.color.palette.primary),
+    secondary: buildTailwindPalette(tokens.color.palette.secondary),
+    tertiary: buildTailwindPalette(tokens.color.palette.tertiary),
+    neutral: buildTailwindPalette(tokens.color.palette.neutral, {
+      extraShadeMap: { "88": "875" },
+    }),
+    "neutral-variant": buildTailwindPalette(tokens.color.palette.neutralVariant, {
+      extraShadeMap: { "88": "875" },
+    }),
+    error: buildTailwindPalette(tokens.color.palette.error),
+    surface: buildTailwindSurfaceColors(tokens.color.surface),
+    light: buildTailwindSemanticColors(tokens.color.scheme.light),
+    dark: buildTailwindSemanticColors(tokens.color.scheme.dark),
+  };
+}
+
+function buildTailwindPalette(group, options = {}) {
+  const palette = {};
+  const extraShadeMap = options.extraShadeMap ?? {};
+
+  for (const [key, token] of Object.entries(group)) {
+    const mappedKey = extraShadeMap[key] ?? tailwindScaleMap[key] ?? key;
+    palette[mappedKey] = token.value;
+  }
+
+  return palette;
+}
+
+function buildTailwindSurfaceColors(surfaceTokens) {
+  return Object.fromEntries(
+    Object.entries(surfaceTokens).map(([mode, modeTokens]) => [mode, buildTailwindSemanticColors(modeTokens)])
+  );
+}
+
+function buildTailwindSemanticColors(group) {
+  return Object.fromEntries(Object.entries(group).map(([key, token]) => [toKebabCase(key), token.value]));
+}
+
+function buildTailwindFontFamilies(tokens) {
+  return {
+    sans: [tokens.typography.family.sans.value, "ui-sans-serif", "system-ui", "sans-serif"],
+    mono: [tokens.typography.family.mono.value, "ui-monospace", "SFMono-Regular", "monospace"],
+  };
+}
+
+function buildTailwindFontSizes(tokens) {
+  const materialEntries = Object.entries(tokens.typography.material).map(([key, value]) => [
+    toKebabCase(key),
+    buildTailwindFontSizeEntry(value),
+  ]);
+  const monoEntries = Object.entries(tokens.typography.mono).map(([key, value]) => [
+    `mono-${toKebabCase(key)}`,
+    buildTailwindFontSizeEntry(value),
+  ]);
+
+  return Object.fromEntries([...materialEntries, ...monoEntries]);
+}
+
+function buildTailwindFontSizeEntry(roleTokens) {
+  return [
+    `${roleTokens.fontSize.value / 16}rem`,
+    {
+      lineHeight: `${roleTokens.lineHeight.value / 16}rem`,
+      letterSpacing: `${roleTokens.letterSpacing.value / 16}rem`,
+      fontWeight: `${roleTokens.fontWeight.value}`,
+    },
+  ];
+}
+
+function buildWebFontsFile(tokens) {
+  const families = tokens.typography.family;
+  const fontAssets = tokens.typography.fontAsset;
+  const fontDefinitions = Object.entries(fontAssets).map(([key, token]) =>
+    buildFontFaceDefinition(key, token.value, families)
+  );
+
+  return `${fontDefinitions.join("\n\n")}
+`;
+}
+
+function buildFontFaceDefinition(key, fileName, families) {
+  const normalizedKey = key.toLowerCase();
+  const family = normalizedKey.startsWith("sans")
+    ? families.sans.value
+    : families.mono.value;
+  const fontStyle = normalizedKey.includes("italic") ? "italic" : "normal";
+  const fontWeight = normalizedKey.includes("light")
+    ? 300
+    : normalizedKey.includes("medium")
+      ? 500
+      : 400;
+
+  return `@font-face {
+  font-family: "${family}";
+  src: url("../fonts/${fileName}") format("truetype");
+  font-style: ${fontStyle};
+  font-weight: ${fontWeight};
+  font-display: swap;
+}`;
+}
+
 function flattenColorGroup(prefix, group) {
   return Object.entries(group).map(([key, token]) => {
     const name = `${prefix}${key}`;
@@ -227,6 +386,10 @@ function hexToComposeColor(hex) {
 
 function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function toKebabCase(value) {
+  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
 }
 
 function toSnakeCase(value) {
