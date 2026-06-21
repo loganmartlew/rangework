@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.shared.data
 import com.loganmartlew.rangework.shared.auth.AuthFoundation
 import com.loganmartlew.rangework.shared.auth.createAuthFoundation
 import com.loganmartlew.rangework.shared.usecase.AbandonRangeSessionUseCase
+import com.loganmartlew.rangework.shared.usecase.DeleteAccountUseCase
 import com.loganmartlew.rangework.shared.usecase.CloseTimeEntryUseCase
 import com.loganmartlew.rangework.shared.usecase.DeletePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.DuplicatePracticeSessionUseCase
@@ -61,6 +62,7 @@ data class DataFoundation(
     val closeTimeEntryUseCase: CloseTimeEntryUseCase,
     val getElapsedSecondsUseCase: GetElapsedSecondsUseCase,
     val hasActiveRangeSessionsUseCase: HasActiveRangeSessionsUseCase,
+    val deleteAccountUseCase: DeleteAccountUseCase,
 )
 
 data class RangeworkFoundation(
@@ -84,6 +86,7 @@ fun createDataFoundation(client: SupabaseClient): DataFoundation {
     val measurementPreferencesRepository = SupabaseMeasurementPreferencesRepository(client)
     val clubRepository = SupabaseClubRepository(client)
     val rangeSessionRepository = SupabaseRangeSessionRepository(client)
+    val accountDeletionRepository = SupabaseAccountDeletionRepository(client)
 
     return DataFoundation(
         listPracticeUnitsUseCase = ListPracticeUnitsUseCase(practiceUnitRepository),
@@ -120,6 +123,7 @@ fun createDataFoundation(client: SupabaseClient): DataFoundation {
         closeTimeEntryUseCase = CloseTimeEntryUseCase(rangeSessionRepository),
         getElapsedSecondsUseCase = GetElapsedSecondsUseCase(rangeSessionRepository),
         hasActiveRangeSessionsUseCase = HasActiveRangeSessionsUseCase(rangeSessionRepository),
+        deleteAccountUseCase = DeleteAccountUseCase(accountDeletionRepository),
     )
 }
 

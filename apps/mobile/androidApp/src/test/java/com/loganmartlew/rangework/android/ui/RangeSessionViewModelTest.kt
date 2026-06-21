@@ -554,6 +554,11 @@ private fun buildDataFoundation(rangeRepo: RangeSessionRepository): DataFoundati
         closeTimeEntryUseCase = CloseTimeEntryUseCase(rangeRepo),
         getElapsedSecondsUseCase = GetElapsedSecondsUseCase(rangeRepo),
         hasActiveRangeSessionsUseCase = HasActiveRangeSessionsUseCase(rangeRepo),
+        deleteAccountUseCase = com.loganmartlew.rangework.shared.usecase.DeleteAccountUseCase(
+            object : com.loganmartlew.rangework.shared.repository.AccountDeletionRepository {
+                override suspend fun deleteAccount() = Unit
+            },
+        ),
     )
 }
 

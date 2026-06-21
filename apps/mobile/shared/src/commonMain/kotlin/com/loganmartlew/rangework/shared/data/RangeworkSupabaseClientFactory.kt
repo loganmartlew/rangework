@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.shared.data
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
 
 fun createRangeworkSupabaseClient(config: SupabaseEndpointConfig): SupabaseClient {
@@ -16,5 +17,6 @@ fun createRangeworkSupabaseClient(config: SupabaseEndpointConfig): SupabaseClien
     ) {
         install(Auth)
         install(Postgrest)
+        install(Functions)
     }
 }

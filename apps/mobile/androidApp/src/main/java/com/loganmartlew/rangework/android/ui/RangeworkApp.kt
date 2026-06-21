@@ -89,6 +89,7 @@ import com.loganmartlew.rangework.android.ui.screens.RangeSessionScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionDetailScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionEditorScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionListScreen
+import com.loganmartlew.rangework.android.ui.screens.DeleteAccountScreen
 import com.loganmartlew.rangework.android.ui.screens.ManageClubsScreen
 import com.loganmartlew.rangework.android.ui.screens.SettingsScreen
 import com.loganmartlew.rangework.android.ui.screens.UnitDetailScreen
@@ -99,6 +100,7 @@ import com.loganmartlew.rangework.android.ui.theme.RangeworkTheme
 import com.loganmartlew.rangework.android.ui.theme.ThemeMode
 import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.config.isAuthConfigured
+import com.loganmartlew.rangework.shared.data.DataFoundation
 import com.loganmartlew.rangework.shared.data.createRangeworkFoundation
 import com.loganmartlew.rangework.shared.usecase.AppBootstrapMessage
 import com.loganmartlew.rangework.shared.usecase.AppBootstrapMessageUseCase
@@ -285,6 +287,7 @@ fun RangeworkApp(
                         authUiState = authUiState,
                         plannerUiState = plannerUiState,
                         settingsUiState = settingsUiState,
+                        dataFoundation = rangeworkFoundation?.dataFoundation,
                         unitActions = unitActions,
                         sessionActions = sessionActions,
                         settingsActions = settingsActions,
@@ -424,6 +427,7 @@ private fun AuthenticatedAppShell(
     authUiState: AuthUiState,
     plannerUiState: PracticePlannerUiState,
     settingsUiState: SettingsUiState,
+    dataFoundation: DataFoundation?,
     unitActions: UnitEditorActions,
     sessionActions: SessionEditorActions,
     settingsActions: SettingsActions,
@@ -1156,6 +1160,9 @@ private fun AuthenticatedAppShell(
                             onNavigateToManageClubs = {
                                 shellNavController.navigate(RangeworkRoutes.ManageClubs)
                             },
+                            onNavigateToDeleteAccount = {
+                                shellNavController.navigate(RangeworkRoutes.DeleteAccount)
+                            },
                         )
                     }
                     composable(RangeworkRoutes.ManageClubs) {
@@ -1164,6 +1171,21 @@ private fun AuthenticatedAppShell(
                             onSetClubEnabled = settingsActions.onSetClubEnabled,
                             onEnableCommonBag = settingsActions.onEnableCommonBag,
                             onDisableAllClubs = settingsActions.onDisableAllClubs,
+                        )
+                    }
+                    composable(RangeworkRoutes.DeleteAccount) { backStackEntry ->
+                        val deleteAccountViewModel: DeleteAccountViewModel = viewModel(
+                            viewModelStoreOwner = backStackEntry,
+                            factory = remember(dataFoundation) {
+                                DeleteAccountViewModel.factory(dataFoundation)
+                            },
+                        )
+                        val deleteAccountUiState by deleteAccountViewModel.uiState.collectAsStateWithLifecycle()
+                        DeleteAccountScreen(
+                            uiState = deleteAccountUiState,
+                            onDeleteAccount = deleteAccountViewModel::deleteAccount,
+                            onAccountDeleted = settingsActions.onSignOut,
+                            onClearError = deleteAccountViewModel::clearError,
                         )
                     }
                 }
@@ -1219,6 +1241,7 @@ internal fun titleForRoute(route: String): String = when {
     route.startsWith("sessions/") -> "Session"
     route == RangeworkRoutes.Settings -> "Settings"
     route == RangeworkRoutes.ManageClubs -> "Club bag"
+    route == RangeworkRoutes.DeleteAccount -> "Delete account"
     else -> "Rangework"
 }
 

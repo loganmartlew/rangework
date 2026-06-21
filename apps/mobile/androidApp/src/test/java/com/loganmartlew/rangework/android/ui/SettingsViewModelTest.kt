@@ -39,11 +39,13 @@ import com.loganmartlew.rangework.shared.usecase.RecordTimeEntryUseCase
 import com.loganmartlew.rangework.shared.usecase.SaveMeasurementPreferencesUseCase
 import com.loganmartlew.rangework.shared.usecase.SavePracticeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.SavePracticeUnitUseCase
+import com.loganmartlew.rangework.shared.usecase.DeleteAccountUseCase
 import com.loganmartlew.rangework.shared.usecase.SetClubEnabledUseCase
 import com.loganmartlew.rangework.shared.usecase.StartRangeSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.ToggleStepCompleteUseCase
 import com.loganmartlew.rangework.shared.usecase.UpdateLastViewedStepUseCase
 import com.loganmartlew.rangework.shared.data.DataFoundation
+import com.loganmartlew.rangework.shared.repository.AccountDeletionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -291,6 +293,9 @@ class SettingsViewModelTest {
 private fun fakeDataFoundation(
     repo: MeasurementPreferencesRepository,
     clubRepo: ClubRepository = FakeClubRepository(),
+    accountDeletionRepo: AccountDeletionRepository = object : AccountDeletionRepository {
+        override suspend fun deleteAccount() = Unit
+    },
 ): DataFoundation {
     val emptyUnitRepo = object : com.loganmartlew.rangework.shared.repository.PracticeUnitRepository {
         override suspend fun listPracticeUnits() = emptyList<com.loganmartlew.rangework.shared.model.PracticeUnit>()
@@ -354,6 +359,7 @@ private fun fakeDataFoundation(
         closeTimeEntryUseCase = CloseTimeEntryUseCase(nopRangeRepo),
         getElapsedSecondsUseCase = GetElapsedSecondsUseCase(nopRangeRepo),
         hasActiveRangeSessionsUseCase = HasActiveRangeSessionsUseCase(nopRangeRepo),
+        deleteAccountUseCase = DeleteAccountUseCase(accountDeletionRepo),
     )
 }
 

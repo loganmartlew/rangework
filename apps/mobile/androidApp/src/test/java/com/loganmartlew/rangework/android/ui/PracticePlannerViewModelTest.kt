@@ -726,14 +726,12 @@ private class FakePlannerRepositories :
         this.listUnitsException = listUnitsException
         this.saveUnitException = saveUnitException
         this.deleteUnitException = deleteUnitException
-        this.listUnitsException = listUnitsException
         this.listDelayMs = listDelayMs
     }
 
     private var listUnitsException: Throwable? = null
     private var saveUnitException: Throwable? = null
     private var deleteUnitException: Throwable? = null
-    private var listUnitsException: Throwable? = null
     private var listDelayMs: Long = 0L
 
     val units = mutableListOf<PracticeUnit>()
@@ -880,6 +878,11 @@ private class FakePlannerRepositories :
             closeTimeEntryUseCase = CloseTimeEntryUseCase(fakeRangeRepo),
             getElapsedSecondsUseCase = GetElapsedSecondsUseCase(fakeRangeRepo),
             hasActiveRangeSessionsUseCase = HasActiveRangeSessionsUseCase(fakeRangeRepo),
+            deleteAccountUseCase = com.loganmartlew.rangework.shared.usecase.DeleteAccountUseCase(
+                object : com.loganmartlew.rangework.shared.repository.AccountDeletionRepository {
+                    override suspend fun deleteAccount() = Unit
+                },
+            ),
         )
     }
 }

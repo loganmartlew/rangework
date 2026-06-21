@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.GolfCourse
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Info
@@ -62,6 +63,7 @@ internal fun SettingsScreen(
     onSelectDistanceUnit: (DistanceUnit) -> Unit,
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
     onNavigateToManageClubs: () -> Unit,
+    onNavigateToDeleteAccount: () -> Unit,
 ) {
     val signedInState = authUiState.authState as? AuthState.SignedIn
     var showSignOutDialog by remember { mutableStateOf(false) }
@@ -257,6 +259,27 @@ internal fun SettingsScreen(
             SignOutItem(
                 onClick = { showSignOutDialog = true },
             )
+            HorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(role = Role.Button, onClick = onNavigateToDeleteAccount)
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DeleteForever,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                Text(
+                    text = "Delete account",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         }
 
         // About section
