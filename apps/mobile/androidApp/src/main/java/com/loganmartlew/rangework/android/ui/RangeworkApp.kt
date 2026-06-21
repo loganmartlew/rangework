@@ -90,6 +90,7 @@ import com.loganmartlew.rangework.android.ui.screens.SessionDetailScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionEditorScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionListScreen
 import com.loganmartlew.rangework.android.ui.screens.DeleteAccountScreen
+import com.loganmartlew.rangework.android.ui.screens.WebViewScreen
 import com.loganmartlew.rangework.android.ui.screens.ManageClubsScreen
 import com.loganmartlew.rangework.android.ui.screens.SettingsScreen
 import com.loganmartlew.rangework.android.ui.screens.UnitDetailScreen
@@ -108,6 +109,7 @@ import com.loganmartlew.rangework.shared.usecase.AppBootstrapMessageUseCase
 private const val UnitIdArg = "unitId"
 private const val SessionIdArg = "sessionId"
 private const val RangeSessionIdArg = "rangeSessionId"
+private const val LegalPageArg = "page"
 
 @Composable
 fun RangeworkApp(
@@ -1163,7 +1165,14 @@ private fun AuthenticatedAppShell(
                             onNavigateToDeleteAccount = {
                                 shellNavController.navigate(RangeworkRoutes.DeleteAccount)
                             },
+                            onNavigateToLegalPage = { page ->
+                                shellNavController.navigate(RangeworkRoutes.legalPage(page))
+                            },
                         )
+                    }
+                    composable(RangeworkRoutes.LegalPage) { backStackEntry ->
+                        val page = backStackEntry.arguments?.getString(LegalPageArg).orEmpty()
+                        WebViewScreen(page = page)
                     }
                     composable(RangeworkRoutes.ManageClubs) {
                         ManageClubsScreen(
@@ -1242,6 +1251,12 @@ internal fun titleForRoute(route: String): String = when {
     route == RangeworkRoutes.Settings -> "Settings"
     route == RangeworkRoutes.ManageClubs -> "Club bag"
     route == RangeworkRoutes.DeleteAccount -> "Delete account"
+    route.startsWith("settings/legal/") -> when (route.removePrefix("settings/legal/")) {
+        "privacy-policy" -> "Privacy Policy"
+        "terms-of-use" -> "Terms of Use"
+        "cookie-policy" -> "Cookie Policy"
+        else -> "Legal"
+    }
     else -> "Rangework"
 }
 

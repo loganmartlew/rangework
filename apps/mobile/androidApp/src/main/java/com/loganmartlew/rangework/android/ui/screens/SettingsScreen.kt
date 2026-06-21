@@ -16,8 +16,10 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.GolfCourse
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Mail
+import androidx.compose.material.icons.filled.Cookie
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -64,11 +66,11 @@ internal fun SettingsScreen(
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
     onNavigateToManageClubs: () -> Unit,
     onNavigateToDeleteAccount: () -> Unit,
+    onNavigateToLegalPage: (String) -> Unit,
 ) {
     val signedInState = authUiState.authState as? AuthState.SignedIn
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showHelpSheet by remember { mutableStateOf(false) }
-    var showPrivacySheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     if (showSignOutDialog) {
@@ -379,11 +381,15 @@ internal fun SettingsScreen(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            HorizontalDivider()
+        }
+
+        // Legal section
+        SettingsSubheader("Legal")
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(role = Role.Button) { showPrivacySheet = true }
+                    .clickable(role = Role.Button) { onNavigateToLegalPage("privacy-policy") }
                     .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
@@ -399,7 +405,67 @@ internal fun SettingsScreen(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "Privacy",
+                        text = "Privacy Policy",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.NavigateNext,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            HorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(role = Role.Button) { onNavigateToLegalPage("terms-of-use") }
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Gavel,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Terms of Use",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.NavigateNext,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            HorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(role = Role.Button) { onNavigateToLegalPage("cookie-policy") }
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Cookie,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Cookie Policy",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -439,30 +505,4 @@ internal fun SettingsScreen(
         }
     }
 
-    if (showPrivacySheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showPrivacySheet = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 40.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text("Privacy", style = MaterialTheme.typography.titleLarge)
-                Text(
-                    text = "Rangework stores your practice data securely in Supabase, associated with your Google account. Your data is not sold or shared with third parties. Sign out at any time to stop syncing.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "A full privacy policy will be available at launch.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
 }
