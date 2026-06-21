@@ -24,12 +24,16 @@ import com.loganmartlew.rangework.shared.model.ValidationIssue
 import com.loganmartlew.rangework.shared.model.recentItems
 import com.loganmartlew.rangework.shared.model.resolveNextMoveState
 import com.loganmartlew.rangework.shared.model.validationIssues
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 data class PracticeInstructionEditorState(
     val order: Int,
@@ -308,6 +312,7 @@ class PracticePlannerViewModel(
         copy(instructions = reindexedInstructions(nextInstructions))
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     fun saveUnit() {
         val foundation = dataFoundation ?: return markPlannerUnavailable()
         if (activeUserId == null) {
@@ -327,42 +332,54 @@ class PracticePlannerViewModel(
             return
         }
 
+        val resolvedUnitId = editor.unitId ?: Uuid.random().toString()
+        val previousUnits = _uiState.value.units
+        val previousSessions = _uiState.value.sessions
+        val now = Clock.System.now()
+        val optimisticUnit = buildOptimisticUnit(resolvedUnitId, draft, now)
+        val optimisticUnits = if (editor.unitId != null) {
+            previousUnits.map { if (it.id == resolvedUnitId) optimisticUnit else it }
+        } else {
+            previousUnits + optimisticUnit
+        }
+
+        _uiState.value = _uiState.value.copy(
+            units = optimisticUnits,
+            unitEditor = optimisticUnit.toEditorState(),
+            unitEditorBaseline = null,
+            sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
+            savedUnitId = resolvedUnitId,
+            status = PlannerStatus.Notification("Saved ${draft.title}."),
+        )
+
         val token = ++operationToken
         viewModelScope.launch {
             operationMutex.withLock {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = true,
-                    savedUnitId = null,
-                    status = null,
-                )
-
                 try {
-                    val savedUnit = foundation.savePracticeUnitUseCase(
+                    foundation.savePracticeUnitUseCase(
                         draft = draft,
-                        unitId = editor.unitId,
+                        unitId = resolvedUnitId,
                     )
                     val units = foundation.listPracticeUnitsUseCase()
                     val sessions = foundation.listPracticeSessionsUseCase()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            isSaving = false,
                             units = units,
                             sessions = sessions,
-                            unitEditor = savedUnit.toEditorState(),
-                            unitEditorBaseline = null,
+                            unitEditor = _uiState.value.unitEditor.resolveWith(units),
                             sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
-                            savedUnitId = savedUnit.id,
-                            status = PlannerStatus.Notification("Saved ${savedUnit.title}."),
                         )
-                    } else {
-                        _uiState.value = _uiState.value.copy(isSaving = false)
                     }
                 } catch (exception: Exception) {
                     if (token == operationToken) {
-                        markSaveFailure(exception, "Unit save failed.")
-                    } else {
-                        _uiState.value = _uiState.value.copy(isSaving = false)
+                        _uiState.value = _uiState.value.copy(
+                            units = previousUnits,
+                            sessions = previousSessions,
+                            unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
+                            sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
+                            status = plannerStatus(exception = exception, fallback = "Unit save failed."),
+                        )
                     }
                 }
             }
@@ -376,44 +393,54 @@ class PracticePlannerViewModel(
             return
         }
 
+        val previousUnits = _uiState.value.units
+        val previousSessions = _uiState.value.sessions
+        val title = previousUnits.firstOrNull { it.id == unitId }?.title ?: "unit"
+        val optimisticUnits = previousUnits.filter { it.id != unitId }
+
+        _uiState.value = _uiState.value.copy(
+            units = optimisticUnits,
+            savedUnitId = null,
+            unitEditor = if (_uiState.value.unitEditor.unitId == unitId) {
+                PracticeUnitEditorState()
+            } else {
+                _uiState.value.unitEditor.resolveWith(optimisticUnits)
+            },
+            sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
+            status = PlannerStatus.Notification("Deleted $title."),
+        )
+
         val token = ++operationToken
         viewModelScope.launch {
             operationMutex.withLock {
-                _uiState.value = _uiState.value.copy(isSaving = true, savedUnitId = null)
                 try {
-                    val title = _uiState.value.units.firstOrNull { unit -> unit.id == unitId }?.title ?: "unit"
                     foundation.deletePracticeUnitUseCase(unitId)
                     val units = foundation.listPracticeUnitsUseCase()
                     val sessions = foundation.listPracticeSessionsUseCase()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            isSaving = false,
                             units = units,
                             sessions = sessions,
-                            unitEditor = if (_uiState.value.unitEditor.unitId == unitId) {
-                                PracticeUnitEditorState()
-                            } else {
-                                _uiState.value.unitEditor.resolveWith(units)
-                            },
+                            unitEditor = _uiState.value.unitEditor.resolveWith(units),
                             sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
-                            status = PlannerStatus.Notification("Deleted $title."),
                         )
-                    } else {
-                        _uiState.value = _uiState.value.copy(isSaving = false)
                     }
                 } catch (exception: Exception) {
                     if (token == operationToken) {
-                        if (exception.isForeignKeyViolation()) {
-                            markSaveFailure(
-                                exception,
-                                "This unit is used by one or more sessions. Remove it from those sessions first.",
-                            )
-                        } else {
-                            markSaveFailure(exception, "Unit delete failed.")
-                        }
-                    } else {
-                        _uiState.value = _uiState.value.copy(isSaving = false)
+                        _uiState.value = _uiState.value.copy(
+                            units = previousUnits,
+                            sessions = previousSessions,
+                            unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
+                            sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
+                            status = if (exception.isForeignKeyViolation()) {
+                                PlannerStatus.Notification(
+                                    "This unit is used by one or more sessions. Remove it from those sessions first.",
+                                )
+                            } else {
+                                plannerStatus(exception = exception, fallback = "Unit delete failed.")
+                            },
+                        )
                     }
                 }
             }
@@ -499,6 +526,7 @@ class PracticePlannerViewModel(
         )
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     fun saveSession() {
         val foundation = dataFoundation ?: return markPlannerUnavailable()
         if (activeUserId == null) {
@@ -508,7 +536,6 @@ class PracticePlannerViewModel(
 
         val editor = _uiState.value.sessionEditor
 
-        // Check for empty required repeat counts before draft conversion
         val parseIssues = editor.items.mapIndexedNotNull { index, item ->
             if (item.repeatCount.trim().isEmpty()) {
                 ValidationIssue("items[$index].repeatCount", "Repeat count is required.")
@@ -536,42 +563,54 @@ class PracticePlannerViewModel(
             return
         }
 
+        val resolvedSessionId = editor.sessionId ?: Uuid.random().toString()
+        val previousUnits = _uiState.value.units
+        val previousSessions = _uiState.value.sessions
+        val now = Clock.System.now()
+        val optimisticSession = buildOptimisticSession(resolvedSessionId, draft, now)
+        val optimisticSessions = if (editor.sessionId != null) {
+            previousSessions.map { if (it.id == resolvedSessionId) optimisticSession else it }
+        } else {
+            previousSessions + optimisticSession
+        }
+
+        _uiState.value = _uiState.value.copy(
+            sessions = optimisticSessions,
+            unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
+            sessionEditor = optimisticSession.toEditorState(),
+            sessionEditorBaseline = null,
+            savedSessionId = resolvedSessionId,
+            status = PlannerStatus.Notification("Saved ${draft.name}."),
+        )
+
         val token = ++operationToken
         viewModelScope.launch {
             operationMutex.withLock {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = true,
-                    savedSessionId = null,
-                    status = null,
-                )
-
                 try {
-                    val savedSession = foundation.savePracticeSessionUseCase(
+                    foundation.savePracticeSessionUseCase(
                         draft = draft,
-                        sessionId = editor.sessionId,
+                        sessionId = resolvedSessionId,
                     )
                     val units = foundation.listPracticeUnitsUseCase()
                     val sessions = foundation.listPracticeSessionsUseCase()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            isSaving = false,
                             units = units,
                             sessions = sessions,
                             unitEditor = _uiState.value.unitEditor.resolveWith(units),
-                            sessionEditor = savedSession.toEditorState(),
-                            sessionEditorBaseline = null,
-                            savedSessionId = savedSession.id,
-                            status = PlannerStatus.Notification("Saved ${savedSession.name}."),
+                            sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
                         )
-                    } else {
-                        _uiState.value = _uiState.value.copy(isSaving = false)
                     }
                 } catch (exception: Exception) {
                     if (token == operationToken) {
-                        markSaveFailure(exception, "Session save failed.")
-                    } else {
-                        _uiState.value = _uiState.value.copy(isSaving = false)
+                        _uiState.value = _uiState.value.copy(
+                            units = previousUnits,
+                            sessions = previousSessions,
+                            unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
+                            sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
+                            status = plannerStatus(exception = exception, fallback = "Session save failed."),
+                        )
                     }
                 }
             }
@@ -585,37 +624,48 @@ class PracticePlannerViewModel(
             return
         }
 
+        val previousUnits = _uiState.value.units
+        val previousSessions = _uiState.value.sessions
+        val name = previousSessions.firstOrNull { it.id == sessionId }?.name ?: "session"
+        val optimisticSessions = previousSessions.filter { it.id != sessionId }
+
+        _uiState.value = _uiState.value.copy(
+            sessions = optimisticSessions,
+            savedSessionId = null,
+            unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
+            sessionEditor = if (_uiState.value.sessionEditor.sessionId == sessionId) {
+                PracticeSessionEditorState()
+            } else {
+                _uiState.value.sessionEditor.resolveWith(optimisticSessions)
+            },
+            status = PlannerStatus.Notification("Deleted $name."),
+        )
+
         val token = ++operationToken
         viewModelScope.launch {
             operationMutex.withLock {
-                _uiState.value = _uiState.value.copy(isSaving = true, savedSessionId = null)
                 try {
-                    val name = _uiState.value.sessions.firstOrNull { session -> session.id == sessionId }?.name ?: "session"
                     foundation.deletePracticeSessionUseCase(sessionId)
                     val units = foundation.listPracticeUnitsUseCase()
                     val sessions = foundation.listPracticeSessionsUseCase()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            isSaving = false,
                             units = units,
                             sessions = sessions,
                             unitEditor = _uiState.value.unitEditor.resolveWith(units),
-                            sessionEditor = if (_uiState.value.sessionEditor.sessionId == sessionId) {
-                                PracticeSessionEditorState()
-                            } else {
-                                _uiState.value.sessionEditor.resolveWith(sessions)
-                            },
-                            status = PlannerStatus.Notification("Deleted $name."),
+                            sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
                         )
-                    } else {
-                        _uiState.value = _uiState.value.copy(isSaving = false)
                     }
                 } catch (exception: Exception) {
                     if (token == operationToken) {
-                        markSaveFailure(exception, "Session delete failed.")
-                    } else {
-                        _uiState.value = _uiState.value.copy(isSaving = false)
+                        _uiState.value = _uiState.value.copy(
+                            units = previousUnits,
+                            sessions = previousSessions,
+                            unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
+                            sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
+                            status = plannerStatus(exception = exception, fallback = "Session delete failed."),
+                        )
                     }
                 }
             }
@@ -818,6 +868,53 @@ class PracticePlannerViewModel(
             }
         }
     }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun buildOptimisticUnit(
+        id: String,
+        draft: PracticeUnitDraft,
+        now: Instant,
+    ): PracticeUnit = PracticeUnit(
+        id = id,
+        title = draft.title,
+        instructions = draft.instructions.map { instr ->
+            PracticeInstruction(
+                id = Uuid.random().toString(),
+                order = instr.order,
+                text = instr.text,
+                ballCount = instr.ballCount,
+            )
+        },
+        notes = draft.notes,
+        focus = draft.focus,
+        defaultClubReference = draft.defaultClubReference,
+        createdAt = now,
+        updatedAt = now,
+    )
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun buildOptimisticSession(
+        id: String,
+        draft: PracticeSessionDraft,
+        now: Instant,
+    ): PracticeSession = PracticeSession(
+        id = id,
+        name = draft.name,
+        items = draft.items.map { item ->
+            PracticeSessionItem(
+                id = Uuid.random().toString(),
+                practiceUnitId = item.practiceUnitId,
+                order = item.order,
+                repeatCount = item.repeatCount,
+                clubReference = item.clubReference,
+                notes = item.notes,
+                focusCue = item.focusCue,
+            )
+        },
+        notes = draft.notes,
+        createdAt = now,
+        updatedAt = now,
+    )
 
     private fun markPlannerUnavailable() {
         _uiState.value = _uiState.value.copy(

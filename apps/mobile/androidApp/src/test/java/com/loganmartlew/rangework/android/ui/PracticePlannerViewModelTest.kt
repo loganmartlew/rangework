@@ -544,6 +544,145 @@ class PracticePlannerViewModelTest {
     }
 
     @Test
+    fun saveUnitOptimisticallyUpdatesStateBeforeCoroutine() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.updateUnitTitle("Short game")
+        viewModel.updateInstructionText(0, "Hit 10 wedges")
+        viewModel.updateInstructionBallCount(0, "10")
+        viewModel.saveUnit()
+        // Do NOT call advanceUntilIdle — check optimistic state
+
+        val state = viewModel.uiState.value
+        assertTrue("savedUnitId should be set immediately", state.savedUnitId != null)
+        assertEquals(1, state.units.size)
+        assertEquals("Short game", state.units.first().title)
+        assertFalse("isSaving should not be set for optimistic saves", state.isSaving)
+
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun saveUnitRevertsOnFailure() = runTest {
+        val repositories = FakePlannerRepositories(saveUnitException = RuntimeException("Network error"))
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.updateUnitTitle("Short game")
+        viewModel.updateInstructionText(0, "Hit 10 wedges")
+        viewModel.saveUnit()
+        advanceUntilIdle()
+
+        assertTrue("Units should revert to empty on failure", viewModel.uiState.value.units.isEmpty())
+        val status = viewModel.uiState.value.status
+        assertTrue("Expected error notification", status is PlannerStatus.Notification && status.text.contains("failed"))
+    }
+
+    @Test
+    fun deleteUnitOptimisticallyRemovesBeforeCoroutine() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.units.size)
+
+        viewModel.deleteUnit("unit-1")
+        // Do NOT call advanceUntilIdle — check optimistic state
+
+        assertTrue("Unit should be removed immediately", viewModel.uiState.value.units.isEmpty())
+        assertFalse("isSaving should not be set for optimistic deletes", viewModel.uiState.value.isSaving)
+
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun deleteUnitForeignKeyViolationRevertsWithSpecificMessage() = runTest {
+        val repositories = FakePlannerRepositories(
+            deleteUnitException = RuntimeException("violates foreign key constraint"),
+        )
+        repositories.units += sampleUnit()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.deleteUnit("unit-1")
+        advanceUntilIdle()
+
+        assertEquals("Unit should be restored after FK violation", 1, viewModel.uiState.value.units.size)
+        val status = viewModel.uiState.value.status
+        assertTrue(
+            "Expected FK violation message",
+            status is PlannerStatus.Notification && status.text.contains("used by one or more sessions"),
+        )
+    }
+
+    @Test
+    fun saveSessionOptimisticallyUpdatesStateBeforeCoroutine() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.beginNewSession()
+        viewModel.updateSessionName("Morning block")
+        viewModel.addSessionItem()
+        viewModel.updateSessionItemUnit(0, "unit-1")
+        viewModel.saveSession()
+        // Do NOT call advanceUntilIdle — check optimistic state
+
+        val state = viewModel.uiState.value
+        assertTrue("savedSessionId should be set immediately", state.savedSessionId != null)
+        assertEquals(1, state.sessions.size)
+        assertEquals("Morning block", state.sessions.first().name)
+        assertFalse("isSaving should not be set for optimistic saves", state.isSaving)
+
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun deleteSessionOptimisticallyRemovesBeforeCoroutine() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.sessions.size)
+
+        viewModel.deleteSession("session-1")
+        // Do NOT call advanceUntilIdle — check optimistic state
+
+        assertTrue("Session should be removed immediately", viewModel.uiState.value.sessions.isEmpty())
+        assertFalse("isSaving should not be set for optimistic deletes", viewModel.uiState.value.isSaving)
+
+        advanceUntilIdle()
+    }
+
+    @Test
     fun firstRunStateRequiresHasLoadedToBeTrue() = runTest {
         val repositories = FakePlannerRepositories()
         val viewModel = PracticePlannerViewModel(
@@ -580,14 +719,23 @@ private class FakePlannerRepositories :
     ClubRepository {
     constructor(
         listUnitsException: Throwable? = null,
+        saveUnitException: Throwable? = null,
+        deleteUnitException: Throwable? = null,
         listDelayMs: Long = 0L,
     ) {
+        this.listUnitsException = listUnitsException
+        this.saveUnitException = saveUnitException
+        this.deleteUnitException = deleteUnitException
         this.listUnitsException = listUnitsException
         this.listDelayMs = listDelayMs
     }
 
     private var listUnitsException: Throwable? = null
+    private var saveUnitException: Throwable? = null
+    private var deleteUnitException: Throwable? = null
+    private var listUnitsException: Throwable? = null
     private var listDelayMs: Long = 0L
+
     val units = mutableListOf<PracticeUnit>()
     val sessions = mutableListOf<PracticeSession>()
     val savedUnitDrafts = mutableListOf<PracticeUnitDraft>()
@@ -610,6 +758,7 @@ private class FakePlannerRepositories :
         draft: PracticeUnitDraft,
         unitId: String?,
     ): PracticeUnit {
+        saveUnitException?.let { throw it }
         savedUnitDrafts += draft
         val unit = PracticeUnit(
             id = unitId ?: "unit-${units.size + 1}",
@@ -634,6 +783,7 @@ private class FakePlannerRepositories :
     }
 
     override suspend fun deletePracticeUnit(unitId: String) {
+        deleteUnitException?.let { throw it }
         units.removeAll { unit -> unit.id == unitId }
     }
 
