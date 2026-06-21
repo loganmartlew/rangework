@@ -347,7 +347,17 @@ private fun PhoneRangeSessionLayout(
                     }
 
                     else -> {
-                        val currentStep = steps.getOrNull(uiState.currentStepIndex)
+                        val currentStepRaw = steps.getOrNull(uiState.currentStepIndex)
+                        val currentStep = currentStepRaw?.let { step ->
+                            val overrideCode = uiState.rangeSession?.clubOverrides?.get(uiState.currentStepIndex.toString())
+                            if (overrideCode != null) {
+                                val overrideClub = enabledClubs.find { it.code == overrideCode }
+                                step.copy(
+                                    club = overrideCode,
+                                    clubDisplayName = overrideClub?.displayName ?: step.clubDisplayName,
+                                )
+                            } else step
+                        }
                         if (currentStep != null) {
                             val isFullyComplete = uiState.completedStepIndices.size == totalSteps
                             Column(modifier = Modifier.fillMaxSize()) {
@@ -499,7 +509,17 @@ private fun TabletRangeSessionLayout(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { innerPadding ->
         if (showPanel) {
-            val currentStep = steps.getOrNull(uiState.currentStepIndex)
+            val currentStepRaw = steps.getOrNull(uiState.currentStepIndex)
+            val currentStep = currentStepRaw?.let { step ->
+                val overrideCode = uiState.rangeSession?.clubOverrides?.get(uiState.currentStepIndex.toString())
+                if (overrideCode != null) {
+                    val overrideClub = enabledClubs.find { it.code == overrideCode }
+                    step.copy(
+                        club = overrideCode,
+                        clubDisplayName = overrideClub?.displayName ?: step.clubDisplayName,
+                    )
+                } else step
+            }
             if (currentStep != null) {
                 val isFullyComplete = uiState.completedStepIndices.size == totalSteps
                 Row(
