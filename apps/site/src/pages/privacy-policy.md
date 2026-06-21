@@ -13,7 +13,7 @@ This Privacy Notice for Rangework ('we', 'us', or 'our'), describes how and why 
 - Download and use our mobile application (Rangework), or any other application of ours that links to this Privacy Notice
 - Engage with us in other related ways, including any marketing or events
 
-Questions or concerns? Reading this Privacy Notice will help you understand your privacy rights and choices. We are responsible for making decisions about how your personal information is processed. If you do not agree with our policies and practices, please do not use our Services. If you still have any questions or concerns, please contact us at [logan.martlew@gmail.com](mailto:logan.martlew@gmail.com).
+Questions or concerns? Reading this Privacy Notice will help you understand your privacy rights and choices. We are responsible for making decisions about how your personal information is processed. If you do not agree with our policies and practices, please do not use our Services. If you still have any questions or concerns, please contact us at [support@rangework.app](mailto:support@rangework.app).
 
 ## SUMMARY OF KEY POINTS
 
@@ -205,7 +205,7 @@ We have implemented appropriate and reasonable technical and organisational secu
 
 **\*In Short:** We do not knowingly collect data from or market to children under 18 years of age or the equivalent age as specified by law in your jurisdiction.\*
 
-We do not knowingly collect, solicit data from, or market to children under 18 years of age or the equivalent age as specified by law in your jurisdiction, nor do we knowingly sell such personal information. By using the Services, you represent that you are at least 18 or the equivalent age as specified by law in your jurisdiction or that you are the parent or guardian of such a minor and consent to such minor dependent's use of the Services. If we learn that personal information from users less than 18 years of age or the equivalent age as specified by law in your jurisdiction has been collected, we will deactivate the account and take reasonable measures to promptly delete such data from our records. If you become aware of any data we may have collected from children under age 18 or the equivalent age as specified by law in your jurisdiction, please contact us at [logan.martlew@gmail.com](mailto:logan.martlew@gmail.com).
+We do not knowingly collect, solicit data from, or market to children under 18 years of age or the equivalent age as specified by law in your jurisdiction, nor do we knowingly sell such personal information. By using the Services, you represent that you are at least 18 or the equivalent age as specified by law in your jurisdiction or that you are the parent or guardian of such a minor and consent to such minor dependent's use of the Services. If we learn that personal information from users less than 18 years of age or the equivalent age as specified by law in your jurisdiction has been collected, we will deactivate the account and take reasonable measures to promptly delete such data from our records. If you become aware of any data we may have collected from children under age 18 or the equivalent age as specified by law in your jurisdiction, please contact us at [support@rangework.app](mailto:support@rangework.app).
 
 ## 12. WHAT ARE YOUR PRIVACY RIGHTS?
 
@@ -234,7 +234,7 @@ Upon your request to terminate your account, we will deactivate or delete your a
 
 **Cookies and similar technologies:** Most Web browsers are set to accept cookies by default. If you prefer, you can usually choose to set your browser to remove cookies and to reject cookies. If you choose to remove cookies or reject cookies, this could affect certain features or services of our Services. For further information, please see our Cookie Notice: [rangework.app/cookie-policy](/cookie-policy).
 
-If you have questions or comments about your privacy rights, you may email us at [logan.martlew@gmail.com](mailto:logan.martlew@gmail.com).
+If you have questions or comments about your privacy rights, you may email us at [support@rangework.app](mailto:support@rangework.app).
 
 ## 13. CONTROLS FOR DO-NOT-TRACK FEATURES
 
@@ -313,7 +313,7 @@ Depending upon the state where you live, you may also have the following rights:
 
 ### How to Exercise Your Rights
 
-To exercise these rights, you can contact us by submitting a [data subject access request](https://app.termly.io/dsar/0f050898-9cfc-4376-b43a-b2a69b89b9c9), by emailing us at [logan.martlew@gmail.com](mailto:logan.martlew@gmail.com), or by referring to the contact details at the bottom of this document.
+To exercise these rights, you can contact us by submitting a [data subject access request](https://app.termly.io/dsar/0f050898-9cfc-4376-b43a-b2a69b89b9c9), by emailing us at [support@rangework.app](mailto:support@rangework.app), or by referring to the contact details at the bottom of this document.
 
 We will honour your opt-out preferences if you enact the Global Privacy Control (GPC) opt-out signal on your browser.
 
@@ -327,7 +327,7 @@ If you submit the request through an authorised agent, we may need to collect ad
 
 ### Appeals
 
-Under certain US state data protection laws, if we decline to take action regarding your request, you may appeal our decision by emailing us at [logan.martlew@gmail.com](mailto:logan.martlew@gmail.com). We will inform you in writing of any action taken or not taken in response to the appeal, including a written explanation of the reasons for the decisions. If your appeal is denied, you may submit a complaint to your state attorney general.
+Under certain US state data protection laws, if we decline to take action regarding your request, you may appeal our decision by emailing us at [support@rangework.app](mailto:support@rangework.app). We will inform you in writing of any action taken or not taken in response to the appeal, including a written explanation of the reasons for the decisions. If your appeal is denied, you may submit a complaint to your state attorney general.
 
 ### California 'Shine The Light' Law
 
@@ -372,7 +372,7 @@ We may update this Privacy Notice from time to time. The updated version will be
 
 ## 17. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?
 
-If you have questions or comments about this notice, you may email us at [logan.martlew@gmail.com](mailto:logan.martlew@gmail.com).
+If you have questions or comments about this notice, you may email us at [support@rangework.app](mailto:support@rangework.app).
 
 ## 18. HOW CAN YOU REVIEW, UPDATE, OR DELETE THE DATA WE COLLECT FROM YOU?
 

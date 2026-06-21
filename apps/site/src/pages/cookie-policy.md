@@ -70,6 +70,6 @@ The date at the top of this Cookie Policy indicates when it was last updated.
 
 ## Where can I get further information?
 
-If you have any questions about our use of cookies or other technologies, please email us at [logan.martlew@gmail.com](mailto:logan.martlew@gmail.com).
+If you have any questions about our use of cookies or other technologies, please email us at [support@rangework.app](mailto:support@rangework.app).
 
 This Cookie Policy was created using Termly's [Cookie Consent Manager](https://termly.io/products/cookie-consent-manager/).

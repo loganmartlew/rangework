@@ -7,7 +7,7 @@ This Privacy Notice for Rangework ('we', 'us', or 'our'), describes how and why 
 Visit our website at rangework.app or any website of ours that links to this Privacy Notice
 Download and use our mobile application (Rangework), or any other application of ours that links to this Privacy Notice
 Engage with us in other related ways, including any marketing or events
-Questions or concerns? Reading this Privacy Notice will help you understand your privacy rights and choices. We are responsible for making decisions about how your personal information is processed. If you do not agree with our policies and practices, please do not use our Services. If you still have any questions or concerns, please contact us at logan.martlew@gmail.com.
+Questions or concerns? Reading this Privacy Notice will help you understand your privacy rights and choices. We are responsible for making decisions about how your personal information is processed. If you do not agree with our policies and practices, please do not use our Services. If you still have any questions or concerns, please contact us at support@rangework.app.
 
 
 SUMMARY OF KEY POINTS
@@ -205,7 +205,7 @@ Upon your request to terminate your account, we will deactivate or delete your a
 
 Cookies and similar technologies: Most Web browsers are set to accept cookies by default. If you prefer, you can usually choose to set your browser to remove cookies and to reject cookies. If you choose to remove cookies or reject cookies, this could affect certain features or services of our Services. For further information, please see our Cookie Notice: rangework.app/cookie-policy.
 
-If you have questions or comments about your privacy rights, you may email us at logan.martlew@gmail.com.
+If you have questions or comments about your privacy rights, you may email us at support@rangework.app.
 
 13. CONTROLS FOR DO-NOT-TRACK FEATURES
 Most web browsers and some mobile operating systems and mobile applications include a Do-Not-Track ('DNT') feature or setting you can activate to signal your privacy preference not to have data about your online browsing activities monitored and collected. At this stage, no uniform technology standard for recognising and implementing DNT signals has been finalised. As such, we do not currently respond to DNT browser signals or any other mechanism that automatically communicates your choice not to be tracked online. If a standard for online tracking is adopted that we must follow in the future, we will inform you about that practice in a revised version of this Privacy Notice.
@@ -314,7 +314,7 @@ Right to review, understand, question, and depending on where you live, correct 
 Right to limit use and disclosure of sensitive personal data (as permitted by applicable law, including the privacy law in California)
 Right to opt out of the collection of sensitive data and personal data collected through the operation of a voice or facial recognition feature (as permitted by applicable law, including the privacy law in Florida)
 How to Exercise Your Rights
-To exercise these rights, you can contact us by submitting a data subject access request, by emailing us at logan.martlew@gmail.com, or by referring to the contact details at the bottom of this document.
+To exercise these rights, you can contact us by submitting a data subject access request, by emailing us at support@rangework.app, or by referring to the contact details at the bottom of this document.
 
 We will honour your opt-out preferences if you enact the Global Privacy Control (GPC) opt-out signal on your browser.
 
@@ -324,7 +324,7 @@ Upon receiving your request, we will need to verify your identity to determine y
 
 If you submit the request through an authorised agent, we may need to collect additional information to verify your identity before processing your request and the agent will need to provide a written and signed permission from you to submit such request on your behalf.
 Appeals
-Under certain US state data protection laws, if we decline to take action regarding your request, you may appeal our decision by emailing us at logan.martlew@gmail.com. We will inform you in writing of any action taken or not taken in response to the appeal, including a written explanation of the reasons for the decisions. If your appeal is denied, you may submit a complaint to your state attorney general.
+Under certain US state data protection laws, if we decline to take action regarding your request, you may appeal our decision by emailing us at support@rangework.app. We will inform you in writing of any action taken or not taken in response to the appeal, including a written explanation of the reasons for the decisions. If your appeal is denied, you may submit a complaint to your state attorney general.
 California 'Shine The Light' Law
 California Civil Code Section 1798.83, also known as the 'Shine The Light' law, permits our users who are California residents to request and obtain from us, once a year and free of charge, information about categories of personal information (if any) we disclosed to third parties for direct marketing purposes and the names and addresses of all third parties with which we shared personal information in the immediately preceding calendar year. If you are a California resident and would like to make such a request, please submit your request in writing to us by using the contact details provided in the section 'HOW CAN YOU CONTACT US ABOUT THIS NOTICE?'
 

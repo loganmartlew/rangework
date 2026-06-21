@@ -13,7 +13,7 @@ We are Rangework ('**Company**', '**we**', '**us**', or '**our**').
 
 We operate the website [https://rangework.app](https://rangework.app) (the '**Site**'), the mobile application Rangework (the '**App**'), as well as any other related products and services that refer or link to these legal terms (the '**Legal Terms**') (collectively, the '**Services**').
 
-You can contact us by email at [logan.martlew@gmail.com](mailto:logan.martlew@gmail.com).
+You can contact us by email at [support@rangework.app](mailto:support@rangework.app).
 
 These Legal Terms constitute a legally binding agreement made between you, whether personally or on behalf of an entity ('**you**'), and Rangework, concerning your access to and use of the Services. You agree that by accessing the Services, you have read, understood, and agreed to be bound by all of these Legal Terms. IF YOU DO NOT AGREE WITH ALL OF THESE LEGAL TERMS, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SERVICES AND YOU MUST DISCONTINUE USE IMMEDIATELY.
 
@@ -80,7 +80,7 @@ solely for your personal, non-commercial use.
 
 Except as set out in this section or elsewhere in our Legal Terms, no part of the Services and no Content or Marks may be copied, reproduced, aggregated, republished, uploaded, posted, publicly displayed, encoded, translated, transmitted, distributed, sold, licensed, or otherwise exploited for any commercial purpose whatsoever, without our express prior written permission.
 
-If you wish to make any use of the Services, Content, or Marks other than as set out in this section or elsewhere in our Legal Terms, please address your request to: [logan.martlew@gmail.com](mailto:logan.martlew@gmail.com). If we ever grant you the permission to post, reproduce, or publicly display any part of our Services or Content, you must identify us as the owners or licensors of the Services, Content, or Marks and ensure that any copyright or proprietary notice appears or is visible on posting, reproducing, or displaying our Content.
+If you wish to make any use of the Services, Content, or Marks other than as set out in this section or elsewhere in our Legal Terms, please address your request to: [support@rangework.app](mailto:support@rangework.app). If we ever grant you the permission to post, reproduce, or publicly display any part of our Services or Content, you must identify us as the owners or licensors of the Services, Content, or Marks and ensure that any copyright or proprietary notice appears or is visible on posting, reproducing, or displaying our Content.
 
 We reserve all rights not expressly granted to you in and to the Services, Content, and Marks.
 
@@ -282,6 +282,6 @@ In order to resolve a complaint regarding the Services or to receive further inf
 
 Rangework
 New Zealand
-[logan.martlew@gmail.com](mailto:logan.martlew@gmail.com)
+[support@rangework.app](mailto:support@rangework.app)
 
 This Terms and Conditions was created using Termly's Terms and Conditions Generator
