@@ -27,28 +27,28 @@ pnpm lint
 
 ```powershell
 Set-Location apps/mobile
-.\gradlew.bat :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease
+.\gradlew.bat :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug
 ```
 
 ### macOS / Linux
 
 ```bash
 cd apps/mobile
-./gradlew :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease
+./gradlew :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug
 ```
 
 ## CI
 
-The baseline GitHub Actions workflow lives in `.github/workflows/android.yml`. It installs pnpm dependencies, builds shared tokens, and runs the same shared and Android unit-test plus assembly path used above for pull requests, pushes to `main`, and manual dispatches.
+The baseline GitHub Actions workflow lives in `.github/workflows/android.yml`. It installs pnpm dependencies, builds shared tokens, and runs the shared and Android unit-test plus debug assembly path shown above for pull requests, pushes to `main`, and manual dispatches. Release builds are validated by the separate manual release workflow.
 
 ## Auth config
 
 Provide these values through your user-level `~/.gradle/gradle.properties` file or environment variables so they stay out of source control:
 
-| Gradle property | Environment variable | Purpose |
-| --- | --- | --- |
-| `rangeworkSupabaseUrl` | `RANGEWORK_SUPABASE_URL` | Supabase project URL |
-| `rangeworkSupabaseAnonKey` | `RANGEWORK_SUPABASE_ANON_KEY` | Supabase anon key |
+| Gradle property              | Environment variable             | Purpose                                               |
+| ---------------------------- | -------------------------------- | ----------------------------------------------------- |
+| `rangeworkSupabaseUrl`       | `RANGEWORK_SUPABASE_URL`         | Supabase project URL                                  |
+| `rangeworkSupabaseAnonKey`   | `RANGEWORK_SUPABASE_ANON_KEY`    | Supabase anon key                                     |
 | `rangeworkGoogleWebClientId` | `RANGEWORK_GOOGLE_WEB_CLIENT_ID` | Google OAuth web client ID used by Credential Manager |
 
 The repo-level Supabase CLI scaffold lives in `supabase/config.toml`. Keep the Google provider `client_id` aligned with `rangeworkGoogleWebClientId`, and inject the real provider secret through your Supabase project or local CLI config rather than source control.

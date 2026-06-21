@@ -4,11 +4,11 @@ Rangework is an Android-first golf practice planning app. This repository is a p
 
 ## Build and validation
 
-- Primary local validation on Windows: `Set-Location apps/mobile; .\gradlew.bat :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease`
-- Equivalent macOS/Linux: `cd apps/mobile && ./gradlew :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug :androidApp:assembleRelease`
+- Primary local validation on Windows: `Set-Location apps/mobile; .\gradlew.bat :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug`
+- Equivalent macOS/Linux: `cd apps/mobile && ./gradlew :shared:testDebugUnitTest :shared:testReleaseUnitTest :androidApp:testDebugUnitTest :androidApp:testReleaseUnitTest :androidApp:assembleDebug`
 - Lint: `Set-Location apps/mobile; .\gradlew.bat :shared:lintDebug :androidApp:lintDebug`
 - Run tests first, then lint.
-- CI is defined in `.github/workflows/android.yml` and runs the pnpm/Turbo workspace build plus the same test-and-assemble path after installing Android SDK platform 35 and build-tools 35.0.0.
+- CI is defined in `.github/workflows/android.yml` and runs the pnpm/Turbo workspace build (debug variant only) after installing Android SDK platform 35 and build-tools 35.0.0. The release variant is validated by the manual release workflow.
 - Module compilation targets Java 17; CI runs Temurin 17. Do not change SDK or toolchain versions casually.
 - Gradle emits Gradle 9 deprecation warnings during successful builds — treat as background noise unless touching relevant build logic.
 
@@ -90,10 +90,10 @@ Rangework is an Android-first golf practice planning app. This repository is a p
 
 ### Typefaces
 
-| Family  | Variable file      | Weights used  | Role                              |
-|---------|--------------------|---------------|-----------------------------------|
-| DM Sans | `dm_sans_*.ttf`    | 300 · 400 · 500 | All UI text via MaterialTheme   |
-| DM Mono | `dm_mono_*.ttf`    | 400 · 500     | Numeric and timer contexts only   |
+| Family  | Variable file   | Weights used    | Role                            |
+| ------- | --------------- | --------------- | ------------------------------- |
+| DM Sans | `dm_sans_*.ttf` | 300 · 400 · 500 | All UI text via MaterialTheme   |
+| DM Mono | `dm_mono_*.ttf` | 400 · 500       | Numeric and timer contexts only |
 
 Font files live in `androidApp/src/main/res/font/`. `FontFamily` declarations and all `TextStyle` definitions are in `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/theme/Type.kt`.
 
@@ -122,23 +122,24 @@ Use `RangeworkMono` when the text is any of: countdown/elapsed timer, ball/rep c
 Use `MaterialTheme.typography` (DM Sans) when the text is any of: name/title/label, instructional prose, chip/tag/category label, navigation/button/action text, metadata/descriptive copy, section header/screen title.
 
 **Edge cases:**
+
 - Mixed lines (e.g. `Balls: 20`): label in `bodyMedium`, value in `RangeworkMono.medium` via `AnnotatedString` or two adjacent `Text` composables.
 - Empty/placeholder states: use `bodyMedium` or `bodySmall` in `onSurfaceVariant`. Do not use mono for placeholder text.
 - Input fields: use `bodyLarge` for `TextField` content regardless of whether it accepts numbers. Exception: dedicated numeric steppers may use `RangeworkMono.medium` for the displayed value only.
 
 ### Colour pairings
 
-| Style | Primary colour token | Secondary use |
-|---|---|---|
-| `headlineLarge/Medium/Small` | `onBackground` | — |
-| `titleLarge/Medium` | `onSurface` | `onSurfaceVariant` for de-emphasis |
-| `bodyLarge/Medium` | `onSurface` | `onSurfaceVariant` for secondary |
-| `bodySmall` | `onSurfaceVariant` | `onSurface` when prominent |
-| `labelLarge` | `onSurface` | `onPrimary` when inside a button |
-| `labelMedium/Small` | `onSurfaceVariant` | uppercase for section headers |
-| `RangeworkMono.large` | `secondary` (#386044) | `onSurface` for neutral metrics |
-| `RangeworkMono.medium` | `onSurface` | `secondary` for highlighted values |
-| `RangeworkMono.small` | `onSurfaceVariant` | `onSurface` for prominent inline |
+| Style                        | Primary colour token  | Secondary use                      |
+| ---------------------------- | --------------------- | ---------------------------------- |
+| `headlineLarge/Medium/Small` | `onBackground`        | —                                  |
+| `titleLarge/Medium`          | `onSurface`           | `onSurfaceVariant` for de-emphasis |
+| `bodyLarge/Medium`           | `onSurface`           | `onSurfaceVariant` for secondary   |
+| `bodySmall`                  | `onSurfaceVariant`    | `onSurface` when prominent         |
+| `labelLarge`                 | `onSurface`           | `onPrimary` when inside a button   |
+| `labelMedium/Small`          | `onSurfaceVariant`    | uppercase for section headers      |
+| `RangeworkMono.large`        | `secondary` (#386044) | `onSurface` for neutral metrics    |
+| `RangeworkMono.medium`       | `onSurface`           | `secondary` for highlighted values |
+| `RangeworkMono.small`        | `onSurfaceVariant`    | `onSurface` for prominent inline   |
 
 ### Typography rules
 
