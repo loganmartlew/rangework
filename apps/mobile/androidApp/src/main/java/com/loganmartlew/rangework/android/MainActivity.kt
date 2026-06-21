@@ -9,11 +9,15 @@ import com.loganmartlew.rangework.android.ui.RangeworkApp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        var isAppReady = false
+        splashScreen.setKeepOnScreenCondition { !isAppReady }
+
         setContent {
-            RangeworkApp(activity = this)
+            RangeworkApp(activity = this, onReady = { isAppReady = true })
         }
     }
 }
