@@ -11,3 +11,5 @@ packages/ui-tokens/dist/
 packages/ui-tokens/generated/
 **/build/
 captures/
+*.jks
+*.keystore

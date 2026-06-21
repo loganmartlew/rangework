@@ -49,6 +49,37 @@ val googleWebClientId = providers.optionalBuildConfigValue(
     environmentVariableName = "RANGEWORK_GOOGLE_WEB_CLIENT_ID",
 )
 
+val resolvedVersionName = providers.optionalBuildConfigValue(
+    gradlePropertyName = "rangeworkVersionName",
+    environmentVariableName = "RANGEWORK_VERSION_NAME",
+).ifEmpty { "0.1.0" }
+
+val resolvedVersionCode = providers.optionalBuildConfigValue(
+    gradlePropertyName = "rangeworkVersionCode",
+    environmentVariableName = "RANGEWORK_VERSION_CODE",
+).ifEmpty { "1" }
+
+val releaseKeystorePath = providers.optionalBuildConfigValue(
+    gradlePropertyName = "rangeworkReleaseKeystorePath",
+    environmentVariableName = "RANGEWORK_RELEASE_KEYSTORE_PATH",
+)
+val releaseKeystorePassword = providers.optionalBuildConfigValue(
+    gradlePropertyName = "rangeworkReleaseKeystorePassword",
+    environmentVariableName = "RANGEWORK_RELEASE_KEYSTORE_PASSWORD",
+)
+val releaseKeyAlias = providers.optionalBuildConfigValue(
+    gradlePropertyName = "rangeworkReleaseKeyAlias",
+    environmentVariableName = "RANGEWORK_RELEASE_KEY_ALIAS",
+)
+val releaseKeyPassword = providers.optionalBuildConfigValue(
+    gradlePropertyName = "rangeworkReleaseKeyPassword",
+    environmentVariableName = "RANGEWORK_RELEASE_KEY_PASSWORD",
+)
+val canSign = releaseKeystorePath.isNotEmpty()
+    && releaseKeystorePassword.isNotEmpty()
+    && releaseKeyAlias.isNotEmpty()
+    && releaseKeyPassword.isNotEmpty()
+
 android {
     namespace = "com.loganmartlew.rangework.android"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -62,8 +93,8 @@ android {
         applicationId = "com.loganmartlew.rangework.android"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = resolvedVersionCode.toIntOrNull() ?: 1
+        versionName = resolvedVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SUPABASE_URL", supabaseUrl.asBuildConfigString())
@@ -71,13 +102,28 @@ android {
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", googleWebClientId.asBuildConfigString())
     }
 
+    if (canSign) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (canSign) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
