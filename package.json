@@ -1,7 +1,7 @@
 {
   "name": "rangework",
   "private": true,
-  "packageManager": "pnpm@10.12.1",
+  "packageManager": "pnpm@11.8.0",
   "scripts": {
     "build": "turbo run build",
     "test": "turbo run test",
