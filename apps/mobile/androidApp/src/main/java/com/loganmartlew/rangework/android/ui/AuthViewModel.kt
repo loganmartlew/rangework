@@ -11,6 +11,7 @@ import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.auth.createAuthFoundation
 import com.loganmartlew.rangework.shared.config.AppEnvironment
 import com.loganmartlew.rangework.shared.config.isAuthConfigured
+import com.loganmartlew.rangework.shared.model.UserProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +21,7 @@ import kotlinx.coroutines.launch
 data class AuthUiState(
     val environment: AppEnvironment,
     val authState: AuthState,
+    val userProfile: UserProfile? = null,
     val actionInProgress: Boolean = false,
     val statusMessage: String? = null,
 )
@@ -50,6 +52,11 @@ class AuthViewModel(
                 foundation.observeAuthStateUseCase().collect { authState ->
                     _uiState.update { state ->
                         state.copy(authState = authState)
+                    }
+                    if (authState is AuthState.SignedIn) {
+                        fetchProfile(foundation)
+                    } else if (authState is AuthState.SignedOut) {
+                        _uiState.update { state -> state.copy(userProfile = null) }
                     }
                 }
             }
@@ -108,6 +115,17 @@ class AuthViewModel(
                 exception.message ?: "Sign out failed."
             } catch (exception: Exception) {
                 exception.message ?: "Sign out failed."
+            }
+        }
+    }
+
+    private fun fetchProfile(foundation: AuthFoundation) {
+        viewModelScope.launch {
+            try {
+                val profile = foundation.getUserProfileUseCase()
+                _uiState.update { state -> state.copy(userProfile = profile) }
+            } catch (_: Exception) {
+                // Profile display is supplementary — a fetch failure doesn't break auth
             }
         }
     }

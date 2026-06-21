@@ -88,10 +88,8 @@ internal fun OverviewScreen(
             return@ScrollableScreen
         }
 
-        val nameFromEmail = signedInState?.userEmail
-            ?.substringBefore("@")
-            ?.replaceFirstChar { it.uppercaseChar() }
-        val greeting = "Welcome back${if (nameFromEmail != null) ", $nameFromEmail" else ""}"
+        val firstName = authUiState.userProfile?.firstName
+        val greeting = "Welcome back${if (firstName != null) ", $firstName" else ""}"
         val email = signedInState?.userEmail
 
         if (isExpandedLayout) {

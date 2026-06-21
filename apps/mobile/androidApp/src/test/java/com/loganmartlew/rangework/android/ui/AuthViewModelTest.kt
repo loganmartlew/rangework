@@ -9,6 +9,9 @@ import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.config.GoogleAuthConfig
 import com.loganmartlew.rangework.shared.config.baselineEnvironment
 import com.loganmartlew.rangework.shared.data.SupabaseEndpointConfig
+import com.loganmartlew.rangework.shared.model.UserProfile
+import com.loganmartlew.rangework.shared.repository.ProfileRepository
+import com.loganmartlew.rangework.shared.usecase.GetUserProfileUseCase
 import com.loganmartlew.rangework.shared.usecase.ObserveAuthStateUseCase
 import com.loganmartlew.rangework.shared.usecase.RestoreAuthSessionUseCase
 import com.loganmartlew.rangework.shared.usecase.SignInWithGoogleIdTokenUseCase
@@ -109,6 +112,7 @@ class AuthViewModelTest {
             restoreAuthSessionUseCase = RestoreAuthSessionUseCase(repository),
             signInWithGoogleIdTokenUseCase = SignInWithGoogleIdTokenUseCase(repository),
             signOutUseCase = SignOutUseCase(repository),
+            getUserProfileUseCase = GetUserProfileUseCase(FakeProfileRepository()),
         )
 
         return AuthViewModel(
@@ -156,6 +160,15 @@ private class FakeAuthRepository(
     override suspend fun signOut() {
         authState.value = AuthState.SignedOut
     }
+}
+
+private class FakeProfileRepository : ProfileRepository {
+    override suspend fun getUserProfile() = UserProfile(
+        firstName = "Logan",
+        lastName = "Martlew",
+        displayName = "Logan Martlew",
+        email = "logan@example.com",
+    )
 }
 
 private class FakeGoogleIdTokenProvider(

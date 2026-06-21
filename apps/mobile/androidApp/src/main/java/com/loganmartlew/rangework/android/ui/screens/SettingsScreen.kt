@@ -251,9 +251,28 @@ internal fun SettingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    val fullName = listOfNotNull(
+                        authUiState.userProfile?.firstName,
+                        authUiState.userProfile?.lastName,
+                    ).joinToString(" ").takeIf { it.isNotBlank() }
+                    if (fullName != null) {
+                        Text(
+                            text = fullName,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                     Text(
                         text = signedInState?.userEmail ?: "—",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = if (fullName != null) {
+                            MaterialTheme.typography.bodySmall
+                        } else {
+                            MaterialTheme.typography.bodyMedium
+                        },
+                        color = if (fullName != null) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                     )
                 }
             }
