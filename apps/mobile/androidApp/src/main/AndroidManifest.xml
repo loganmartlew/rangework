@@ -4,12 +4,14 @@
   <uses-permission android:name="android.permission.INTERNET" />
 
   <application
+    android:name=".RangeworkApplication"
     android:allowBackup="false"
     android:label="@string/app_name"
     android:supportsRtl="true"
     android:theme="@style/Theme.Rangework"
     android:icon="@mipmap/ic_launcher"
     android:roundIcon="@mipmap/ic_launcher_round">
+    <meta-data android:name="io.sentry.auto-init" android:value="false" />
     <activity
       android:name=".MainActivity"
       android:exported="true"

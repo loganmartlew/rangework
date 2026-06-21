@@ -2,18 +2,30 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.sentry)
 }
 
 val tokenBuildTask = rootProject.tasks.named("generateUiTokens")
 val tokenKotlinDir = rootProject.rootDir.resolve("../../packages/ui-tokens/generated/android/kotlin")
 val tokenResDir = rootProject.rootDir.resolve("../../packages/ui-tokens/generated/android/res")
 
+val dotEnv: Map<String, String> = rootProject.rootDir.resolve(".env")
+    .takeIf { it.exists() }
+    ?.readLines()
+    ?.filter { it.isNotBlank() && !it.trimStart().startsWith("#") }
+    ?.mapNotNull { line ->
+        val idx = line.indexOf('=')
+        if (idx > 0) line.substring(0, idx).trim() to line.substring(idx + 1).trim() else null
+    }
+    ?.toMap()
+    ?: emptyMap()
+
 fun org.gradle.api.provider.ProviderFactory.optionalBuildConfigValue(
     gradlePropertyName: String,
     environmentVariableName: String,
 ): String = gradleProperty(gradlePropertyName)
     .orElse(environmentVariable(environmentVariableName))
-    .orElse("")
+    .orElse(dotEnv[environmentVariableName] ?: "")
     .get()
 
 fun String.asBuildConfigString(): String = buildString(length + 2) {
@@ -88,6 +100,13 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+sentry {
+    includeSourceContext = true
+    org = "logan-martlew"
+    projectName = "kotlin"
+    authToken = System.getenv("SENTRY_AUTH_TOKEN") ?: dotEnv["SENTRY_AUTH_TOKEN"]
 }
 
 tasks.named("preBuild").configure {

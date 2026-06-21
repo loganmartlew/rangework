@@ -25,6 +25,7 @@ ktor = "3.0.0-rc-1"
 credentials = "1.6.0"
 googleId = "1.1.1"
 reorderable = "2.4.3"
+sentry = "4.14.0"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
@@ -70,3 +71,4 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+sentry = { id = "io.sentry.android.gradle", version.ref = "sentry" }

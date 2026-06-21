@@ -3,6 +3,7 @@
 /.kotlin/
 /local.properties
 apps/mobile/local.properties
+apps/mobile/.env
 node_modules/
 .pnpm-store/
 .turbo/
