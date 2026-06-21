@@ -182,7 +182,15 @@ class RangeSessionViewModel(
     }
 
     fun overrideStepClub(stepIndex: Int, clubCode: String) {
+        val state = _uiState.value
+        val session = state.rangeSession ?: return
         val foundation = dataFoundation ?: return
+
+        val optimisticSession = session.copy(
+            clubOverrides = session.clubOverrides + (stepIndex.toString() to clubCode),
+        )
+        _uiState.value = state.copy(rangeSession = optimisticSession)
+
         viewModelScope.launch {
             try {
                 val updatedSession = foundation.overrideStepClubUseCase(
@@ -191,9 +199,10 @@ class RangeSessionViewModel(
                     clubCode = clubCode,
                 )
                 _uiState.value = _uiState.value.copy(rangeSession = updatedSession)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(
-                    notification = "Failed to override club: ${e.message ?: "unknown error"}"
+                    rangeSession = session,
+                    notification = "Failed to override club. Please try again.",
                 )
             }
         }

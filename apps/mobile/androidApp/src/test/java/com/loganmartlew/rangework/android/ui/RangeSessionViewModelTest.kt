@@ -426,6 +426,51 @@ class RangeSessionViewModelTest {
     }
 
     @Test
+    fun overrideStepClubUpdatesOptimistically() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.overrideStepClub(0, "seven_iron")
+
+        val state = viewModel.uiState.value
+        assertEquals("seven_iron", state.rangeSession?.clubOverrides?.get("0"))
+    }
+
+    @Test
+    fun overrideStepClubReconcileAfterSuccess() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.overrideStepClub(0, "seven_iron")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("seven_iron", state.rangeSession?.clubOverrides?.get("0"))
+        assertEquals(1, repo.overrideInvocations.size)
+    }
+
+    @Test
+    fun overrideStepClubRevertsOnFailure() = runTest {
+        val session = sampleRangeSession(steps = 3)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session), shouldFailOnOverride = true)
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        viewModel.overrideStepClub(0, "seven_iron")
+        assertTrue("Optimistic: override should appear", viewModel.uiState.value.rangeSession?.clubOverrides?.containsKey("0") == true)
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue("Club overrides should revert to empty", state.rangeSession?.clubOverrides?.isEmpty() == true)
+        assertTrue("Expected error notification", state.notification != null)
+    }
+
+    @Test
     fun doubleEnterGuardPreventsMultipleTimeEntries() = runTest {
         val session = sampleRangeSession(steps = 3)
         val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
@@ -515,10 +560,12 @@ private fun buildDataFoundation(rangeRepo: RangeSessionRepository): DataFoundati
 private class FakeRangeSessionRepo(
     val sessions: MutableList<RangeSession> = mutableListOf(),
     var shouldFailOnToggle: Boolean = false,
+    var shouldFailOnOverride: Boolean = false,
     var getElapsedSecondsResult: Long = 0L,
 ) : RangeSessionRepository {
     val lastViewedStepUpdates = mutableMapOf<String, Int>()
     val toggleInvocations = mutableListOf<Triple<String, Int, Boolean>>()
+    val overrideInvocations = mutableListOf<Triple<String, Int, String>>()
     val recordedTimeEntries = mutableListOf<Pair<String, Instant>>()
     val closedTimeEntries = mutableListOf<Triple<String, Instant, Instant>>()
 
@@ -545,8 +592,15 @@ private class FakeRangeSessionRepo(
         sessions.add(updated)
         return updated
     }
-    override suspend fun overrideStepClub(rangeSessionId: String, stepIndex: Int, clubCode: String): RangeSession =
-        error("Not called in these tests")
+    override suspend fun overrideStepClub(rangeSessionId: String, stepIndex: Int, clubCode: String): RangeSession {
+        if (shouldFailOnOverride) throw RuntimeException("Simulated network error")
+        overrideInvocations.add(Triple(rangeSessionId, stepIndex, clubCode))
+        val session = sessions.firstOrNull { it.id == rangeSessionId } ?: error("Session not found")
+        val updated = session.copy(clubOverrides = session.clubOverrides + (stepIndex.toString() to clubCode))
+        sessions.removeAll { it.id == rangeSessionId }
+        sessions.add(updated)
+        return updated
+    }
     override suspend fun updateLastViewedStep(rangeSessionId: String, stepIndex: Int) {
         lastViewedStepUpdates[rangeSessionId] = stepIndex
     }
