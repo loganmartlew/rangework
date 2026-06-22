@@ -151,7 +151,7 @@ android {
 sentry {
     includeSourceContext = true
     org = "logan-martlew"
-    projectName = "kotlin"
+    projectName = "rangework-android"
     authToken = System.getenv("SENTRY_AUTH_TOKEN") ?: dotEnv["SENTRY_AUTH_TOKEN"]
 }
 
