@@ -6,6 +6,7 @@ import { createUserContext } from './auth/userContext.js';
 export interface Env {
   SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
+  METHODOLOGY_BUCKET: R2Bucket;
 }
 
 /**
@@ -30,7 +31,10 @@ export default {
 
     // OAuth 2.0 Protected Resource Metadata (RFC 9728)
     // MCP clients use this to discover the authorization server.
-    if (url.pathname === '/.well-known/oauth-protected-resource' && request.method === 'GET') {
+    if (
+      url.pathname === '/.well-known/oauth-protected-resource' &&
+      request.method === 'GET'
+    ) {
       const metadata = {
         resource: resourceBaseUrl,
         authorization_servers: [`${env.SUPABASE_URL}/auth/v1`],
@@ -55,7 +59,8 @@ export default {
 
       if (!authResult.ok) {
         const isTokenError =
-          authResult.error === 'invalid_token' || authResult.error === 'expired_token';
+          authResult.error === 'invalid_token' ||
+          authResult.error === 'expired_token';
 
         let wwwAuthenticate = `Bearer realm="rangework-mcp", resource_metadata="${metadataUrl}"`;
         if (isTokenError) {
@@ -78,7 +83,7 @@ export default {
         env.SUPABASE_ANON_KEY,
       );
 
-      const server = createServer(userContext);
+      const server = createServer(userContext, env.METHODOLOGY_BUCKET);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
       });

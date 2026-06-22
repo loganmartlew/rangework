@@ -106,6 +106,7 @@ Returns the clubs currently enabled in the user's bag, ordered by natural bag pr
 **Input:** none
 
 **Output:**
+
 ```json
 {
   "clubs": [
@@ -126,6 +127,7 @@ Returns all of the user's practice units, including full instruction text, ball 
 **Input:** none
 
 **Output:**
+
 ```json
 {
   "units": [
@@ -159,6 +161,7 @@ Returns all of the user's practice sessions, including their item lineup, club o
 **Input:** none
 
 **Output:**
+
 ```json
 {
   "sessions": [
@@ -194,6 +197,7 @@ Returns all of the user's practice sessions, including their item lineup, club o
 Creates a new practice unit (a single drill) in the user's account. Returns the new unit's id, which can be used immediately in `create_session`.
 
 **Input:**
+
 ```json
 {
   "title": "Gate Drill",
@@ -223,6 +227,7 @@ Creates a new practice unit (a single drill) in the user's account. Returns the 
 Creates a new practice session in the user's account. Call `list_units` or `create_unit` first to obtain unit ids.
 
 **Input:**
+
 ```json
 {
   "name": "Pre-round warm-up",
@@ -263,12 +268,12 @@ All tool errors set `isError: true` on the MCP content block and return a struct
 }
 ```
 
-| Code | Meaning |
-|---|---|
-| `VALIDATION_ERROR` | Input failed validation — check `data.field` for which field |
+| Code                | Meaning                                                                          |
+| ------------------- | -------------------------------------------------------------------------------- |
+| `VALIDATION_ERROR`  | Input failed validation — check `data.field` for which field                     |
 | `UNKNOWN_CLUB_CODE` | Club reference not found in catalog — check `data.valid_codes` for valid options |
-| `UNIT_NOT_FOUND` | Unit id not found or not owned by the user — check `data.invalid_unit_ids` |
-| `DATABASE_ERROR` | Unexpected RPC failure — safe to retry once |
+| `UNIT_NOT_FOUND`    | Unit id not found or not owned by the user — check `data.invalid_unit_ids`       |
+| `DATABASE_ERROR`    | Unexpected RPC failure — safe to retry once                                      |
 
 ## Deployment
 
@@ -305,3 +310,83 @@ npx @modelcontextprotocol/inspector https://mcp.rangework.app/mcp
 
 - `design-docs/RWK4-ai-integration/roadmap.md` — full architecture decision and stage breakdown.
 - `design-docs/RWK4-ai-integration/stage3/contracts.md` — final tool schemas and error contracts.
+- `design-docs/RWK4-ai-integration/stage4/requirements.md` — prompt and coaching guide requirements.
+
+## Prompts
+
+### `build_practice_plan`
+
+MCP prompt that returns the full Rangework coaching methodology as a `user` role message. The LLM uses this methodology to drive a conversation that ends in real `create_unit` / `create_session` tool calls.
+
+**Arguments:**
+
+| Argument | Type   | Required | Description                                                                |
+| -------- | ------ | -------- | -------------------------------------------------------------------------- |
+| `focus`  | string | No       | Optional primary focus for the session (e.g. "driver distance", "putting") |
+
+**Returns:** A single `user` role message containing the coaching methodology text. If `focus` is provided, it is appended to the message.
+
+---
+
+### `get_coaching_guide`
+
+Fallback tool for clients that don't support MCP prompts. Returns the same coaching methodology as the `build_practice_plan` prompt.
+
+**Input:** none
+
+**Output:**
+
+```json
+{
+  "methodology_version": "1.0.0",
+  "guide": "# Rangework Coaching Guide\n\nmethodology_version: \"1.0.0\"\n..."
+}
+```
+
+**Error:** Returns `CONTENT_UNAVAILABLE` when the methodology cannot be loaded from R2.
+
+---
+
+## Coaching methodology
+
+The coaching methodology is a markdown document (`methodology/coaching-guide.md`) that encodes golf practice planning principles. It is the system-level instruction that tells the LLM how to conduct a practice-planning conversation and produce valid Rangework data.
+
+### Storage
+
+The methodology is stored in a Cloudflare R2 bucket (`rangework`, key `mcp/coaching-guide.md`). The Worker fetches it at runtime and caches it in-memory for the isolate's lifetime.
+
+### Local development
+
+Seed the local R2 emulation before running `wrangler dev`:
+
+```powershell
+pnpm --filter @rangework/mcp dev:seed
+pnpm --filter @rangework/mcp dev
+```
+
+### Updating the methodology
+
+1. Edit `methodology/coaching-guide.md`.
+2. Deploy: `pnpm --filter @rangework/mcp deploy` (uploads to R2, then deploys the Worker).
+3. The new content is picked up as Worker isolates are evicted (typically seconds to minutes).
+
+## Deployment
+
+### One-time setup
+
+1. **Custom domain** — add a DNS CNAME record for `mcp.rangework.app` on the `rangework.app` Cloudflare zone pointing at the Workers target. Verify with `dig mcp.rangework.app` before acceptance.
+2. **GitHub Actions secrets** — add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub Actions secrets (ready for future deploy automation).
+3. **R2 bucket** — the `rangework` R2 bucket must exist in the Cloudflare account. The deploy script uploads the methodology to it automatically.
+
+### Deploy command
+
+```powershell
+pnpm --filter @rangework/mcp deploy
+```
+
+This runs two steps:
+
+1. `wrangler r2 object put rangework/mcp/coaching-guide.md --file methodology/coaching-guide.md` — uploads the latest methodology to R2.
+2. `wrangler deploy` — deploys the Worker.
+
+Requires `wrangler login` or `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` environment variables set locally.

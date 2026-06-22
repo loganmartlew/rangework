@@ -3,6 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../server.js';
 import type { UserContext } from '../auth/userContext.js';
+import { mockR2Bucket } from './test-helpers.js';
 
 describe('list_units tool', () => {
   it('returns units with full instructions and computed ball counts', async () => {
@@ -62,7 +63,7 @@ describe('list_units tool', () => {
       supabaseClient: mockSupabaseClient,
     };
 
-    const server = createServer(userContext);
+    const server = createServer(userContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });
@@ -152,7 +153,7 @@ describe('list_units tool', () => {
       supabaseClient: mockSupabaseClient,
     };
 
-    const server = createServer(userContext);
+    const server = createServer(userContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });
@@ -186,7 +187,7 @@ describe('list_units tool', () => {
       supabaseClient: mockSupabaseClient,
     };
 
-    const server = createServer(userContext);
+    const server = createServer(userContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });

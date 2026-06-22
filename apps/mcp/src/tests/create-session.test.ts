@@ -3,6 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../server.js';
 import type { UserContext } from '../auth/userContext.js';
+import { mockR2Bucket } from './test-helpers.js';
 
 describe('create_session tool', () => {
   it('creates a session and returns session_id', async () => {
@@ -46,7 +47,7 @@ describe('create_session tool', () => {
       supabaseClient: mockSupabaseClient,
     };
 
-    const server = createServer(userContext);
+    const server = createServer(userContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });
@@ -95,7 +96,7 @@ describe('create_session tool', () => {
       supabaseClient: mockSupabaseClient,
     };
 
-    const server = createServer(userContext);
+    const server = createServer(userContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });
@@ -147,7 +148,7 @@ describe('create_session tool', () => {
       supabaseClient: mockSupabaseClient,
     };
 
-    const server = createServer(userContext);
+    const server = createServer(userContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });
@@ -202,7 +203,7 @@ describe('create_session tool', () => {
       supabaseClient: mockSupabaseClient,
     };
 
-    const server = createServer(userContext);
+    const server = createServer(userContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });
@@ -266,7 +267,7 @@ describe('create_session tool', () => {
       supabaseClient: mockSupabaseClient,
     };
 
-    const server = createServer(userContext);
+    const server = createServer(userContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });

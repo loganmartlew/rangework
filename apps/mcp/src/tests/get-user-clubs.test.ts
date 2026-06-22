@@ -3,6 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../server.js';
 import type { UserContext } from '../auth/userContext.js';
+import { mockR2Bucket } from './test-helpers.js';
 
 describe('get_user_clubs tool', () => {
   it('returns clubs ordered by sort_order', async () => {
@@ -57,7 +58,7 @@ describe('get_user_clubs tool', () => {
       supabaseClient: mockSupabaseClient,
     };
 
-    const server = createServer(userContext);
+    const server = createServer(userContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });
@@ -108,7 +109,7 @@ describe('get_user_clubs tool', () => {
       supabaseClient: mockSupabaseClient,
     };
 
-    const server = createServer(userContext);
+    const server = createServer(userContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });

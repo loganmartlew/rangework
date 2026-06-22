@@ -3,16 +3,18 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../server.js';
 import type { UserContext } from '../auth/userContext.js';
+import { mockR2Bucket } from './test-helpers.js';
 
 // Mock UserContext for tests that don't exercise Supabase queries
 const mockUserContext: UserContext = {
   userId: 'test-user-id',
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabaseClient: {} as any,
 };
 
 describe('ping tool', () => {
   it('is registered in tools/list', async () => {
-    const server = createServer(mockUserContext);
+    const server = createServer(mockUserContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
 
@@ -30,7 +32,7 @@ describe('ping tool', () => {
   });
 
   it('returns { status: "ok" } when called', async () => {
-    const server = createServer(mockUserContext);
+    const server = createServer(mockUserContext, mockR2Bucket());
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
 

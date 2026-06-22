@@ -5,6 +5,8 @@ import { registerListUnitsTool } from './tools/list-units.js';
 import { registerListSessionsTool } from './tools/list-sessions.js';
 import { registerCreateUnitTool } from './tools/create-unit.js';
 import { registerCreateSessionTool } from './tools/create-session.js';
+import { registerGetCoachingGuideTool } from './tools/get-coaching-guide.js';
+import { registerBuildPracticePlanPrompt } from './prompts/build-practice-plan.js';
 import type { UserContext } from './auth/userContext.js';
 
 /**
@@ -17,8 +19,12 @@ import type { UserContext } from './auth/userContext.js';
  * @param userContext - Authenticated user context (available from RWK-30 onwards).
  *   All production requests reach here with a validated context (auth is enforced
  *   in the fetch handler).
+ * @param bucket - R2 bucket containing the coaching methodology.
  */
-export function createServer(userContext: UserContext): McpServer {
+export function createServer(
+  userContext: UserContext,
+  bucket: R2Bucket,
+): McpServer {
   const server = new McpServer(
     {
       name: 'rangework-mcp',
@@ -27,6 +33,7 @@ export function createServer(userContext: UserContext): McpServer {
     {
       capabilities: {
         tools: {},
+        prompts: {},
       },
     },
   );
@@ -37,6 +44,8 @@ export function createServer(userContext: UserContext): McpServer {
   registerListSessionsTool(server, userContext);
   registerCreateUnitTool(server, userContext);
   registerCreateSessionTool(server, userContext);
+  registerGetCoachingGuideTool(server, bucket);
+  registerBuildPracticePlanPrompt(server, bucket);
 
   return server;
 }
