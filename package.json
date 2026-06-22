@@ -12,7 +12,8 @@
     "mobile:assemble:debug": "pnpm --filter @rangework/mobile assemble:debug",
     "mobile:assemble:release": "pnpm --filter @rangework/mobile assemble:release",
     "mobile:test": "pnpm --filter @rangework/mobile test",
-    "mobile:lint": "pnpm --filter @rangework/mobile lint"
+    "mobile:lint": "pnpm --filter @rangework/mobile lint",
+    "supabase:start": "supabase start && supabase status"
   },
   "devDependencies": {
     "turbo": "^2.5.4"

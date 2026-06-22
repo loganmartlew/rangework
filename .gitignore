@@ -4,6 +4,7 @@
 /local.properties
 apps/mobile/local.properties
 apps/mobile/.env
+supabase/.env
 node_modules/
 .pnpm-store/
 .turbo/

@@ -53,6 +53,57 @@ Provide these values through your user-level `~/.gradle/gradle.properties` file 
 
 The repo-level Supabase CLI scaffold lives in `supabase/config.toml`. Keep the Google provider `client_id` aligned with `rangeworkGoogleWebClientId`, and inject the real provider secret through your Supabase project or local CLI config rather than source control.
 
+## Local development with Supabase
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (running)
+- [Supabase CLI](https://supabase.com/docs/guides/cli) (`pnpm add -g supabase` or `scoop install supabase`)
+
+### One-time setup
+
+1. Copy `supabase/.env.example` to `supabase/.env` and fill in your Google OAuth client secret from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+2. Copy `apps/mobile/.env.example` to `apps/mobile/.env` — the defaults are pre-configured for local development.
+3. Run `supabase start` from the repo root. The first run pulls Docker images (~2-3 min). It prints the local URL, anon key, and service role key.
+
+### Daily workflow
+
+```bash
+pnpm supabase:start
+```
+
+This starts local Supabase (idempotent) and prints the status. When you're done:
+
+```powershell
+supabase stop
+```
+
+Data persists between stops/starts. To wipe everything and start fresh:
+
+```powershell
+supabase db reset
+```
+
+### Creating migrations
+
+```powershell
+supabase migration new <name>
+```
+
+Write your SQL in the generated file under `supabase/migrations/`, then apply it locally with `supabase db reset`.
+
+### Deploying migrations to production
+
+Trigger the **Deploy Supabase migrations** workflow from GitHub Actions. It links to the cloud project, runs a dry-run to preview pending migrations, then pushes them.
+
+GitHub secrets required:
+
+| Secret                   | Where to get it                               |
+| ------------------------ | --------------------------------------------- |
+| `SUPABASE_PROJECT_REF`   | Your Supabase project URL slug                |
+| `SUPABASE_ACCESS_TOKEN`  | supabase.com → Account → Access Tokens        |
+| `SUPABASE_DB_PASSWORD`   | Supabase dashboard → Settings → Database      |
+
 ## Notes
 
 - Java 17 is the Gradle toolchain target for Android and shared JVM compilation.
