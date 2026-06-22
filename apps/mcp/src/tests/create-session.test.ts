@@ -9,12 +9,11 @@ describe('create_session tool', () => {
     const mockSupabaseClient = {
       from: (table: string) => {
         if (table === 'practice_units') {
+          // create_session awaits select('id') directly — no .order() chain
           return {
-            select: () => ({
-              order: async () => ({
-                data: [{ id: 'unit-1' }, { id: 'unit-2' }],
-                error: null,
-              }),
+            select: () => Promise.resolve({
+              data: [{ id: 'unit-1' }, { id: 'unit-2' }],
+              error: null,
             }),
           };
         }
@@ -237,12 +236,11 @@ describe('create_session tool', () => {
     const mockSupabaseClient = {
       from: (table: string) => {
         if (table === 'practice_units') {
+          // create_session awaits select('id') directly — no .order() chain
           return {
-            select: () => ({
-              order: async () => ({
-                data: [{ id: 'unit-1' }],
-                error: null,
-              }),
+            select: () => Promise.resolve({
+              data: [{ id: 'unit-1' }],
+              error: null,
             }),
           };
         }
