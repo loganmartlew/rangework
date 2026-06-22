@@ -63,6 +63,9 @@ importers:
       '@rangework/ui-tokens':
         specifier: workspace:*
         version: link:../../packages/ui-tokens
+      '@supabase/supabase-js':
+        specifier: ^2.49.0
+        version: 2.108.2
       '@tailwindcss/vite':
         specifier: ^4.3.1
         version: 4.3.1(vite@7.3.5(@types/node@26.0.0)(jiti@2.7.0)(lightningcss@1.32.0)(yaml@2.9.0))
