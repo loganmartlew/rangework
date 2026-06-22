@@ -1,5 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerPingTool } from './tools/ping.js';
+import { registerGetUserClubsTool } from './tools/get-user-clubs.js';
+import { registerListUnitsTool } from './tools/list-units.js';
+import { registerListSessionsTool } from './tools/list-sessions.js';
+import { registerCreateUnitTool } from './tools/create-unit.js';
+import { registerCreateSessionTool } from './tools/create-session.js';
 import type { UserContext } from './auth/userContext.js';
 
 /**
@@ -10,10 +15,10 @@ import type { UserContext } from './auth/userContext.js';
  * Workers runtime.
  *
  * @param userContext - Authenticated user context (available from RWK-30 onwards).
- *   Undefined only in unauthenticated test scenarios. All production requests
- *   reach here with a validated context (auth is enforced in the fetch handler).
+ *   All production requests reach here with a validated context (auth is enforced
+ *   in the fetch handler).
  */
-export function createServer(_userContext?: UserContext): McpServer {
+export function createServer(userContext: UserContext): McpServer {
   const server = new McpServer(
     {
       name: 'rangework-mcp',
@@ -27,6 +32,11 @@ export function createServer(_userContext?: UserContext): McpServer {
   );
 
   registerPingTool(server);
+  registerGetUserClubsTool(server, userContext);
+  registerListUnitsTool(server, userContext);
+  registerListSessionsTool(server, userContext);
+  registerCreateUnitTool(server, userContext);
+  registerCreateSessionTool(server, userContext);
 
   return server;
 }

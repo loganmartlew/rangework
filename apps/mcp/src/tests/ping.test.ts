@@ -2,10 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../server.js';
+import type { UserContext } from '../auth/userContext.js';
+
+// Mock UserContext for tests that don't exercise Supabase queries
+const mockUserContext: UserContext = {
+  userId: 'test-user-id',
+  supabaseClient: {} as any,
+};
 
 describe('ping tool', () => {
   it('is registered in tools/list', async () => {
-    const server = createServer();
+    const server = createServer(mockUserContext);
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
 
@@ -23,7 +30,7 @@ describe('ping tool', () => {
   });
 
   it('returns { status: "ok" } when called', async () => {
-    const server = createServer();
+    const server = createServer(mockUserContext);
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
 
