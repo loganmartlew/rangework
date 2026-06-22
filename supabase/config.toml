@@ -4,11 +4,6 @@ project_id = "rangework"
 enabled = true
 
 [auth.external.google]
-enabled = false
-client_id = ""
-secret = ""
-
-# Phase 2 notes:
-# - Enable the Google provider in the Supabase dashboard for the linked project.
-# - Use the same Google web client ID here and in rangeworkGoogleWebClientId so
-#   Credential Manager can request an ID token and Supabase Auth can validate it.
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
