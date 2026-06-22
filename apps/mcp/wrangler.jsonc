@@ -5,7 +5,10 @@
   "compatibility_date": "2025-06-20",
   "compatibility_flags": ["nodejs_compat"],
   // No account_id — provided at deploy time via env / `wrangler login`
-  "vars": {},
+  "vars": {
+    // SUPABASE_URL: set in .dev.vars locally; set via wrangler dashboard for production.
+    // SUPABASE_ANON_KEY: set via `wrangler secret put SUPABASE_ANON_KEY` for production.
+  },
   "dev": {
     "port": 8787,
   },
