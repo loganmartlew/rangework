@@ -1,0 +1,120 @@
+# Stage 1 — Open Requirements Questions
+
+> **Epic:** [RWK-4 — AI Session Creation](https://loganmartlew.atlassian.net/browse/RWK-4)
+> **Stage 1 tickets:** [RWK-29 — Scaffold MCP server project](https://loganmartlew.atlassian.net/browse/RWK-29) · [RWK-28 — Configure Supabase OAuth 2.1 Server](https://loganmartlew.atlassian.net/browse/RWK-28)
+> **Source of truth:** `design-docs/RWK4-ai-integration/roadmap.md` (§2 Stack, §3 Existing system, §4 Architecture, §6 Stage plan, §7 Flags F2/F8/F11, §8 Open questions)
+
+## Context
+
+Stage 1 of the RWK-4 epic runs two parallel, independent workstreams:
+
+- **RWK-29** — scaffold a TypeScript MCP server on Cloudflare Workers, deploy it to a public URL, and verify connectability with MCP Inspector via a `ping`/health tool. The Jira description leaves "framework, language, and hosting" intentionally unresolved; the roadmap §2 resolves them to TypeScript + `@modelcontextprotocol/sdk` + Cloudflare Workers, and §6 Stage 1 adds the `apps/mcp` placement, README, and "deploy to a public URL on the existing Cloudflare account" deliverables.
+- **RWK-28** — enable Supabase's beta OAuth 2.1 Authorization Server, switch JWT signing to asymmetric (RS256 or ES256), enable dynamic client registration, and point the authorization path at the consent page URL. The Jira description and roadmap §6 Stage 1 both flag the existing-Android-sign-in risk (flag F8) and the beta-feature risk (flag F11).
+
+The questions below must be answered before an implementation plan can be written. They are grouped by workstream, with a final cross-cutting section. Each question references the specific ambiguity in the roadmap or ticket and explains why it matters for implementation.
+
+Repo conventions observed while preparing these questions:
+
+- `pnpm-workspace.yaml` globs `apps/*` and `packages/*` — a new `apps/mcp` would be picked up automatically.
+- `turbo.json` defines `build`, `test`, `lint`, and `dev` tasks with `dependsOn: ["^build"]` and outputs globs that are currently Android/`dist`/`generated`-shaped.
+- `apps/site/package.json` (`@rangework/site`) targets Node `>=22.12.0`, uses ESM (`"type": "module"`), and runs `eslint .` for lint. There is no `typecheck` script today.
+- `apps/site/astro.config.mjs` has no Cloudflare adapter and no `wrangler.*` config exists anywhere in the repo — the site appears to be deployed via the Cloudflare Pages dashboard (canonical origin `https://rangework.app`). No Cloudflare account ID, API token, or worker name is currently checked into source.
+- Root `package.json` exposes `pnpm mobile:*` filter scripts but no `site:*` or `mcp:*` equivalents yet.
+
+---
+
+## RWK-29 — Scaffold + deploy MCP Worker
+
+### 1. Package placement and naming
+
+1. **Confirm `apps/mcp` as the directory.** Roadmap §8 lists "`apps/mcp` placement — confirm it belongs under `apps/*`" as an open question. `pnpm-workspace.yaml` already globs `apps/*`, so placement is mechanically consistent with `apps/site` and `apps/mobile`. Is `apps/mcp` the final directory name, or should it be `apps/mcp-server` / `apps/mcp-worker` to distinguish the deployment artifact from a future client? _Why it matters:_ the directory name will be referenced by Turbo task inputs, CI workflow paths, and the README; renaming later is cheap now and expensive after deploy. Answer: Yes right directory
+2. **Workspace package name.** `apps/site` is `@rangework/site` and `apps/mobile` is `@rangework/mobile`. Should the MCP package be `@rangework/mcp`, `@rangework/mcp-server`, or `@rangework/mcp-worker`? _Why it matters:_ the name is what other workspace packages (and the deploy script) will `pnpm --filter` against; it also appears in any future `@rangework/mcp` import from `apps/site` if the consent page ever needs to share types. Answer: @rangework/mcp
+3. **Is `apps/mcp` ever consumed by another workspace package?** If not (likely for Stage 1), it is a leaf package and Turbo's `^build` dependency chain is unaffected. Confirm so the implementation plan can decide whether to add it to `turbo.json` `inputs` or leave it standalone. Answer: No
+
+### 2. Cloudflare Workers deployment specifics
+
+4. **Cloudflare account ID source.** No `CLOUDFLARE_ACCOUNT_ID` or account reference exists in the repo today. Should the account ID live in `wrangler.jsonc` `account_id` (committed), in a `.dev.vars`/env var, or in CI secrets only? _Why it matters:_ `wrangler deploy` and `wrangler dev` both need to resolve the account; committing it is fine (it is not secret) but the project has a strong "no secrets in source" convention (see `CLAUDE.md` Secrets section) so the boundary needs to be explicit. Answer: I'd prefer it wasn't committed. Wherever fits best with secrets in the other apps/packages will do.
+5. **Worker name and subdomain.** What is the Worker name (e.g. `rangework-mcp`)? The default `*.workers.dev` subdomain is derived from it. _Why it matters:_ the Worker name is the deploy target and appears in the Stage 1 "done when" URL; it is hard to rename after clients have been pointed at it. Answer: rangework-mcp is fine
+6. **Custom domain vs `workers.dev`.** Roadmap §2 says "same Cloudflare account already hosts the site" and §4 shows the MCP server as a distinct edge endpoint. Should the Worker be reachable at `mcp.rangework.app` (custom domain / route on the `rangework.app` zone), at `rangework.app/mcp` (route on the Pages site — requires a Workers route binding), or at `rangework-mcp.<subdomain>.workers.dev` for Stage 1? _Why it matters:_ Claude.ai and ChatGPT web will ultimately connect to this URL; the discovery/consent metadata in later stages will reference it; and a custom domain requires DNS changes on the `rangework.app` zone that may need dashboard access. Picking a stable URL in Stage 1 avoids re-registering MCP clients later. Answer: mcp.rangework.app
+7. **Routing coexistence with Cloudflare Pages.** If the Worker is bound to a route on `rangework.app/*` (e.g. `/mcp`), how does it avoid colliding with the Pages site? _Why it matters:_ the site already serves `rangework.app`; a Workers route on the same hostname needs a path prefix that Pages does not claim, or a dedicated subdomain. This affects the consent URL in RWK-28 (Q14) too. Answer: irrelevant since prev answer
+
+### 3. SDK and toolchain alignment
+
+8. **`@modelcontextprotocol/sdk` version pin.** Which version should be pinned, and should it be a `^` range or exact? _Why it matters:_ the SDK is pre-1.0 in some distributions and the Streamable HTTP transport API has been moving; pinning affects whether RWK-30 (token validation) and RWK-31 (tools) can rely on documented helpers like `McpServer` / `StreamableHTTPServerTransport`. The implementation plan needs a concrete version to write code against. Answer: Pin to latest stable version at time of development
+9. **Node and TypeScript toolchain alignment with `apps/site`.** `apps/site` requires Node `>=22.12.0`, uses ESM, and has `@types/node ^26`. Should `apps/mcp` match exactly (Node 22, ESM, same `@types/node`), and should it share `apps/site`'s ESLint flat config pattern or define its own? _Why it matters:_ Workers runtime is not Node, but the build/typecheck toolchain is; mismatched `tsconfig` `module`/`target` settings between `apps/site` and `apps/mcp` will cause friction if types are ever shared, and Turbo `^build` assumes a consistent toolchain story. Answer: Keep them same
+10. **Build tool: `wrangler` bundler vs `tsup`/`tsc`.** Wrangler can bundle TypeScript directly via esbuild. Should `apps/mcp` rely on `wrangler` for the deploy build and use `tsc --noEmit` for typecheck, or add a separate `tsup` build step? _Why it matters:_ this determines the `build` and `typecheck` Turbo task definitions (Q22) and whether `dist/` is a Turbo output. Answer: Use wrangler
+
+### 4. Local dev workflow
+
+11. **`wrangler dev` vs `tsx` for local MCP server.** The roadmap §6 Stage 1 says "verify connectability with MCP Inspector against both local dev and the deployed URL." Should local dev run via `wrangler dev` (miniflare, closest to production) or via `tsx src/index.ts` running the SDK's Node `http` server? _Why it matters:_ `wrangler dev` exercises the Workers runtime bindings but has different networking (local port, no real edge); `tsx` is faster to iterate but may hide Workers-specific behavior. The choice affects the README's "local dev setup" section and whether the Stage 1 server code is Workers-only or runtime-agnostic. Answer: wrangler dev
+12. **Local port convention.** `apps/site` dev runs on `4321` (Astro default, overridable via `PORT`). What port should `apps/mcp` local dev use (e.g. `8787`, the wrangler default), and should it be overridable via `PORT` to match the site's convention? _Why it matters:_ MCP Inspector needs a deterministic local URL to connect to, and the README must document it. Answer: I don't really care
+13. **MCP Inspector connection method for local.** Will Inspector connect to `http://localhost:<port>/mcp` (Streamable HTTP) directly, or via the `npx @modelcontextprotocol/inspector` proxy? _Why it matters:_ the Stage 1 "done when" gate is "ping is callable via MCP Inspector against the public Worker URL" — the local verification step needs a documented command so the implementation plan can include it as a smoke check. Answer: Whatever suits best, I'm not really sure. Recommend the best option
+
+### 5. Health/ping tool contract
+
+14. **`ping` tool response shape.** What fields should `ping` return — just `{ status: "ok" }`, or a richer health object (version, commit sha, timestamp, SDK version)? _Why it matters:_ the tool is the Stage 1 acceptance probe and likely the first thing RWK-30's auth layer wraps; defining the shape now avoids a breaking change when auth lands. Answer: just status ok is fine
+15. **Is `ping` unauthenticated at Stage 1?** Roadmap §6 Stage 2 introduces RWK-30 (token validation) and §5 shows RWK-29 → RWK-30 as the dependency. Confirm that the Stage 1 `ping` tool accepts requests with no `Authorization` header and returns 200, and that auth enforcement is explicitly deferred to RWK-30. _Why it matters:_ if `ping` is gated behind auth in Stage 1, the MCP Inspector verification gate cannot pass without a token, which would pull RWK-30 scope into Stage 1. Answer: Yes unauthenticated for stage 1
+16. **Tool name and transport path.** Is the tool named `ping` or `health` (or both), and is the Streamable HTTP endpoint mounted at `/` or `/mcp`? _Why it matters:_ the endpoint path is what MCP Inspector and later Claude.ai/ChatGPT web will hit; the tool name appears in the MCP `tools/list` response and will be referenced from RWK-31 onward. Answer: ping
+
+### 6. Deployment and CI
+
+17. **Manual `wrangler deploy` vs GitHub Actions workflow in Stage 1.** Roadmap §6 Stage 1 says "deploy to a public URL" but does not specify automation. Flag F2 ("no explicit MCP-server deploy ticket") was folded into RWK-29. Should Stage 1 ship a `.github/workflows/deploy-mcp.yml` that runs `wrangler deploy` on push to `main` (matching the existing `android.yml` CI pattern), or is a one-off manual `wrangler deploy` acceptable for Stage 1 with automation deferred? _Why it matters:_ the existing repo has CI for the Android build but no deploy workflow; introducing one sets a precedent for secret handling (Q18) and branch protection. Answer: No deploy for stage 1
+18. **Cloudflare API token secret handling.** `wrangler deploy` needs `CLOUDFLARE_API_TOKEN` (and optionally `CLOUDFLARE_ACCOUNT_ID`). Should these be GitHub Actions secrets (new), or is Stage 1 deploy done locally with `wrangler login`? _Why it matters:_ the repo's secrets convention (`CLAUDE.md`) says never to hardcode credentials; the implementation plan must specify whether a new Actions secret is in scope for Stage 1 or whether deploy is manual-only. Answer: actions secrets
+19. **Environment (production vs preview).** Should Stage 1 deploy to a Workers `production` environment only, or also create a `preview`/`staging` environment for RWK-30/RWK-31 iteration? _Why it matters:_ Workers environments have separate URLs and secrets; deciding now avoids a second deploy target appearing mid-Stage-2. Answer: no deploy for stage 1
+
+### 7. Turbo pipeline integration
+
+20. **Which Turbo tasks does `apps/mcp` define?** Should it expose `build`, `lint`, `typecheck`, and `dev` scripts in its `package.json` so `turbo run build/lint` picks it up alongside `apps/site`? _Why it matters:_ `turbo.json` currently has `build`, `test`, `lint`, `dev` task entries with Android-shaped `outputs`; adding `apps/mcp` means deciding whether `dist/**` is a Turbo output and whether `typecheck` should be promoted to a workspace-wide task (it does not exist today). Answer: Assumption is correct
+21. **Does `apps/mcp` participate in `turbo run test` and `turbo run lint`?** The root `package.json` runs `turbo run test` and `turbo run lint` as the workspace-wide commands. If `apps/mcp` has no `test` script, Turbo will skip it silently — is that acceptable for Stage 1, or should a placeholder `test` script exist? _Why it matters:_ CI (`android.yml`) is currently scoped to the mobile package, but the root scripts imply workspace-wide intent; the implementation plan should state whether `apps/mcp` is in or out of the default Turbo task graph. Answer: acceptable
+22. **`turbo.json` `outputs` update.** The `build` task `outputs` array lists `build/**`, `dist/**`, `generated/**`, `androidApp/build/**`, `shared/build/**`. Should `apps/mcp`'s build output (if any) be added, or does `wrangler deploy` bypass Turbo caching entirely? _Why it matters:_ Turbo cache correctness depends on declared outputs; an undeclared `dist/` will not be restored from cache and may cause redundant rebuilds. Answer: I'm not sure. Do we even need turbo builds using wrangler? This will drive the decision
+
+### 8. Tests and documentation
+
+23. **Unit tests for `ping` in Stage 1?** RWK-29's Jira "Steps" do not mention tests, and the roadmap defers end-to-end testing to RWK-34. Should Stage 1 include a unit test for the `ping` tool handler (e.g. Vitest asserting the response shape), or is the MCP Inspector manual check the only verification gate? _Why it matters:_ the repo has strong test conventions for `shared` and `androidApp`; deciding whether `apps/mcp` inherits that bar in Stage 1 sets the pattern for RWK-30/RWK-31. Answer: Yes add tests
+24. **Smoke test against the deployed URL.** Should Stage 1 include an automated smoke test (e.g. a `curl`/`fetch` hitting the public `ping` endpoint in CI) or is manual MCP Inspector verification sufficient? _Why it matters:_ an automated smoke test would catch deploy regressions but requires the deploy workflow (Q17) to exist first. Answer: No deploy so no smoke
+25. **README location and contents.** Roadmap §6 Stage 1 requires "Document chosen stack + local dev setup (README in `apps/mcp`)." Confirm the README lives at `apps/mcp/README.md` and that it must cover: stack rationale (linking roadmap §2), prerequisites (Node version, Cloudflare account), local dev command, MCP Inspector connection steps, deploy command, and the public URL. _Why it matters:_ the README is a Stage 1 deliverable and the onboarding doc for RWK-30 onward; its scope needs to be bounded so the implementation plan can treat it as a checklist item. Answer: Yep good
+26. **Should the root `README.md` be updated?** `CLAUDE.md` says "Keep README and CI aligned with any command or setup changes you introduce." Does adding `apps/mcp` count as a setup change that must be reflected in the root `README.md` workspace map, or is the `apps/mcp/README.md` sufficient for Stage 1? _Why it matters:_ the root README is the first-stop build/config summary; leaving it stale violates the repo's working conventions. Answer: Yes update
+
+---
+
+## RWK-28 — Configure Supabase OAuth server
+
+### 9. JWT algorithm choice
+
+27. **RS256 vs ES256.** RWK-28's Jira description and roadmap §6 both say "RS256 or ES256" without picking one. Which algorithm should be configured, and why? _Why it matters:_ the choice affects JWKS key sizes, the RWK-30 verification library path (most JWT libs support both, but ES256 produces smaller tokens/signatures), and Supabase beta-feature support — the implementation plan needs a single target. Answer: Implement whatever is more commonly used
+28. **Impact on existing Android sessions (flag F8).** Flag F8 explicitly calls out that switching JWT signing could affect existing Android sessions. What is the expected impact — will currently-issued tokens be invalidated immediately, will the Android client transparently re-authenticate, or is there a migration window? _Why it matters:_ RWK-28's "done when" gate requires "existing Android sign-in still works after the JWT-algorithm switch"; the verification checklist (Q33) must test the right scenario (fresh sign-in vs. existing session refresh). Answer: current handling is done by supabase so I'm not sure if it's affected?
+29. **Rollback plan.** If the algorithm switch breaks Android sign-in, what is the rollback — revert the dashboard setting, or is there a key-rotation step? _Why it matters:_ the verification checklist should document the rollback so RWK-28 can be safely attempted on a live project; without a rollback path, the dashboard change is risky to apply. Answer: Not worried, no active users yet
+
+### 10. Consent page URL
+
+30. **Does `rangework.app/oauth/consent` exist yet?** Roadmap §6 Stage 2 (RWK-33) is where the consent page is built. RWK-28 (Stage 1) requires setting the authorization path to the consent page URL. What placeholder should be configured in Stage 1 — the eventual `https://rangework.app/oauth/consent` (which 404s until RWK-33 ships), a temporary static "coming soon" page, or a Supabase-hosted default? _Why it matters:_ setting a non-existent URL means any OAuth flow attempted between Stage 1 and Stage 2 will fail at the consent step; the implementation plan must state whether that is acceptable (no client is connecting yet) or whether a stub page is needed. Answer: Add a stub page
+31. **Path prefix consistency with the MCP Worker route.** If the MCP Worker is mounted at `rangework.app/mcp` (Q6/Q7), does the consent path `/oauth/consent` conflict or coexist cleanly with Pages routing? _Why it matters:_ both the Worker route and the Pages site claim paths on `rangework.app`; the consent URL and the MCP endpoint must not collide. Answer: irrelevant since mcp.rangework.app was chosen
+
+### 11. Dynamic client registration
+
+32. **Open DCR vs allowlist.** RWK-28's Jira description says "enable dynamic client registration so MCP clients (Claude, ChatGPT, etc.) can register themselves automatically." Should DCR be fully open (any client can register) or restricted to an allowlist of `client_id`s / redirect URIs (Claude.ai, ChatGPT web)? _Why it matters:_ fully open DCR is the lowest-friction path for RWK-34 testing but allows any third party to register a client; an allowlist is safer but requires knowing the exact redirect URIs Claude.ai and ChatGPT web use, which may not be documented. The choice has security implications the implementation plan must call out. Answer: fully open
+33. **Security implications of open DCR on a production Supabase project.** The Rangework Supabase project is the same one backing the live Android app. Does enabling DCR expose any new surface (e.g. arbitrary client registration consuming quota, or scoped token issuance) that could affect existing users? _Why it matters:_ flag F11 flags the OAuth 2.1 server as beta; the verification checklist should confirm no regression in the existing auth surface. Answer: Not worries about it
+
+### 12. Verification deliverable
+
+34. **Verification checklist format and location.** RWK-28 is "user dashboard work; I provide a verification checklist/script." Should the deliverable be a markdown checklist (e.g. `design-docs/RWK4-ai-integration/stage1/rwk-28-verification.md`), an automated script (e.g. a `curl`/`node` script hitting the `.well-known` endpoint and the Android sign-in flow), or both? _Why it matters:_ the format determines whether verification is repeatable in CI (Q24) or a one-time manual run; the implementation plan needs a concrete artifact path. Answer: markdoen checklist as described
+35. **What the verification must cover.** Confirm the checklist must verify: (a) `…/.well-known/oauth-authorization-server/auth/v1` returns valid JSON with the expected `authorization_endpoint`, `token_endpoint`, `jwks_uri`, and `registration_endpoint`; (b) DCR endpoint accepts a registration request; (c) existing Android sign-in (email + Google) still works post-algorithm-switch; (d) rollback steps are documented. _Why it matters:_ RWK-28's "done when" gate names (a) and (c) explicitly; (b) and (d) are implied by the Jira steps and flag F8 but not stated as gates — the implementation plan should know which are acceptance criteria vs. nice-to-have. Answer: yep
+
+---
+
+## Cross-cutting
+
+### 13. Stage 1 scope boundary
+
+36. **Does Stage 1 produce any shared types or contracts?** RWK-30 (token validation) and RWK-31 (tools) will need shared types for MCP tool schemas and auth errors. Should Stage 1 establish a `apps/mcp/src/types.ts` (or similar) that later stages extend, or is each stage free to introduce its own types? _Why it matters:_ deciding now avoids a refactor in RWK-30; the implementation plan should state whether Stage 1 is purely scaffolding or also lays type groundwork. Answer: Not sure so manage per stage
+37. **Is there a Stage 1 integration test between RWK-29 and RWK-28?** The two workstreams are independent (roadmap §5), but both feed RWK-30. Should Stage 1 include any cross-check (e.g. the MCP Worker can reach the Supabase JWKS URL), or is that explicitly RWK-30 scope? _Why it matters:_ drawing the line prevents scope creep from RWK-30 into Stage 1. Answer: Add the tests
+
+### 14. Documentation and memory
+
+38. **Should Stage 1 update `CLAUDE.md` / `.github/copilot-instructions.md`?** Both instruction files contain a "Codebase map" that lists workspace packages. Adding `apps/mcp` is a structural change. Should the Stage 1 deliverable include updates to these instruction files' codebase maps and build/validation sections, or is that deferred? _Why it matters:_ the repo's working conventions say to keep README and CI aligned with setup changes; the instruction files are the agent-facing equivalent and stale maps will cause future agents to miss the `apps/mcp` package. Answer: include the changes
+39. **Repo memory note.** Should a `/memories/repo/` note be created capturing the Stage 1 stack decisions (SDK version, Worker name, public URL, JWT algorithm) once answered, so later stages can reference it? _Why it matters:_ the repo memory is the persistent fact store for this workspace; recording Stage 1 outcomes prevents re-deriving them in RWK-30. Answer: Do not add this
+
+### 15. Sequencing and dependencies
+
+40. **Can RWK-29 and RWK-28 truly proceed in parallel with zero coordination?** Roadmap §5 shows them as independent, but RWK-28's consent URL (Q30) and RWK-29's Worker route (Q6) both touch `rangework.app`. Is there any DNS/dashboard sequencing required (e.g. the Worker custom domain must be created before the consent URL is finalized, or vice versa)? _Why it matters:_ if dashboard access is serialized (single user), the implementation plan should order the dashboard steps to avoid blocking one workstream on the other. Answer: shouldn't be a problem
+41. **What is the Stage 1 exit demo?** Roadmap §6 Stage 1 gives two "done when" gates (ping callable via Inspector; `.well-known` returns valid JSON + Android sign-in works). Is there a single end-to-end demo that proves both workstreams landed (e.g. a screenshot of MCP Inspector hitting the deployed `ping` alongside a `curl` of the `.well-known` endpoint), or are they verified independently? _Why it matters:_ the implementation plan should define the acceptance evidence so Stage 1 can be closed cleanly and Stage 2 can begin. Answer: Independant
