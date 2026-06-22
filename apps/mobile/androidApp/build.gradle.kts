@@ -49,6 +49,11 @@ val googleWebClientId = providers.optionalBuildConfigValue(
     environmentVariableName = "RANGEWORK_GOOGLE_WEB_CLIENT_ID",
 )
 
+val sentryDsn = providers.optionalBuildConfigValue(
+    gradlePropertyName = "rangeworkSentryDsn",
+    environmentVariableName = "RANGEWORK_SENTRY_DSN",
+).ifEmpty { "https://c25ebd3aaf998399f242f58e3a7d5639@o4511601454284800.ingest.de.sentry.io/4511601459527760" }
+
 val resolvedVersionName = providers.optionalBuildConfigValue(
     gradlePropertyName = "rangeworkVersionName",
     environmentVariableName = "RANGEWORK_VERSION_NAME",
@@ -100,6 +105,7 @@ android {
         buildConfigField("String", "SUPABASE_URL", supabaseUrl.asBuildConfigString())
         buildConfigField("String", "SUPABASE_ANON_KEY", supabaseAnonKey.asBuildConfigString())
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", googleWebClientId.asBuildConfigString())
+        buildConfigField("String", "SENTRY_DSN", sentryDsn.asBuildConfigString())
     }
 
     if (canSign) {

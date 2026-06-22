@@ -25,11 +25,13 @@ class SupabaseAuthRepository(
 
     override suspend fun signInWithGoogleIdToken(
         idToken: String,
+        nonce: String?,
         accessToken: String?,
     ): AuthState {
         client.auth.signInWith(IDToken) {
             provider = Google
             this.idToken = idToken
+            this.nonce = nonce
             if (accessToken != null) {
                 this.accessToken = accessToken
             }

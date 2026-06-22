@@ -13,3 +13,7 @@ packages/ui-tokens/generated/
 captures/
 *.jks
 *.keystore
+
+# Supabase CLI scratch / local state
+supabase/.temp/
+supabase/.branches/

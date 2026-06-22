@@ -15,7 +15,9 @@ fun createRangeworkSupabaseClient(config: SupabaseEndpointConfig): SupabaseClien
         supabaseUrl = config.projectUrl,
         supabaseKey = config.anonKey,
     ) {
-        install(Auth)
+        install(Auth) {
+            rangeworkPlatformSessionManager()?.let { sessionManager = it }
+        }
         install(Postgrest)
         install(Functions)
     }

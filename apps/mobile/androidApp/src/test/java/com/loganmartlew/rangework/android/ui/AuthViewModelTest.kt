@@ -151,6 +151,7 @@ private class FakeAuthRepository(
 
     override suspend fun signInWithGoogleIdToken(
         idToken: String,
+        nonce: String?,
         accessToken: String?,
     ): AuthState {
         authState.value = signInState

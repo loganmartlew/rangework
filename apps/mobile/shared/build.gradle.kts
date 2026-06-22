@@ -26,6 +26,7 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
+            implementation("androidx.security:security-crypto:1.1.0-alpha06")
         }
     }
 }

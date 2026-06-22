@@ -8,9 +8,11 @@ class SignInWithGoogleIdTokenUseCase(
 ) {
     suspend operator fun invoke(
         idToken: String,
+        nonce: String? = null,
         accessToken: String? = null,
     ): AuthState = authRepository.signInWithGoogleIdToken(
         idToken = idToken,
+        nonce = nonce,
         accessToken = accessToken,
     )
 }

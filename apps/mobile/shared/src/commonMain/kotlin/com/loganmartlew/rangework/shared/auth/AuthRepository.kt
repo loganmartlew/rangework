@@ -9,6 +9,7 @@ interface AuthRepository {
 
     suspend fun signInWithGoogleIdToken(
         idToken: String,
+        nonce: String? = null,
         accessToken: String? = null,
     ): AuthState
 

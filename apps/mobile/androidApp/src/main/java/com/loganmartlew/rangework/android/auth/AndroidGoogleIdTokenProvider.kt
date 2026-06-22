@@ -10,9 +10,13 @@ import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 
+import java.security.MessageDigest
+import java.util.UUID
+
 sealed interface GoogleIdTokenRequestResult {
     data class Success(
         val idToken: String,
+        val nonce: String,
     ) : GoogleIdTokenRequestResult
 
     data class Cancelled(
@@ -35,8 +39,14 @@ class AndroidGoogleIdTokenProvider(
             )
         }
 
+        val rawNonce = UUID.randomUUID().toString()
+        val hashedNonce = MessageDigest.getInstance("SHA-256")
+            .digest(rawNonce.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+
         val credentialManager = CredentialManager.create(activity)
         val googleIdOption = GetSignInWithGoogleOption.Builder(webClientId)
+            .setNonce(hashedNonce)
             .build()
         val request = GetCredentialRequest.Builder()
             .addCredentialOption(googleIdOption)
@@ -52,7 +62,10 @@ class AndroidGoogleIdTokenProvider(
                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
             ) {
                 val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                GoogleIdTokenRequestResult.Success(idToken = googleCredential.idToken)
+                GoogleIdTokenRequestResult.Success(
+                    idToken = googleCredential.idToken,
+                    nonce = rawNonce,
+                )
             } else {
                 GoogleIdTokenRequestResult.Failure(
                     message = "Google sign-in returned an unsupported credential payload.",

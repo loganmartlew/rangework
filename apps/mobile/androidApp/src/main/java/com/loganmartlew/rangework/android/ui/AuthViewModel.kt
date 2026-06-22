@@ -90,6 +90,7 @@ class AuthViewModel(
                         authStateMessage(
                             foundation.signInWithGoogleIdTokenUseCase(
                                 idToken = tokenResult.idToken,
+                                nonce = tokenResult.nonce,
                             ),
                         )
                     } catch (exception: IllegalStateException) {
