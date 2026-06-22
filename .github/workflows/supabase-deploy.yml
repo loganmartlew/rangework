@@ -1,4 +1,4 @@
-name: Deploy Supabase migrations
+name: Deploy to Supabase
 
 on:
   workflow_dispatch:
