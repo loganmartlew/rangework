@@ -61,7 +61,7 @@ jobs:
         run: chmod +x apps/mobile/gradlew
 
       - name: Run baseline verification
-        run: pnpm build && pnpm test && pnpm lint
+        run: pnpm mobile:build && pnpm mobile:test && pnpm mobile:lint
 
       - name: Upload Gradle test reports
         if: always()

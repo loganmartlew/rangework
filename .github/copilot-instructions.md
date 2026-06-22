@@ -8,7 +8,7 @@ Rangework is an Android-first golf practice planning app. This repository is a p
 - Equivalent macOS/Linux command: `cd apps/mobile && ./gradlew :shared:testDebugUnitTest :androidApp:testDebugUnitTest :androidApp:assembleDebug`
 - Android lint is available and working: `Set-Location apps/mobile; .\gradlew.bat :shared:lintDebug :androidApp:lintDebug`
 - The local validation flow that succeeded here was: run the test-and-assemble command first, then run lint.
-- CI is defined in `.github/workflows/android.yml` and currently runs the same test-and-assemble command after installing Android SDK platform 35 and build-tools 35.0.0.
+- CI is defined in `.github/workflows/android.yml` and runs `pnpm mobile:build && pnpm mobile:test && pnpm mobile:lint`, scoped to the mobile package and its dependencies only.
 - Module compilation targets Java 17 (`apps/mobile/androidApp/build.gradle.kts` compile options and `apps/mobile/shared/build.gradle.kts` `jvmToolchain(17)`), and CI installs Node/pnpm before running Turbo-driven validation. Do not change SDK or toolchain versions casually.
 - Gradle currently emits deprecation warnings about Gradle 9 compatibility during successful builds. Treat those as existing background noise unless your change touches the relevant build logic.
 
