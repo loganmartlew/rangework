@@ -3,5 +3,9 @@
 # Never commit `.dev.vars` — it is gitignored.
 
 # Supabase project URL (e.g. https://<project-ref>.supabase.co)
-# Used by the JWKS reachability integration test.
+# Used for JWKS URI construction, issuer validation, and the Supabase client.
 SUPABASE_URL=https://your-project-ref.supabase.co
+
+# Supabase anon key — safe for client-side use, protected by RLS.
+# In production, set this via `wrangler secret put SUPABASE_ANON_KEY`.
+SUPABASE_ANON_KEY=your-supabase-anon-key
