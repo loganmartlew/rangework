@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rangework-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-20",
+  "compatibility_flags": ["nodejs_compat"],
+  // No account_id — provided at deploy time via env / `wrangler login`
+  "vars": {},
+  "dev": {
+    "port": 8787,
+  },
+}

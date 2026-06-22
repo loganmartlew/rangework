@@ -1,6 +1,6 @@
 .gradle/
 /.idea/
-/.kotlin/
+.kotlin/
 /local.properties
 apps/mobile/local.properties
 apps/mobile/.env

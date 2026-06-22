@@ -32,6 +32,10 @@ Rangework is an Android-first golf practice planning app. This repository is a p
 - `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/SettingsViewModel.kt` — theme mode, measurement preferences, and club management state.
 - `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/screens/` — 9 screen composables: Overview, UnitList, UnitDetail, UnitEditor, SessionList, SessionDetail, SessionEditor, ManageClubs, Settings.
 - `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/components/` — 30+ reusable UI components (cards, FABs, pickers, dialogs, steppers, bars, etc.).
+- `apps/mcp/src/index.ts` — MCP server entry point (Cloudflare Workers fetch handler).
+- `apps/mcp/src/server.ts` — MCP server instance and tool registration.
+- `apps/mcp/src/tools/ping.ts` — `ping` health-check tool.
+- `apps/mcp/src/tests/` — unit and integration tests for the MCP server.
 - `shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/auth` — auth state/repository/foundation code.
 - `shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/data/DataFoundation.kt` and `.../auth/AuthFoundation.kt` — assemble use cases from repositories.
 - `shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/repository/` — repository interfaces: `PracticeUnitRepository`, `PracticeSessionRepository`, `MeasurementPreferencesRepository`, `ClubRepository`.

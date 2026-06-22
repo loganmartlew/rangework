@@ -9,6 +9,7 @@ This repository is a **pnpm/Turborepo monorepo**.
 - `apps/mobile`: nested Gradle/Kotlin Multiplatform mobile app root
 - `apps/mobile/androidApp`: Jetpack Compose Android shell (`com.loganmartlew.rangework.android`)
 - `apps/mobile/shared`: Kotlin Multiplatform shared domain and data foundation (`com.loganmartlew.rangework.shared`)
+- `apps/mcp`: MCP (Model Context Protocol) server on Cloudflare Workers for AI Session Creation
 - `packages/ui-tokens`: Style Dictionary design-token package for Android and future web consumers
 - `supabase`: backend config, migrations, and seed data placeholders
 
@@ -98,11 +99,11 @@ Trigger the **Deploy Supabase migrations** workflow from GitHub Actions. It link
 
 GitHub secrets required:
 
-| Secret                   | Where to get it                               |
-| ------------------------ | --------------------------------------------- |
-| `SUPABASE_PROJECT_REF`   | Your Supabase project URL slug                |
-| `SUPABASE_ACCESS_TOKEN`  | supabase.com → Account → Access Tokens        |
-| `SUPABASE_DB_PASSWORD`   | Supabase dashboard → Settings → Database      |
+| Secret                  | Where to get it                          |
+| ----------------------- | ---------------------------------------- |
+| `SUPABASE_PROJECT_REF`  | Your Supabase project URL slug           |
+| `SUPABASE_ACCESS_TOKEN` | supabase.com → Account → Access Tokens   |
+| `SUPABASE_DB_PASSWORD`  | Supabase dashboard → Settings → Database |
 
 ## Notes
 

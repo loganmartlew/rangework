@@ -1,0 +1,7 @@
+# Local-only environment variables for `wrangler dev`.
+# Copy this file to `.dev.vars` and fill in real values.
+# Never commit `.dev.vars` — it is gitignored.
+
+# Supabase project URL (e.g. https://<project-ref>.supabase.co)
+# Used by the JWKS reachability integration test.
+SUPABASE_URL=https://your-project-ref.supabase.co

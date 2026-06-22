@@ -34,6 +34,11 @@ Rangework is an Android-first golf practice planning app. This repository is a p
 - `apps/mobile/shared/src/commonMain/kotlin/com/loganmartlew/rangework/shared/model` contains serializable domain models, draft models, and validation helpers.
 - `apps/mobile/shared/src/commonTest` and `apps/mobile/androidApp/src/test` contain the main regression coverage for shared use cases and Android ViewModels.
 - `supabase/migrations` defines the schema and RLS rules. Planning data currently centers on `practice_units`, `practice_unit_instructions`, `practice_sessions`, `practice_session_items`, and `user_preferences`.
+- `apps/mobile/androidApp/src/main/java/com/loganmartlew/rangework/android/ui/components/` contains 30+ reusable UI components (cards, FABs, pickers, dialogs, steppers, bars, etc.).
+- `apps/mcp/src/index.ts` is the MCP server entry point (Cloudflare Workers fetch handler).
+- `apps/mcp/src/server.ts` constructs the MCP server instance and registers tools.
+- `apps/mcp/src/tools/ping.ts` defines the `ping` health-check tool.
+- `apps/mcp/src/tests/` contains unit and integration tests for the MCP server.
 
 ## Working conventions
 

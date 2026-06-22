@@ -39,7 +39,7 @@ The two workstreams touch disjoint surfaces (a new `apps/mcp` package vs. the Su
 | `ping` response                            | `{ status: "ok" }`                                                                                                     |
 | `ping` auth                                | Unauthenticated in Stage 1; auth enforcement deferred to RWK-30                                                        |
 | Tool name / transport path                 | Tool `ping`; endpoint path chosen during implementation and documented in `apps/mcp/README.md`                         |
-| JWT algorithm                              | RS256 (most widely supported)                                                                                          |
+| JWT algorithm                              | ES256 (Supabase's default asymmetric algorithm)                                                                        |
 | Dynamic client registration                | Fully open (no allowlist)                                                                                              |
 | Consent URL                                | `https://rangework.app/oauth/consent` — stub page shipped in Stage 1                                                   |
 | Verification deliverable                   | Markdown checklist at `design-docs/RWK4-ai-integration/stage1/rwk-28-verification.md`                                  |
@@ -233,7 +233,7 @@ design-docs/RWK4-ai-integration/stage1/rwk-28-verification.md   # Verification c
 | Setting                     | Value                                 | Notes                                                                                                          |
 | --------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | OAuth 2.1 server            | **Enabled**                           | Beta feature — accept known risk (flag F11)                                                                    |
-| JWT signing algorithm       | **RS256**                             | Most widely supported asymmetric algorithm                                                                     |
+| JWT signing algorithm       | **ES256**                             | Supabase's default asymmetric algorithm                                                                        |
 | Dynamic client registration | **Enabled (fully open)**              | No allowlist — lowest friction for RWK-34 testing; acceptable security posture with no active production users |
 | Authorization path          | `https://rangework.app/oauth/consent` | Points at the stub page shipped in §4.3.2; RWK-33 replaces it with the full consent page                       |
 
@@ -257,7 +257,7 @@ The agent should ship the consent stub page (§4.3.2) **before** the user applie
 The agent writes a markdown checklist at `design-docs/RWK4-ai-integration/stage1/rwk-28-verification.md` containing the dashboard configuration instructions from §4.3.1 plus the verification steps below. The user works through it after applying the dashboard config.
 
 1. **Discovery endpoint** — `https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1` returns valid JSON with `authorization_endpoint`, `token_endpoint`, `jwks_uri`, and `registration_endpoint` present.
-2. **JWKS endpoint** — the `jwks_uri` from step 1 returns valid JWKS keys (RS256).
+2. **JWKS endpoint** — the `jwks_uri` from step 1 returns valid JWKS keys (ES256).
 3. **Dynamic client registration** — POST to `registration_endpoint` with a valid client metadata payload succeeds and returns a `client_id`.
 4. **Android sign-in (email)** — sign in to the Android app with email/password succeeds post-algorithm-switch.
 5. **Android sign-in (Google)** — sign in to the Android app with Google succeeds post-algorithm-switch.
@@ -271,7 +271,7 @@ The agent writes a markdown checklist at `design-docs/RWK4-ai-integration/stage1
 | Risk / edge case                                       | Handling                                                                                                                     |
 | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | Supabase OAuth 2.1 server is beta (F11)                | Pin behaviour during RWK-28; monitor Supabase changelog for API changes that could affect RWK-30/33.                         |
-| RS256 key rotation invalidates existing Android tokens | User verifies Android sign-in (email + Google) as part of the checklist; reverts dashboard setting if broken.                |
+| ES256 key rotation invalidates existing Android tokens | User verifies Android sign-in (email + Google) as part of the checklist; reverts dashboard setting if broken.                |
 | Open DCR on the production Supabase project            | Acceptable with no active users; note in the checklist that this should be revisited before production scale.                |
 | Consent stub page 404s                                 | Agent ships the stub before the user applies the dashboard authorization-path config; user verifies step 6 of the checklist. |
 | Android app cannot be built during Stage 1             | User documents skipped steps in the checklist; defers to RWK-34.                                                             |
@@ -280,7 +280,7 @@ The agent writes a markdown checklist at `design-docs/RWK4-ai-integration/stage1
 ### 4.5 Validation checkpoint (user-run, against the checklist)
 
 1. Discovery endpoint returns valid JSON with all expected fields.
-2. JWKS endpoint returns RS256 public keys.
+2. JWKS endpoint returns ES256 public keys.
 3. Dynamic client registration accepts and returns a `client_id`.
 4. `https://rangework.app/oauth/consent` returns 200.
 5. Android sign-in verified (or explicitly noted as deferred).
@@ -367,10 +367,10 @@ Both acceptance checklists (§3.5 and §4.5) signed off before Stage 2 begins.
 
 **User-performed (using the agent-written checklist):**
 
-- [ ] Supabase OAuth 2.1 server enabled with RS256 and open DCR
+- [ ] Supabase OAuth 2.1 server enabled with ES256 and open DCR
 - [ ] Authorization path set to `https://rangework.app/oauth/consent`
 - [ ] Discovery endpoint returns valid JSON with all expected fields
-- [ ] JWKS endpoint returns RS256 public keys
+- [ ] JWKS endpoint returns ES256 public keys
 - [ ] Dynamic client registration accepts and returns a `client_id`
 - [ ] Android sign-in verified (or explicitly noted as deferred)
 - [ ] Verification checklist steps executed and signed off

@@ -146,7 +146,7 @@ The following are configured in the Supabase project dashboard (Authentication �
 | Setting                     | Value                                 | Notes                                                                                                                              |
 | --------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | OAuth 2.1 server            | **Enabled**                           | Beta feature — accept known risk (flag F11)                                                                                        |
-| JWT signing algorithm       | **RS256**                             | Industry-standard asymmetric algorithm; most widely supported by JWT libraries                                                     |
+| JWT signing algorithm       | **ES256**                             | Supabase's default asymmetric algorithm; widely supported by JWT libraries                                                         |
 | Dynamic client registration | **Enabled (fully open)**              | No allowlist — any client can register (lowest friction for testing; accept security posture since no active production users yet) |
 | Authorization path          | `https://rangework.app/oauth/consent` | Points to the consent page (stub in Stage 1, full page in Stage 2/RWK-33)                                                          |
 
