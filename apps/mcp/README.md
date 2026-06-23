@@ -78,6 +78,45 @@ pnpm --filter @rangework/mcp typecheck
 
 Runs `tsc --noEmit`. Not promoted to a workspace-wide Turbo task in Stage 1; run manually or promote in a later stage if type errors start slipping through CI.
 
+## Regression testing (RWK-34)
+
+A committed regression script exercises all five data tools plus `get_coaching_guide` against a live Worker. Designed for Stage 5 end-to-end validation and future regression checks after deployments.
+
+### Basic — all tools with one test account
+
+```bash
+MCP_WORKER_URL=http://localhost:8787/mcp \
+MCP_TEST_TOKEN=<jwt> \
+npx tsx scripts/regression.ts
+```
+
+### Auth isolation check — two test accounts
+
+```bash
+MCP_WORKER_URL=http://localhost:8787/mcp \
+MCP_TEST_TOKEN=<jwt-for-account-a> \
+SECOND_TEST_TOKEN=<jwt-for-account-b> \
+npx tsx scripts/regression.ts
+```
+
+### Against production
+
+```bash
+MCP_WORKER_URL=https://mcp.rangework.app/mcp \
+MCP_TEST_TOKEN=<jwt> \
+npx tsx scripts/regression.ts
+```
+
+### Getting a test token
+
+Obtain a Supabase access token via browser dev tools (Application → Storage → Supabase `access_token`) or the Supabase CLI:
+
+```bash
+supabase auth user --token <user-id>
+```
+
+The script prints `PASS`/`FAIL` per assertion and exits with code 0 on full success. See `design-docs/RWK4-ai-integration/stage5/runbook.md` for the complete Stage 5 test runbook.
+
 ## Linting
 
 ```powershell
