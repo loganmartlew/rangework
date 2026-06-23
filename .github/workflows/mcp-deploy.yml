@@ -42,7 +42,7 @@ jobs:
         run: pnpm --filter @rangework/mcp test
 
       - name: Upload methodology to R2
-        run: pnpm --filter @rangework/mcp exec wrangler r2 object put rangework/mcp/coaching-guide.md --file methodology/coaching-guide.md --content-type text/markdown
+        run: pnpm --filter @rangework/mcp exec wrangler r2 object put rangework/mcp/coaching-guide.md --file methodology/coaching-guide.md --content-type text/markdown --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
