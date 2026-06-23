@@ -257,9 +257,12 @@ private fun SessionItemEditorCard(
     canMoveUp: Boolean,
     canMoveDown: Boolean,
 ) {
-    var unitMenuExpanded by remember(item.order, item.practiceUnitId) { mutableStateOf(false) }
+    val hasUnit = item.practiceUnitId.isNotEmpty()
+    var unitMenuExpanded by remember(item.order, item.practiceUnitId) {
+        mutableStateOf(!hasUnit)
+    }
     val repeatCountValue = item.repeatCount.trim().toIntOrNull() ?: 1
-    val subtotal = item.derivedBallCount(selectedUnit)
+    val subtotal = if (hasUnit) item.derivedBallCount(selectedUnit) else null
     val hasMoreOptions = item.clubReference.isNotBlank() ||
         item.notes.isNotBlank() ||
         item.focusCue.isNotBlank()
@@ -283,17 +286,19 @@ private fun SessionItemEditorCard(
             leadingContent = {
                 NumberBadge(number = number)
             },
-            trailingContent = {
-                Text(
-                    text = ballSummary(subtotal),
-                    style = RangeworkMono.medium,
-                    color = if (subtotal != null) {
-                        MaterialTheme.colorScheme.secondary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            },
+            trailingContent = if (hasUnit) {
+                {
+                    Text(
+                        text = ballSummary(subtotal),
+                        style = RangeworkMono.medium,
+                        color = if (subtotal != null) {
+                            MaterialTheme.colorScheme.secondary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+            } else null,
             footerContent = {
                 ExposedDropdownMenuBox(
                     expanded = unitMenuExpanded,

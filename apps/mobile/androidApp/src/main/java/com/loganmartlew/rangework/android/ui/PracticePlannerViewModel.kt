@@ -477,12 +477,10 @@ class PracticePlannerViewModel(
     fun updateSessionNotes(value: String) = updateSessionEditor { copy(notes = value) }
 
     fun addSessionItem() = updateSessionEditor {
-        val defaultUnitId = _uiState.value.units.firstOrNull()?.id.orEmpty()
         copy(
             items = reindexedSessionItems(
                 items + PracticeSessionItemEditorState(
                     order = items.size + 1,
-                    practiceUnitId = defaultUnitId,
                     repeatCount = "1",
                 ),
             ),
