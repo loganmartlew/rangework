@@ -90,8 +90,16 @@ function resolveInitialSession(): Promise<Session | null> {
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN') {
+        // Always settle on an explicit sign-in (covers PKCE code exchange completing).
         settle(session);
+      } else if (event === 'INITIAL_SESSION') {
+        // Settle immediately only if a session already exists. If session is null
+        // and there is a PKCE code in the URL, the exchange is still in-flight —
+        // wait for the subsequent SIGNED_IN event instead of racing ahead.
+        if (session || !new URLSearchParams(window.location.search).has('code')) {
+          settle(session);
+        }
       }
     });
 
