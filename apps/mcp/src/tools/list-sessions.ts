@@ -82,11 +82,20 @@ export function registerListSessionsTool(
       // Collect all unique unit IDs referenced in items
       const unitIds = [...new Set((items ?? []).map(i => i.practice_unit_id))];
 
-      // Fetch the referenced units to get titles
-      const { data: units, error: unitsError } = await ctx.supabaseClient
-        .from('practice_units')
-        .select('id, title')
-        .in('id', unitIds);
+      // Fetch units and their instructions in parallel — both depend only on unitIds
+      const [
+        { data: units, error: unitsError },
+        { data: unitInstructions, error: unitInstructionsError },
+      ] = await Promise.all([
+        ctx.supabaseClient
+          .from('practice_units')
+          .select('id, title')
+          .in('id', unitIds),
+        ctx.supabaseClient
+          .from('practice_unit_instructions')
+          .select('practice_unit_id, ball_count')
+          .in('practice_unit_id', unitIds),
+      ]);
 
       if (unitsError) {
         return {
@@ -102,13 +111,6 @@ export function registerListSessionsTool(
           isError: true,
         };
       }
-
-      // Fetch instructions for those units to compute ball counts
-      const { data: unitInstructions, error: unitInstructionsError } =
-        await ctx.supabaseClient
-          .from('practice_unit_instructions')
-          .select('practice_unit_id, ball_count')
-          .in('practice_unit_id', unitIds);
 
       if (unitInstructionsError) {
         return {

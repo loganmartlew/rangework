@@ -128,12 +128,7 @@ describe('create_session tool', () => {
       from: (table: string) => {
         if (table === 'practice_units') {
           return {
-            select: () => ({
-              order: async () => ({
-                data: [{ id: 'unit-1' }],
-                error: null,
-              }),
-            }),
+            select: () => Promise.resolve({ data: [{ id: 'unit-1' }], error: null }),
           };
         }
         return {
@@ -183,12 +178,7 @@ describe('create_session tool', () => {
       from: (table: string) => {
         if (table === 'practice_units') {
           return {
-            select: () => ({
-              order: async () => ({
-                data: [{ id: 'unit-1' }],
-                error: null,
-              }),
-            }),
+            select: () => Promise.resolve({ data: [{ id: 'unit-1' }], error: null }),
           };
         }
         return {

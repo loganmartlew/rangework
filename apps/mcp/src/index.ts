@@ -39,7 +39,7 @@ export default {
         resource: resourceBaseUrl,
         authorization_servers: [`${env.SUPABASE_URL}/auth/v1`],
         bearer_methods_supported: ['header'],
-        resource_signing_alg_values_supported: ['ES256'],
+        resource_signing_alg_values_supported: ['ES256', 'RS256'],
       };
       return new Response(JSON.stringify(metadata), {
         headers: { 'content-type': 'application/json' },
@@ -101,7 +101,13 @@ export default {
         });
       }
 
-      // Use the web-standard transport's handleRequest method
+      // FRAGILE: `_webStandardTransport` is a private internal field of
+      // StreamableHTTPServerTransport. No public fetch-handler API exists in the
+      // MCP SDK for the Cloudflare Workers / web-standard fetch context.
+      // Re-verify this access on every `@modelcontextprotocol/sdk` upgrade —
+      // a rename or removal would silently break the entire MCP endpoint.
+      // Track: https://github.com/modelcontextprotocol/typescript-sdk for a
+      // public alternative before bumping the SDK major version.
       const webStandardTransport = (
         transport as unknown as {
           _webStandardTransport: {

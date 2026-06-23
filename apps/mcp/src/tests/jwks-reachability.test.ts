@@ -17,9 +17,9 @@ describe('JWKS reachability', () => {
       return;
     }
 
-    // Construct the JWKS URI from the Supabase project URL
-    // Format: https://<project-ref>.supabase.co/.well-known/jwks.json
-    const jwksUrl = new URL('/.well-known/jwks.json', supabaseUrl);
+    // Construct the JWKS URI from the Supabase project URL.
+    // Must match the path used in index.ts: /auth/v1/.well-known/jwks.json
+    const jwksUrl = new URL('/auth/v1/.well-known/jwks.json', supabaseUrl);
 
     const response = await fetch(jwksUrl, {
       method: 'GET',

@@ -50,9 +50,12 @@ export async function validateToken(
   const jwks = getJWKS(jwksUri);
 
   try {
+    // Accept both ES256 and RS256 — Supabase supports both and the project may
+    // use either depending on the OAuth server configuration. HS256 is excluded
+    // intentionally as it is symmetric and unsuitable for a resource server.
     const { payload } = await jwtVerify(token, jwks, {
       issuer,
-      algorithms: ['ES256'],
+      algorithms: ['ES256', 'RS256'],
     });
 
     if (typeof payload.sub !== 'string' || !payload.sub) {

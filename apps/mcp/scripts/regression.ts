@@ -323,11 +323,8 @@ async function main(): Promise<void> {
       items: [
         {
           practice_unit_id: createdUnitId,
-          sort_order: 1,
+          order: 1,
           repeat_count: 3,
-          club_reference: null,
-          notes: null,
-          focus_cue: null,
         },
       ],
     });

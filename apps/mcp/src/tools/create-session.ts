@@ -105,7 +105,25 @@ export function registerCreateSessionTool(
         );
       }
 
-      // Check for duplicate order values
+      // Validate positive integers and check for duplicate order values
+      for (let idx = 0; idx < args.items.length; idx++) {
+        const item = args.items[idx]!;
+        if (!Number.isInteger(item.order) || item.order < 1) {
+          return toolError(
+            ErrorCodes.VALIDATION_ERROR,
+            'item order must be a positive integer',
+            { field: `items[${idx}].order` },
+          );
+        }
+        if (!Number.isInteger(item.repeat_count) || item.repeat_count < 1) {
+          return toolError(
+            ErrorCodes.VALIDATION_ERROR,
+            'repeat_count must be a positive integer',
+            { field: `items[${idx}].repeat_count` },
+          );
+        }
+      }
+
       const orderValues = args.items.map(i => i.order);
       const uniqueOrders = new Set(orderValues);
       if (uniqueOrders.size !== orderValues.length) {
@@ -149,7 +167,15 @@ export function registerCreateSessionTool(
         .filter((ref): ref is string => ref !== undefined);
 
       if (clubReferences.length > 0) {
-        const allCodes = await fetchAllClubCodes(ctx.supabaseClient);
+        let allCodes: string[];
+        try {
+          allCodes = await fetchAllClubCodes(ctx.supabaseClient);
+        } catch {
+          return toolError(
+            ErrorCodes.DATABASE_ERROR,
+            'Failed to validate club codes. Please try again.',
+          );
+        }
 
         for (let idx = 0; idx < args.items.length; idx++) {
           const item = args.items[idx]!;

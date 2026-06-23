@@ -105,7 +105,7 @@ export function registerCreateUnitTool(
         );
       }
 
-      // Trim and validate instruction texts
+      // Trim and validate instruction texts; check positive integers
       const instructions = [];
       for (let idx = 0; idx < args.instructions.length; idx++) {
         const inst = args.instructions[idx]!;
@@ -115,6 +115,23 @@ export function registerCreateUnitTool(
             ErrorCodes.VALIDATION_ERROR,
             'instruction text must not be empty',
             { field: `instructions[${idx}].text` },
+          );
+        }
+        if (!Number.isInteger(inst.order) || inst.order < 1) {
+          return toolError(
+            ErrorCodes.VALIDATION_ERROR,
+            'instruction order must be a positive integer',
+            { field: `instructions[${idx}].order` },
+          );
+        }
+        if (
+          inst.ball_count !== undefined &&
+          (!Number.isInteger(inst.ball_count) || inst.ball_count < 1)
+        ) {
+          return toolError(
+            ErrorCodes.VALIDATION_ERROR,
+            'ball_count must be a positive integer',
+            { field: `instructions[${idx}].ball_count` },
           );
         }
         instructions.push({ ...inst, text });
@@ -133,7 +150,15 @@ export function registerCreateUnitTool(
 
       // Validate club code if provided
       if (args.default_club_reference) {
-        const allCodes = await fetchAllClubCodes(ctx.supabaseClient);
+        let allCodes: string[];
+        try {
+          allCodes = await fetchAllClubCodes(ctx.supabaseClient);
+        } catch {
+          return toolError(
+            ErrorCodes.DATABASE_ERROR,
+            'Failed to validate club code. Please try again.',
+          );
+        }
         const clubError = validateClubCode(
           args.default_club_reference,
           allCodes,
@@ -170,7 +195,12 @@ export function registerCreateUnitTool(
       if (error) {
         // Map FK violation to UNKNOWN_CLUB_CODE
         if (error.message.includes('foreign key') || error.code === '23503') {
-          const allCodes = await fetchAllClubCodes(ctx.supabaseClient);
+          let allCodes: string[] = [];
+          try {
+            allCodes = await fetchAllClubCodes(ctx.supabaseClient);
+          } catch {
+            // Best-effort — return the error without valid_codes hint
+          }
           return toolError(
             ErrorCodes.UNKNOWN_CLUB_CODE,
             `Unknown club code: ${args.default_club_reference}`,

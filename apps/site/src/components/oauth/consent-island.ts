@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase-client.js';
+import type { Session } from '@supabase/supabase-js';
 import type { AuthorizationDetails, ErrorKind } from './types.js';
 
 // Type shim for the beta supabase.auth.oauth server methods
@@ -25,7 +26,12 @@ function getOAuthServerClient(): OAuthServerClient {
 function setState(state: 'loading' | 'consent' | 'error') {
   for (const s of ['loading', 'consent', 'error']) {
     const el = document.getElementById(`state-${s}`);
-    if (el) el.hidden = s !== state;
+    if (el) {
+      el.hidden = s !== state;
+      if (s === 'loading') {
+        (el as HTMLElement).setAttribute('aria-busy', s === state ? 'true' : 'false');
+      }
+    }
   }
 }
 
@@ -57,6 +63,42 @@ function setError(kind: ErrorKind) {
   setState('error');
 }
 
+/**
+ * Resolves the current Supabase session, waiting for any in-flight PKCE code
+ * exchange to complete before returning.
+ *
+ * After a Google OAuth redirect, the Supabase client must make an async network
+ * call to exchange the `?code=` parameter for tokens. Calling `getSession()`
+ * synchronously before that exchange completes returns null, which would
+ * mistakenly trigger another OAuth redirect and create an infinite loop.
+ *
+ * Using `onAuthStateChange` ensures we wait for either:
+ *   - `INITIAL_SESSION`: an existing session was found in storage
+ *   - `SIGNED_IN`: a new session was established (e.g. after PKCE exchange)
+ *
+ * A safety timeout of 10s resolves with null if no auth event fires.
+ */
+function resolveInitialSession(): Promise<Session | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const settle = (session: Session | null) => {
+      if (settled) return;
+      settled = true;
+      subscription.unsubscribe();
+      resolve(session);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        settle(session);
+      }
+    });
+
+    setTimeout(() => settle(null), 10_000);
+  });
+}
+
 async function mountConsentIsland() {
   setState('loading');
 
@@ -67,11 +109,12 @@ async function mountConsentIsland() {
     return;
   }
 
-  // Check for an existing Supabase session
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  // Wait for the initial auth state — this handles the PKCE code-exchange race
+  // where getSession() would return null while the exchange is still in flight.
+  const session = await resolveInitialSession();
 
-  if (sessionError || !sessionData.session) {
-    // Redirect to Google sign-in, preserving authorization_id for the return trip
+  if (!session) {
+    // No session — redirect to Google sign-in, preserving authorization_id for return
     const redirectTo = `${window.location.origin}/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

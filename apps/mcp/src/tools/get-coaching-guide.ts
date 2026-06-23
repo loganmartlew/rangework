@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { R2Bucket } from '@cloudflare/workers-types';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { loadMethodology } from '../methodology/loader.js';
-import { toolError } from '../validation/tool-errors.js';
+import { toolError, ErrorCodes } from '../validation/tool-errors.js';
 
 /**
  * Tool: `get_coaching_guide`
@@ -26,7 +26,7 @@ export function registerGetCoachingGuideTool(
 
       if (!methodology) {
         return toolError(
-          'CONTENT_UNAVAILABLE',
+          ErrorCodes.CONTENT_UNAVAILABLE,
           'Coaching guide is temporarily unavailable. Please try again.',
         );
       }
