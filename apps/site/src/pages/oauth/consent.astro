@@ -1,5 +1,4 @@
 ---
-import { Image } from 'astro:assets';
 import MinimalLayout from '../../layouts/MinimalLayout.astro';
 import OAuthConsent from '../../components/oauth/OAuthConsent.svelte';
 import logo from '../../assets/logo.svg';
@@ -10,7 +9,7 @@ import logo from '../../assets/logo.svg';
   bodyClass="flex min-h-svh items-center justify-center bg-background px-4 py-12"
 >
   <OAuthConsent client:load>
-    <Image
+    <img
       slot="logo"
       src={logo}
       alt=""
