@@ -6,3 +6,4 @@ allowBuilds:
   esbuild: true
   sharp: true
   style-dictionary: true
+  workerd: true

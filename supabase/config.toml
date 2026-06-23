@@ -2,6 +2,8 @@ project_id = "rangework"
 
 [auth]
 enabled = true
+# Allow the consent page to redirect back after Google sign-in in local dev
+additional_redirect_urls = ["http://localhost:4321/**"]
 
 [auth.external.google]
 enabled = true
