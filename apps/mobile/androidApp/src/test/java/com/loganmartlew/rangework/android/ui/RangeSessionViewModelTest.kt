@@ -333,6 +333,63 @@ class RangeSessionViewModelTest {
     }
 
     @Test
+    fun rapidToggleDoesNotJitterCompletedSteps() = runTest {
+        val session = sampleRangeSession(steps = 4)
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        // Rapidly complete steps 0, 1, 2 before any network response
+        viewModel.toggleStepComplete(0)
+        viewModel.toggleStepComplete(1)
+        viewModel.toggleStepComplete(2)
+
+        // All three optimistic updates should be visible
+        assertEquals(setOf(0, 1, 2), viewModel.uiState.value.completedStepIndices)
+        assertEquals(3, viewModel.uiState.value.currentStepIndex)
+
+        // Let all network requests resolve
+        advanceUntilIdle()
+
+        // State should remain stable — no jitter from stale server snapshots
+        assertEquals(setOf(0, 1, 2), viewModel.uiState.value.completedStepIndices)
+        assertEquals(3, viewModel.uiState.value.currentStepIndex)
+    }
+
+    @Test
+    fun failedToggleDoesNotRevertOtherSteps() = runTest {
+        val session = sampleRangeSession(steps = 4)
+        var failStep = 1
+        val repo = object : FakeRangeSessionRepo(sessions = mutableListOf(session)) {
+            override suspend fun toggleStepComplete(
+                rangeSessionId: String,
+                stepIndex: Int,
+                completed: Boolean,
+            ): RangeSession {
+                if (stepIndex == failStep) throw RuntimeException("Simulated network error")
+                return super.toggleStepComplete(rangeSessionId, stepIndex, completed)
+            }
+        }
+        val viewModel = makeViewModel(repo = repo, rangeSessionId = session.id)
+        advanceUntilIdle()
+
+        // Complete steps 0 and 1 rapidly (step 1 will fail on the server)
+        viewModel.toggleStepComplete(0)
+        viewModel.toggleStepComplete(1)
+
+        assertEquals(setOf(0, 1), viewModel.uiState.value.completedStepIndices)
+        assertEquals(2, viewModel.uiState.value.currentStepIndex)
+
+        advanceUntilIdle()
+
+        // Step 1 failed — only step 1 should revert; step 0 stays complete
+        val state = viewModel.uiState.value
+        assertTrue("Step 0 should remain complete", 0 in state.completedStepIndices)
+        assertFalse("Step 1 should revert", 1 in state.completedStepIndices)
+        assertTrue("Expected error notification", state.notification != null)
+    }
+
+    @Test
     fun consumeNotificationClearsNotification() = runTest {
         val session = sampleRangeSession(steps = 3)
         val repo = FakeRangeSessionRepo(sessions = mutableListOf(session), shouldFailOnToggle = true)
@@ -562,7 +619,7 @@ private fun buildDataFoundation(rangeRepo: RangeSessionRepository): DataFoundati
     )
 }
 
-private class FakeRangeSessionRepo(
+private open class FakeRangeSessionRepo(
     val sessions: MutableList<RangeSession> = mutableListOf(),
     var shouldFailOnToggle: Boolean = false,
     var shouldFailOnOverride: Boolean = false,
@@ -580,7 +637,7 @@ private class FakeRangeSessionRepo(
         sessions.firstOrNull { it.id == rangeSessionId }
     override suspend fun listActiveSessions(): List<ActiveRangeSessionSummary> = emptyList()
     override suspend fun listCompletedSessions(sessionId: String): List<CompletedRangeSessionSummary> = emptyList()
-    override suspend fun toggleStepComplete(rangeSessionId: String, stepIndex: Int, completed: Boolean): RangeSession {
+    open override suspend fun toggleStepComplete(rangeSessionId: String, stepIndex: Int, completed: Boolean): RangeSession {
         if (shouldFailOnToggle) throw RuntimeException("Simulated network error")
         toggleInvocations.add(Triple(rangeSessionId, stepIndex, completed))
         val session = sessions.firstOrNull { it.id == rangeSessionId } ?: error("Session not found")

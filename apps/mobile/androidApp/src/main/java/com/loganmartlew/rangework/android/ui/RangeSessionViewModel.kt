@@ -139,7 +139,8 @@ class RangeSessionViewModel(
         val completing = !isCurrentlyComplete
         val isCurrentStep = stepIndex == state.currentStepIndex
         val totalSteps = session.snapshot.steps.size
-        val newStepIndex = if (completing && isCurrentStep && state.currentStepIndex < totalSteps - 1) {
+        val autoAdvanced = completing && isCurrentStep && state.currentStepIndex < totalSteps - 1
+        val newStepIndex = if (autoAdvanced) {
             state.currentStepIndex + 1
         } else {
             state.currentStepIndex
@@ -161,16 +162,28 @@ class RangeSessionViewModel(
                     stepIndex = stepIndex,
                     completed = !isCurrentlyComplete,
                 )
+                // Only refresh the session model; preserve completedStepIndices so
+                // concurrent optimistic toggles aren't overwritten by a stale server snapshot.
                 _uiState.value = _uiState.value.copy(
                     rangeSession = updatedSession,
-                    completedStepIndices = updatedSession.completedSteps.map { it.stepIndex }.toSet(),
                 )
             } catch (_: Exception) {
-                // Revert full pre-toggle state and surface error
-                _uiState.value = _uiState.value.copy(
-                    rangeSession = session,
-                    completedStepIndices = state.completedStepIndices,
-                    currentStepIndex = state.currentStepIndex,
+                // Revert only this step's optimistic toggle; leave other steps and
+                // navigation untouched since the user may have acted while in-flight.
+                val current = _uiState.value
+                val revertedIndices = if (isCurrentlyComplete) {
+                    current.completedStepIndices + stepIndex
+                } else {
+                    current.completedStepIndices - stepIndex
+                }
+                val revertedStepIndex = if (autoAdvanced && current.currentStepIndex == newStepIndex) {
+                    state.currentStepIndex
+                } else {
+                    current.currentStepIndex
+                }
+                _uiState.value = current.copy(
+                    completedStepIndices = revertedIndices,
+                    currentStepIndex = revertedStepIndex,
                     notification = "Failed to update step. Please try again.",
                 )
             }
