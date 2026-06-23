@@ -104,7 +104,7 @@ Rangework is an Android-first golf practice planning app. This repository is a p
 | Family  | Variable file   | Weights used    | Role                            |
 | ------- | --------------- | --------------- | ------------------------------- |
 | DM Sans | `dm_sans_*.ttf` | 300 · 400 · 500 | All UI text via MaterialTheme   |
-| DM Mono | `dm_mono_*.ttf` | 400 · 500       | Numeric and timer contexts only |
+| DM Mono | `dm_mono_*.ttf` | 400 · 500       | Numeric, timer, and code-like contexts |
 
 Font files live in `androidApp/src/main/res/font/`. `FontFamily` declarations and all `TextStyle` definitions are in `androidApp/src/main/java/com/loganmartlew/rangework/android/ui/theme/Type.kt`.
 
@@ -128,7 +128,7 @@ Text(text = "×12 reps", style = RangeworkMono.small, color = MaterialTheme.colo
 
 ### When to use DM Mono (`RangeworkMono`)
 
-Use `RangeworkMono` when the text is any of: countdown/elapsed timer, ball/rep count, distance/carry value, percentage/rate metric, step/unit position, performance log value, settings value for a numeric field.
+Use `RangeworkMono` when the text is any of: countdown/elapsed timer, ball/rep count, distance/carry value, percentage/rate metric, step/unit position, performance log value, settings value for a numeric field, or machine-copyable code-like text (connection URLs, endpoints, server identifiers meant to be read or copied verbatim).
 
 Use `MaterialTheme.typography` (DM Sans) when the text is any of: name/title/label, instructional prose, chip/tag/category label, navigation/button/action text, metadata/descriptive copy, section header/screen title.
 
@@ -154,7 +154,7 @@ Use `MaterialTheme.typography` (DM Sans) when the text is any of: name/title/lab
 
 ### Typography rules
 
-- Do not use `RangeworkMono` for non-numeric text.
+- Do not use `RangeworkMono` for non-numeric prose. Exception: code-like text meant to be read or copied verbatim (connection URLs, endpoints, server identifiers) may use `RangeworkMono`.
 - Do not use `MaterialTheme.typography` for timer or metric values.
 - Do not hardcode `fontFamily = DmMono` at call sites — always go through `RangeworkMono.*`.
 - Do not use font weights other than those declared in the `FontFamily` (300, 400, 500 for DM Sans; 400, 500 for DM Mono).

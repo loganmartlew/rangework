@@ -1,0 +1,264 @@
+---
+import Footer from '../components/Footer.astro';
+import PhoneMockupAiPlanning from '../components/PhoneMockupAiPlanning.astro';
+import Layout from '../layouts/Layout.astro';
+import {
+  cardClass,
+  chipClass,
+  eyebrowClass,
+  liftedCardClass,
+  pillButtonClass,
+  revealClass,
+  sectionClass,
+  themeTransitionClass,
+} from '../lib/ui';
+import { playStoreHref } from '../lib/links';
+---
+
+<Layout
+  title="AI Session Plans - Rangework"
+  description="Connect your AI assistant to Rangework and get practice sessions built around your game. Works with Claude, ChatGPT, and any MCP-compatible assistant."
+  canonical="https://rangework.app/ai-planning"
+>
+  <main id="main-content">
+
+    <!-- Intro -->
+    <section
+      aria-labelledby="ai-intro-heading"
+      class:list={[themeTransitionClass, 'bg-background px-5 py-20 md:px-8 md:py-28 lg:px-14 xl:px-18']}
+    >
+      <div class="mx-auto max-w-300">
+        <div
+          class:list={[eyebrowClass, revealClass]}
+          data-reveal
+          style="--stagger: 40ms;"
+        >
+          AI session plans
+        </div>
+
+        <h1
+          id="ai-intro-heading"
+          class:list={[
+            revealClass,
+            'mt-4 max-w-[14ch] text-[2.8rem] leading-[1.02] font-light tracking-tighter text-onbackground sm:text-[3.4rem] md:text-[4rem] lg:text-[4.6rem]',
+          ]}
+          data-reveal
+          style="--stagger: 100ms;"
+        >
+          Plans built around your game.
+        </h1>
+
+        <p
+          class:list={[
+            revealClass,
+            'mt-6 max-w-[46ch] text-base leading-7 text-(--body-soft) md:text-[1.1rem] md:leading-8',
+          ]}
+          data-reveal
+          style="--stagger: 180ms;"
+        >
+          Connect your AI assistant to Rangework. Describe what you want to work on, and it reads
+          your bag, builds the drills, and saves a complete session to your account. You show up
+          and execute.
+        </p>
+
+        <div
+          class:list={[revealClass, 'mt-7 flex flex-wrap gap-2.5']}
+          data-reveal
+          style="--stagger: 260ms;"
+        >
+          <span class={chipClass}>Works with Claude</span>
+          <span class={chipClass}>ChatGPT</span>
+          <span class={chipClass}>Any MCP client</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Steps -->
+    <section
+      aria-labelledby="ai-steps-heading"
+      class:list={[sectionClass, 'bg-surface']}
+    >
+      <div class="mx-auto max-w-300">
+        <div
+          class:list={[revealClass]}
+          data-reveal
+          style="--stagger: 40ms;"
+        >
+          <h2
+            id="ai-steps-heading"
+            class="text-[2.2rem] leading-[1.04] font-light tracking-tighter text-onbackground md:text-[2.9rem] lg:text-[3.2rem]"
+          >
+            Connect. Authorize. Chat.
+          </h2>
+        </div>
+
+        <div class="mt-10 grid gap-5 md:mt-12 md:grid-cols-3">
+          {[
+            {
+              number: '01',
+              title: 'Add the connection',
+              body: 'Open your AI assistant and add Rangework as a connected tool. Any client that supports MCP works, including Claude and ChatGPT.',
+              note: 'Works with Claude, ChatGPT, and others',
+              icon: 'add_link',
+            },
+            {
+              number: '02',
+              title: 'Sign in once',
+              body: 'Sign in to your Rangework account when prompted. Your AI gets access to your own clubs, drills, and sessions.',
+              note: 'Secure OAuth sign-in',
+              icon: 'key',
+            },
+            {
+              number: '03',
+              title: 'Start chatting',
+              body: 'Tell your AI what you want to work on. It reads your bag, asks what it needs, builds the drills, and saves a full session you can run at the range.',
+              note: 'Session saved to your account',
+              icon: 'chat',
+            },
+          ].map((step, index) => (
+            <article
+              class:list={[liftedCardClass, revealClass, 'relative overflow-hidden px-6 py-7 md:px-7 md:py-8']}
+              data-reveal
+              style={`--stagger: ${140 + index * 90}ms;`}
+            >
+              <div class="absolute inset-x-0 top-0 h-1 bg-primary"></div>
+              <div class="font-mono text-[2rem] font-medium leading-none text-brandrod">{step.number}</div>
+              <h3 class="mt-6 text-[1.3rem] leading-tight font-medium tracking-[-0.03em] text-onbackground">
+                {step.title}
+              </h3>
+              <p class="mt-3 text-[0.97rem] leading-7 text-(--body-soft)">{step.body}</p>
+              <div class="mt-5 border-t border-dashed border-(--border-dash) pt-4 font-mono text-[0.68rem] uppercase tracking-[0.12em] text-(--label-muted)">
+                {step.note}
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Chat + phone mockup -->
+    <section
+      aria-labelledby="ai-demo-heading"
+      class:list={[sectionClass, 'bg-background']}
+    >
+      <div class="mx-auto max-w-300">
+        <div
+          class:list={[revealClass]}
+          data-reveal
+          style="--stagger: 40ms;"
+        >
+          <h2
+            id="ai-demo-heading"
+            class="text-[2.2rem] leading-[1.04] font-light tracking-tighter text-onbackground md:text-[2.9rem] lg:text-[3.2rem]"
+          >
+            See it in practice.
+          </h2>
+          <p class="mt-4 max-w-[36ch] text-base leading-7 text-(--body-soft) md:text-[1.08rem] md:leading-8">
+            A golfer describes a weakness. Their AI reads the bag, asks one question, and saves a
+            session ready to run.
+          </p>
+        </div>
+
+        <div class="mt-10 grid gap-8 md:mt-12 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-14 lg:items-start">
+          <div
+            class:list={[cardClass, revealClass, 'overflow-hidden']}
+            data-reveal
+            style="--stagger: 160ms;"
+          >
+            <div class="border-b border-outlinevariant/80 px-5 py-3.5">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-rounded text-[1.1rem] text-(--label-muted)" aria-hidden="true">chat</span>
+                <span class="font-mono text-[0.68rem] uppercase tracking-[0.14em] text-(--label-muted)">AI assistant</span>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-4 p-5">
+              <div class="flex justify-end">
+                <div class="max-w-[78%] rounded-[1rem] rounded-br-[0.3rem] bg-primary px-4 py-3 text-[0.9rem] leading-6 text-onprimary">
+                  I&apos;m losing shots from 40 to 80 yards. What do I have in my bag for that range?
+                </div>
+              </div>
+
+              <div class="flex justify-start">
+                <div class="max-w-[78%] rounded-[1rem] rounded-bl-[0.3rem] border border-outlinevariant/80 bg-surface px-4 py-3 text-[0.9rem] leading-6 text-(--body-soft)">
+                  You&apos;ve got a PW, 50&deg;, and 56&deg; in your bag. Want me to build a session around all three?
+                </div>
+              </div>
+
+              <div class="flex justify-end">
+                <div class="max-w-[78%] rounded-[1rem] rounded-br-[0.3rem] bg-primary px-4 py-3 text-[0.9rem] leading-6 text-onprimary">
+                  Yes. Keep it under 25 minutes.
+                </div>
+              </div>
+
+              <div class="flex justify-start">
+                <div class="max-w-[78%] rounded-[1rem] rounded-bl-[0.3rem] border border-outlinevariant/80 bg-surface px-4 py-3 text-[0.9rem] leading-6 text-(--body-soft)">
+                  &ldquo;Wedge distance control&rdquo; is saved to your Rangework account. Three drills, 45 balls, around 20 minutes. One club per drill, 15 balls each.
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-(--border-dash) bg-(--badge-bg) px-5 py-4">
+              <span class="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-(--label-muted)">Saved to Rangework</span>
+              <div class="flex gap-3">
+                <span class="font-mono text-[0.65rem] uppercase tracking-[0.12em] text-primary">3 drills</span>
+                <span class="font-mono text-[0.65rem] uppercase tracking-[0.12em] text-primary">45 balls</span>
+                <span class="font-mono text-[0.65rem] uppercase tracking-[0.12em] text-(--label-muted)">~20 min</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class:list={[revealClass, 'mx-auto w-full max-w-76 justify-self-center lg:justify-self-end']}
+            data-reveal
+            style="--stagger: 260ms;"
+          >
+            <PhoneMockupAiPlanning />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section
+      aria-labelledby="ai-cta-heading"
+      class:list={[sectionClass, 'bg-(--pin-bg) py-22 md:py-28']}
+    >
+      <div class="mx-auto max-w-300">
+        <div
+          class:list={[revealClass]}
+          data-reveal
+          style="--stagger: 40ms;"
+        >
+          <h2
+            id="ai-cta-heading"
+            class="max-w-[16ch] text-[2.2rem] leading-[1.04] font-light tracking-tighter text-onbackground md:text-[2.9rem] lg:text-[3.2rem]"
+          >
+            Download Rangework to get started.
+          </h2>
+          <p class="mt-5 max-w-[42ch] text-base leading-7 text-(--body-soft) md:text-[1.08rem] md:leading-8">
+            Create your account, set up your bag, then connect your AI assistant. Your first
+            session in under two minutes.
+          </p>
+
+          <div class="mt-8 flex flex-wrap items-center gap-4">
+            <a href={playStoreHref} class:list={[pillButtonClass, 'px-7 py-3.5 text-[0.95rem]']}>
+              Get Rangework
+            </a>
+            <span class="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-(--label-muted)">
+              Free &middot; Google Play
+            </span>
+          </div>
+
+          <p class="mt-8 flex items-center gap-2 text-[0.88rem] text-(--label-muted)">
+            <span class="material-symbols-rounded text-[1rem]" aria-hidden="true">lock</span>
+            Rangework connects via secure OAuth sign-in. Your AI can read your clubs and create
+            drills and sessions in your account. Disconnect from your AI client at any time.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <Footer backToTopHref="/" />
+  </main>
+</Layout>

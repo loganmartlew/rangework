@@ -32,6 +32,7 @@ internal object RangeworkRoutes {
     const val SessionDetail = "sessions/{sessionId}"
     const val SessionEdit = "sessions/{sessionId}/edit"
     const val Settings = "settings"
+    const val AiSessionPlans = "settings/ai-session-plans"
     const val ManageClubs = "settings/clubs"
     const val DeleteAccount = "settings/delete-account"
     const val LegalPage = "settings/legal/{page}"

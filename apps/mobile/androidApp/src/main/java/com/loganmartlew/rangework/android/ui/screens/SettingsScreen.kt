@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.GolfCourse
 import androidx.compose.material.icons.automirrored.filled.Help
@@ -64,6 +65,7 @@ internal fun SettingsScreen(
     onSetThemeMode: (ThemeMode) -> Unit,
     onSelectDistanceUnit: (DistanceUnit) -> Unit,
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
+    onNavigateToAiSessionPlans: () -> Unit,
     onNavigateToManageClubs: () -> Unit,
     onNavigateToDeleteAccount: () -> Unit,
     onNavigateToLegalPage: (String) -> Unit,
@@ -97,6 +99,45 @@ internal fun SettingsScreen(
     }
 
     ScrollableScreen {
+        // AI Session Plans section
+        SettingsSubheader("AI Session Plans")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(role = Role.Button, onClick = onNavigateToAiSessionPlans)
+                .padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Column {
+                    Text(
+                        text = "Set up AI session plans",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "Plan with Claude or ChatGPT",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.NavigateNext,
+                contentDescription = "Set up AI session plans",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         // Preferences section
         SettingsSubheader("Preferences")
         Column(modifier = Modifier.fillMaxWidth()) {

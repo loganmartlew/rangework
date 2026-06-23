@@ -47,6 +47,12 @@ class RangeworkNavigationTest {
     }
 
     @Test
+    fun aiSessionPlansIsASettingsSubScreen() {
+        assertEquals("AI Session Plans", titleForRoute(RangeworkRoutes.AiSessionPlans))
+        assertFalse(RangeworkRoutes.AiSessionPlans.isTopLevelRoute())
+    }
+
+    @Test
     fun topLevelRouteDetectionMatchesShellTabs() {
         assertEquals(true, RangeworkRoutes.Overview.isTopLevelRoute())
         assertEquals(true, RangeworkRoutes.Units.isTopLevelRoute())

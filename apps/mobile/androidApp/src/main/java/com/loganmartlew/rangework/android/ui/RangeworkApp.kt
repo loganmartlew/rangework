@@ -84,6 +84,7 @@ import com.loganmartlew.rangework.android.ui.components.showUndoSnackbar
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.sessionsUsingUnit
+import com.loganmartlew.rangework.android.ui.screens.AiSessionPlansScreen
 import com.loganmartlew.rangework.android.ui.screens.OverviewScreen
 import com.loganmartlew.rangework.android.ui.screens.RangeSessionScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionDetailScreen
@@ -1159,6 +1160,9 @@ private fun AuthenticatedAppShell(
                             onSetThemeMode = settingsActions.onSetThemeMode,
                             onSelectDistanceUnit = settingsActions.onSelectDistanceUnit,
                             onSelectSpeedUnit = settingsActions.onSelectSpeedUnit,
+                            onNavigateToAiSessionPlans = {
+                                shellNavController.navigate(RangeworkRoutes.AiSessionPlans)
+                            },
                             onNavigateToManageClubs = {
                                 shellNavController.navigate(RangeworkRoutes.ManageClubs)
                             },
@@ -1173,6 +1177,9 @@ private fun AuthenticatedAppShell(
                     composable(RangeworkRoutes.LegalPage) { backStackEntry ->
                         val page = backStackEntry.arguments?.getString(LegalPageArg).orEmpty()
                         WebViewScreen(page = page)
+                    }
+                    composable(RangeworkRoutes.AiSessionPlans) {
+                        AiSessionPlansScreen()
                     }
                     composable(RangeworkRoutes.ManageClubs) {
                         ManageClubsScreen(
@@ -1249,6 +1256,7 @@ internal fun titleForRoute(route: String): String = when {
     route.startsWith("sessions/") && route.endsWith("/edit") -> "Edit session"
     route.startsWith("sessions/") -> "Session"
     route == RangeworkRoutes.Settings -> "Settings"
+    route == RangeworkRoutes.AiSessionPlans -> "AI Session Plans"
     route == RangeworkRoutes.ManageClubs -> "Club bag"
     route == RangeworkRoutes.DeleteAccount -> "Delete account"
     route.startsWith("settings/legal/") -> when (route.removePrefix("settings/legal/")) {

@@ -1,0 +1,97 @@
+---
+import YardageMarker from './YardageMarker.astro';
+import {
+  cardClass,
+  eyebrowClass,
+  revealClass,
+  sectionClass,
+  textButtonClass,
+} from '../lib/ui';
+---
+
+<section
+  id="ai-plans"
+  aria-labelledby="ai-plans-heading"
+  class:list={[sectionClass, 'bg-background']}
+>
+  <div class="mx-auto max-w-300">
+    <YardageMarker yard="175Y" label="AI session plans" />
+
+    <div class="grid gap-12 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-16">
+      <div>
+        <div
+          class:list={[eyebrowClass, revealClass]}
+          data-reveal
+          style="--stagger: 40ms;"
+        >
+          AI session plans
+        </div>
+
+        <h2
+          id="ai-plans-heading"
+          class:list={[
+            revealClass,
+            'mt-3 text-[2.2rem] leading-[1.04] font-light tracking-tighter text-onbackground md:text-[2.9rem] lg:text-[3.2rem]',
+          ]}
+          data-reveal
+          style="--stagger: 100ms;"
+        >
+          Tell your AI what&apos;s off.<br />Get a plan.
+        </h2>
+
+        <p
+          class:list={[
+            revealClass,
+            'mt-5 max-w-[42ch] text-base leading-7 text-(--body-soft) md:text-[1.08rem] md:leading-8',
+          ]}
+          data-reveal
+          style="--stagger: 180ms;"
+        >
+          Connect your AI assistant to your Rangework account. Describe your game, name what you
+          want to work on, and it builds drills and saves a complete session ready to run at the
+          range.
+        </p>
+
+        <div
+          class:list={[revealClass, 'mt-7']}
+          data-reveal
+          style="--stagger: 260ms;"
+        >
+          <a href="/ai-planning" class:list={[textButtonClass]}>
+            See how it works
+            <span class="material-symbols-rounded text-base" aria-hidden="true">arrow_forward</span>
+          </a>
+        </div>
+      </div>
+
+      <div
+        class:list={[revealClass, 'w-full']}
+        data-reveal
+        style="--stagger: 210ms;"
+      >
+        <div class:list={[cardClass, 'flex flex-col gap-3.5 overflow-hidden p-5']}>
+          <div class="flex justify-end">
+            <div class="max-w-[82%] rounded-[1rem] rounded-br-[0.3rem] bg-primary px-4 py-3 text-[0.9rem] leading-6 text-onprimary">
+              I&apos;m dropping shots from 40 to 80 yards. Build me a session.
+            </div>
+          </div>
+
+          <div class="flex justify-start">
+            <div class="max-w-[82%] rounded-[1rem] rounded-bl-[0.3rem] border border-outlinevariant/80 bg-surface px-4 py-3 text-[0.9rem] leading-6 text-(--body-soft)">
+              &ldquo;Wedge distance control&rdquo; is saved to your account. Three drills, 45 balls, around 20 minutes.
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-(--border-dash) pt-4">
+            <span class="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-(--label-muted)">
+              Saved to Rangework
+            </span>
+            <span class="font-mono text-[0.65rem] uppercase tracking-[0.12em] text-primary">
+              3 drills · 45 balls
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
