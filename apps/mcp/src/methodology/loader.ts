@@ -25,7 +25,6 @@ export async function loadMethodology(
 
   try {
     const object = await bucket.get(R2_KEY);
-    console.log(bucket);
     if (!object) return null;
 
     const text = await object.text();
