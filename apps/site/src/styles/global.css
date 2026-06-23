@@ -112,9 +112,11 @@ select {
   font: inherit;
 }
 
-button {
-  border: 0;
-  background: none;
+@layer base {
+  button {
+    border: 0;
+    background: none;
+  }
 }
 
 .material-symbols-rounded {
