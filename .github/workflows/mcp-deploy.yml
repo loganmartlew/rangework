@@ -1,11 +1,6 @@
 name: MCP Deploy
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'apps/mcp/**'
   workflow_dispatch:
 
 concurrency:
