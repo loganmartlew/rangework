@@ -1,52 +1,13 @@
 package com.loganmartlew.rangework.android.ui
 
-import com.loganmartlew.rangework.shared.data.DataFoundation
 import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
-import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.CompletedRangeSessionSummary
-import com.loganmartlew.rangework.shared.model.MeasurementPreferences
-import com.loganmartlew.rangework.shared.model.PracticeSession
-import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
-import com.loganmartlew.rangework.shared.model.PracticeUnit
-import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.model.RangeSession
 import com.loganmartlew.rangework.shared.model.RangeSessionSnapshot
 import com.loganmartlew.rangework.shared.model.SnapshotInstruction
 import com.loganmartlew.rangework.shared.model.SnapshotStep
 import com.loganmartlew.rangework.shared.model.SnapshotUnit
-import com.loganmartlew.rangework.shared.repository.ClubRepository
-import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
-import com.loganmartlew.rangework.shared.repository.PracticeSessionRepository
-import com.loganmartlew.rangework.shared.repository.PracticeUnitRepository
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
-import com.loganmartlew.rangework.shared.usecase.AbandonRangeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.CloseTimeEntryUseCase
-import com.loganmartlew.rangework.shared.usecase.DeletePracticeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.DeletePracticeUnitUseCase
-import com.loganmartlew.rangework.shared.usecase.DuplicatePracticeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.DuplicateUnitUseCase
-import com.loganmartlew.rangework.shared.usecase.FinishRangeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.GetClubCatalogUseCase
-import com.loganmartlew.rangework.shared.usecase.GetElapsedSecondsUseCase
-import com.loganmartlew.rangework.shared.usecase.GetEnabledClubsUseCase
-import com.loganmartlew.rangework.shared.usecase.GetMeasurementPreferencesUseCase
-import com.loganmartlew.rangework.shared.usecase.GetPracticeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.GetPracticeUnitUseCase
-import com.loganmartlew.rangework.shared.usecase.GetRangeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.HasActiveRangeSessionsUseCase
-import com.loganmartlew.rangework.shared.usecase.ListActiveRangeSessionsUseCase
-import com.loganmartlew.rangework.shared.usecase.ListCompletedRangeSessionsUseCase
-import com.loganmartlew.rangework.shared.usecase.ListPracticeSessionsUseCase
-import com.loganmartlew.rangework.shared.usecase.ListPracticeUnitsUseCase
-import com.loganmartlew.rangework.shared.usecase.OverrideStepClubUseCase
-import com.loganmartlew.rangework.shared.usecase.RecordTimeEntryUseCase
-import com.loganmartlew.rangework.shared.usecase.SaveMeasurementPreferencesUseCase
-import com.loganmartlew.rangework.shared.usecase.SavePracticeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.SavePracticeUnitUseCase
-import com.loganmartlew.rangework.shared.usecase.SetClubEnabledUseCase
-import com.loganmartlew.rangework.shared.usecase.StartRangeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.ToggleStepCompleteUseCase
-import com.loganmartlew.rangework.shared.usecase.UpdateLastViewedStepUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -196,17 +157,17 @@ class RangeSessionViewModelTest {
     }
 
     @Test
-    fun nullDataFoundationSetsErrorMessage() = runTest {
+    fun nullRepositorySetsErrorMessage() = runTest {
         val viewModel = RangeSessionViewModel(
             rangeSessionId = "any-id",
-            dataFoundation = null,
+            rangeSessionRepository = null,
         )
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
         assertFalse(state.isLoading)
         assertNull(state.rangeSession)
-        assertTrue("Expected error message for null foundation", state.statusMessage != null)
+        assertTrue("Expected error message for null repository", state.statusMessage != null)
     }
 
     @Test
@@ -567,57 +528,8 @@ private fun makeViewModel(
     rangeSessionId: String,
 ): RangeSessionViewModel = RangeSessionViewModel(
     rangeSessionId = rangeSessionId,
-    dataFoundation = buildDataFoundation(rangeRepo = repo),
+    rangeSessionRepository = repo,
 )
-
-private fun buildDataFoundation(rangeRepo: RangeSessionRepository): DataFoundation {
-    val nopUnit = NopPracticeUnitRepository()
-    val nopSession = NopPracticeSessionRepository()
-    val nopMeasurement = NopMeasurementPreferencesRepository()
-    val nopClub = NopClubRepository()
-    val nopRange = NopRangeSessionRepository()
-    return DataFoundation(
-        listPracticeUnitsUseCase = ListPracticeUnitsUseCase(nopUnit),
-        getPracticeUnitUseCase = GetPracticeUnitUseCase(nopUnit),
-        savePracticeUnitUseCase = SavePracticeUnitUseCase(nopUnit),
-        deletePracticeUnitUseCase = DeletePracticeUnitUseCase(nopUnit),
-        duplicatePracticeUnitUseCase = DuplicateUnitUseCase(
-            getPracticeUnitUseCase = GetPracticeUnitUseCase(nopUnit),
-            savePracticeUnitUseCase = SavePracticeUnitUseCase(nopUnit),
-        ),
-        listPracticeSessionsUseCase = ListPracticeSessionsUseCase(nopSession),
-        getPracticeSessionUseCase = GetPracticeSessionUseCase(nopSession),
-        savePracticeSessionUseCase = SavePracticeSessionUseCase(nopSession),
-        deletePracticeSessionUseCase = DeletePracticeSessionUseCase(nopSession),
-        duplicatePracticeSessionUseCase = DuplicatePracticeSessionUseCase(
-            getPracticeSessionUseCase = GetPracticeSessionUseCase(nopSession),
-            savePracticeSessionUseCase = SavePracticeSessionUseCase(nopSession),
-        ),
-        getMeasurementPreferencesUseCase = GetMeasurementPreferencesUseCase(nopMeasurement),
-        saveMeasurementPreferencesUseCase = SaveMeasurementPreferencesUseCase(nopMeasurement),
-        getClubCatalogUseCase = GetClubCatalogUseCase(nopClub),
-        getEnabledClubsUseCase = GetEnabledClubsUseCase(nopClub),
-        setClubEnabledUseCase = SetClubEnabledUseCase(nopClub),
-        startRangeSessionUseCase = StartRangeSessionUseCase(nopRange),
-        getRangeSessionUseCase = GetRangeSessionUseCase(rangeRepo),
-        listActiveRangeSessionsUseCase = ListActiveRangeSessionsUseCase(rangeRepo),
-        listCompletedRangeSessionsUseCase = ListCompletedRangeSessionsUseCase(rangeRepo),
-        toggleStepCompleteUseCase = ToggleStepCompleteUseCase(rangeRepo),
-        overrideStepClubUseCase = OverrideStepClubUseCase(rangeRepo),
-        updateLastViewedStepUseCase = UpdateLastViewedStepUseCase(rangeRepo),
-        finishRangeSessionUseCase = FinishRangeSessionUseCase(rangeRepo),
-        abandonRangeSessionUseCase = AbandonRangeSessionUseCase(rangeRepo),
-        recordTimeEntryUseCase = RecordTimeEntryUseCase(rangeRepo),
-        closeTimeEntryUseCase = CloseTimeEntryUseCase(rangeRepo),
-        getElapsedSecondsUseCase = GetElapsedSecondsUseCase(rangeRepo),
-        hasActiveRangeSessionsUseCase = HasActiveRangeSessionsUseCase(rangeRepo),
-        deleteAccountUseCase = com.loganmartlew.rangework.shared.usecase.DeleteAccountUseCase(
-            object : com.loganmartlew.rangework.shared.repository.AccountDeletionRepository {
-                override suspend fun deleteAccount() = Unit
-            },
-        ),
-    )
-}
 
 private open class FakeRangeSessionRepo(
     val sessions: MutableList<RangeSession> = mutableListOf(),
@@ -631,7 +543,7 @@ private open class FakeRangeSessionRepo(
     val recordedTimeEntries = mutableListOf<Pair<String, Instant>>()
     val closedTimeEntries = mutableListOf<Triple<String, Instant, Instant>>()
 
-    override suspend fun startSession(rangeSessionId: String, sessionId: String): RangeSession =
+    override suspend fun start(sessionId: String): RangeSession =
         error("Not called in these tests")
     override suspend fun getSession(rangeSessionId: String): RangeSession? =
         sessions.firstOrNull { it.id == rangeSessionId }
@@ -677,47 +589,6 @@ private open class FakeRangeSessionRepo(
     }
     override suspend fun getElapsedSeconds(rangeSessionId: String): Long = getElapsedSecondsResult
     override suspend fun hasActiveSessionsForTemplate(sessionId: String): Boolean = false
-}
-
-private class NopRangeSessionRepository : RangeSessionRepository {
-    override suspend fun startSession(rangeSessionId: String, sessionId: String): RangeSession = error("nop")
-    override suspend fun getSession(rangeSessionId: String): RangeSession? = null
-    override suspend fun listActiveSessions(): List<ActiveRangeSessionSummary> = emptyList()
-    override suspend fun listCompletedSessions(sessionId: String): List<CompletedRangeSessionSummary> = emptyList()
-    override suspend fun toggleStepComplete(rangeSessionId: String, stepIndex: Int, completed: Boolean): RangeSession = error("nop")
-    override suspend fun overrideStepClub(rangeSessionId: String, stepIndex: Int, clubCode: String): RangeSession = error("nop")
-    override suspend fun updateLastViewedStep(rangeSessionId: String, stepIndex: Int) = Unit
-    override suspend fun finishSession(rangeSessionId: String): RangeSession = error("nop")
-    override suspend fun abandonSession(rangeSessionId: String) = Unit
-    override suspend fun recordTimeEntry(rangeSessionId: String, enteredAt: Instant) = Unit
-    override suspend fun closeTimeEntry(rangeSessionId: String, enteredAt: Instant, exitedAt: Instant) = Unit
-    override suspend fun getElapsedSeconds(rangeSessionId: String): Long = 0L
-    override suspend fun hasActiveSessionsForTemplate(sessionId: String): Boolean = false
-}
-
-private class NopPracticeUnitRepository : PracticeUnitRepository {
-    override suspend fun listPracticeUnits(): List<PracticeUnit> = emptyList()
-    override suspend fun getPracticeUnit(unitId: String): PracticeUnit? = null
-    override suspend fun savePracticeUnit(draft: PracticeUnitDraft, unitId: String?): PracticeUnit = error("nop")
-    override suspend fun deletePracticeUnit(unitId: String) = Unit
-}
-
-private class NopPracticeSessionRepository : PracticeSessionRepository {
-    override suspend fun listPracticeSessions(): List<PracticeSession> = emptyList()
-    override suspend fun getPracticeSession(sessionId: String): PracticeSession? = null
-    override suspend fun savePracticeSession(draft: PracticeSessionDraft, sessionId: String?): PracticeSession = error("nop")
-    override suspend fun deletePracticeSession(sessionId: String) = Unit
-}
-
-private class NopMeasurementPreferencesRepository : MeasurementPreferencesRepository {
-    override suspend fun getMeasurementPreferences(): MeasurementPreferences = MeasurementPreferences.Imperial
-    override suspend fun saveMeasurementPreferences(preferences: MeasurementPreferences): MeasurementPreferences = preferences
-}
-
-private class NopClubRepository : ClubRepository {
-    override suspend fun listCatalog(): List<Club> = emptyList()
-    override suspend fun getEnabledClubCodes(): Set<String> = emptySet()
-    override suspend fun setClubEnabled(code: String, enabled: Boolean) = Unit
 }
 
 private fun sampleRangeSession(

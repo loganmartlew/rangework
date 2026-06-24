@@ -20,8 +20,8 @@ private const val PRACTICE_UNIT_INSTRUCTIONS_TABLE = "practice_unit_instructions
 
 class SupabasePracticeUnitRepository(
     private val client: SupabaseClient,
-) : PracticeUnitRepository {
-    override suspend fun listPracticeUnits(): List<PracticeUnit> {
+) : PracticeUnitRepository() {
+    override suspend fun list(): List<PracticeUnit> {
         val unitRows = client.postgrest[PRACTICE_UNITS_TABLE]
             .select()
             .decodeList<PracticeUnitRow>()
@@ -44,11 +44,11 @@ class SupabasePracticeUnitRepository(
             .sortedByDescending(PracticeUnit::updatedAt)
     }
 
-    override suspend fun getPracticeUnit(unitId: String): PracticeUnit? {
+    override suspend fun get(id: String): PracticeUnit? {
         val unitRow = client.postgrest[PRACTICE_UNITS_TABLE]
             .select {
                 filter {
-                    eq("id", unitId)
+                    eq("id", id)
                 }
             }
             .decodeList<PracticeUnitRow>()
@@ -58,7 +58,7 @@ class SupabasePracticeUnitRepository(
         val instructionRows = client.postgrest[PRACTICE_UNIT_INSTRUCTIONS_TABLE]
             .select {
                 filter {
-                    eq("practice_unit_id", unitId)
+                    eq("practice_unit_id", id)
                 }
             }
             .decodeList<PracticeUnitInstructionRow>()
@@ -67,18 +67,15 @@ class SupabasePracticeUnitRepository(
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    override suspend fun savePracticeUnit(
-        draft: PracticeUnitDraft,
-        unitId: String?,
-    ): PracticeUnit {
+    override suspend fun persist(validated: PracticeUnitDraft, unitId: String?): PracticeUnit {
         val resolvedUnitId = unitId ?: Uuid.random().toString()
         val params = SavePracticeUnitParams(
             unitId = resolvedUnitId,
-            title = draft.title,
-            notes = draft.notes,
-            focus = draft.focus,
-            defaultClubCode = draft.defaultClubCode,
-            instructions = draft.instructions.map { instruction ->
+            title = validated.title,
+            notes = validated.notes,
+            focus = validated.focus,
+            defaultClubCode = validated.defaultClubCode,
+            instructions = validated.instructions.map { instruction ->
                 InstructionParam(
                     order = instruction.order,
                     text = instruction.text,
@@ -90,14 +87,14 @@ class SupabasePracticeUnitRepository(
             "save_practice_unit",
             Json.encodeToJsonElement(SavePracticeUnitParams.serializer(), params).jsonObject,
         )
-        return requireNotNull(getPracticeUnit(resolvedUnitId)) {
+        return requireNotNull(get(resolvedUnitId)) {
             "Practice unit $resolvedUnitId could not be loaded after save."
         }
     }
 
-    override suspend fun deletePracticeUnit(unitId: String) {
-        val existing = getPracticeUnit(unitId)
-            ?: throw NoSuchElementException("Practice unit $unitId does not exist.")
+    override suspend fun delete(id: String) {
+        val existing = get(id)
+            ?: throw NoSuchElementException("Practice unit $id does not exist.")
 
         client.postgrest[PRACTICE_UNITS_TABLE].delete {
             filter {
@@ -105,7 +102,6 @@ class SupabasePracticeUnitRepository(
             }
         }
     }
-
 }
 
 @Serializable

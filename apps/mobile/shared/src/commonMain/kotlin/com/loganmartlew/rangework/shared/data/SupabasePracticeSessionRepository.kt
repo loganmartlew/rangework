@@ -20,8 +20,8 @@ private const val PRACTICE_SESSION_ITEMS_TABLE = "practice_session_items"
 
 class SupabasePracticeSessionRepository(
     private val client: SupabaseClient,
-) : PracticeSessionRepository {
-    override suspend fun listPracticeSessions(): List<PracticeSession> {
+) : PracticeSessionRepository() {
+    override suspend fun list(): List<PracticeSession> {
         val sessionRows = client.postgrest[PRACTICE_SESSIONS_TABLE]
             .select()
             .decodeList<PracticeSessionRow>()
@@ -44,11 +44,11 @@ class SupabasePracticeSessionRepository(
             .sortedByDescending(PracticeSession::updatedAt)
     }
 
-    override suspend fun getPracticeSession(sessionId: String): PracticeSession? {
+    override suspend fun get(id: String): PracticeSession? {
         val sessionRow = client.postgrest[PRACTICE_SESSIONS_TABLE]
             .select {
                 filter {
-                    eq("id", sessionId)
+                    eq("id", id)
                 }
             }
             .decodeList<PracticeSessionRow>()
@@ -58,7 +58,7 @@ class SupabasePracticeSessionRepository(
         val itemRows = client.postgrest[PRACTICE_SESSION_ITEMS_TABLE]
             .select {
                 filter {
-                    eq("practice_session_id", sessionId)
+                    eq("practice_session_id", id)
                 }
             }
             .decodeList<PracticeSessionItemRow>()
@@ -67,16 +67,13 @@ class SupabasePracticeSessionRepository(
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    override suspend fun savePracticeSession(
-        draft: PracticeSessionDraft,
-        sessionId: String?,
-    ): PracticeSession {
+    override suspend fun persist(validated: PracticeSessionDraft, sessionId: String?): PracticeSession {
         val resolvedSessionId = sessionId ?: Uuid.random().toString()
         val params = SavePracticeSessionParams(
             sessionId = resolvedSessionId,
-            name = draft.name,
-            notes = draft.notes,
-            items = draft.items.map { item ->
+            name = validated.name,
+            notes = validated.notes,
+            items = validated.items.map { item ->
                 SessionItemParam(
                     practiceUnitId = item.practiceUnitId,
                     order = item.order,
@@ -91,14 +88,14 @@ class SupabasePracticeSessionRepository(
             "save_practice_session",
             Json.encodeToJsonElement(SavePracticeSessionParams.serializer(), params).jsonObject,
         )
-        return requireNotNull(getPracticeSession(resolvedSessionId)) {
+        return requireNotNull(get(resolvedSessionId)) {
             "Practice session $resolvedSessionId could not be loaded after save."
         }
     }
 
-    override suspend fun deletePracticeSession(sessionId: String) {
-        val existing = getPracticeSession(sessionId)
-            ?: throw NoSuchElementException("Practice session $sessionId does not exist.")
+    override suspend fun delete(id: String) {
+        val existing = get(id)
+            ?: throw NoSuchElementException("Practice session $id does not exist.")
 
         client.postgrest[PRACTICE_SESSIONS_TABLE].delete {
             filter {
@@ -106,7 +103,6 @@ class SupabasePracticeSessionRepository(
             }
         }
     }
-
 }
 
 @Serializable

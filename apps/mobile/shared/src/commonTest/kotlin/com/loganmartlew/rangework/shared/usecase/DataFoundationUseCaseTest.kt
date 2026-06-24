@@ -25,10 +25,10 @@ import kotlin.test.assertTrue
 
 class DataFoundationUseCaseTest {
     @Test
-    fun savePracticeUnitUseCaseValidatesBeforePersisting() = kotlinx.coroutines.test.runTest {
+    fun practiceUnitRepositorySaveValidatesAndTrimsId() = kotlinx.coroutines.test.runTest {
         val repository = RecordingPracticeUnitRepository()
 
-        SavePracticeUnitUseCase(repository).invoke(
+        repository.save(
             draft = PracticeUnitDraft(
                 title = "  Distance wedges ",
                 instructions = listOf(
@@ -47,10 +47,10 @@ class DataFoundationUseCaseTest {
     }
 
     @Test
-    fun savePracticeSessionUseCaseTrimsSessionIdAndDraft() = kotlinx.coroutines.test.runTest {
+    fun practiceSessionRepositorySaveTrimsIdAndNormalizesDraft() = kotlinx.coroutines.test.runTest {
         val repository = RecordingPracticeSessionRepository()
 
-        SavePracticeSessionUseCase(repository).invoke(
+        repository.save(
             draft = PracticeSessionDraft(
                 name = "  Short game block ",
                 items = listOf(
@@ -75,8 +75,10 @@ class DataFoundationUseCaseTest {
         assertEquals("session-7", repository.lastSavedSessionId)
     }
 
+    // ── ClubRepository conformance ───────────────────────────────────────────
+
     @Test
-    fun getClubCatalogUseCaseReturnsCatalogFromRepository() = kotlinx.coroutines.test.runTest {
+    fun clubRepositoryReturnsCatalog() = kotlinx.coroutines.test.runTest {
         val repository = RecordingClubRepository(
             catalog = listOf(
                 Club(code = "driver", displayName = "Driver", category = ClubCategory.WOOD, sortOrder = 1),
@@ -84,45 +86,47 @@ class DataFoundationUseCaseTest {
             ),
         )
 
-        val result = GetClubCatalogUseCase(repository).invoke()
+        val result = repository.listCatalog()
 
         assertEquals(2, result.size)
         assertEquals("driver", result.first().code)
     }
 
     @Test
-    fun setClubEnabledUseCasePersistsEnableAction() = kotlinx.coroutines.test.runTest {
+    fun clubRepositoryPersistsEnableAction() = kotlinx.coroutines.test.runTest {
         val repository = RecordingClubRepository(enabledCodes = mutableSetOf("driver"))
 
-        SetClubEnabledUseCase(repository).invoke("putter", true)
+        repository.setClubEnabled("putter", true)
 
         assertTrue("putter" in repository.enabledCodes)
     }
 
     @Test
-    fun setClubDisabledUseCasePersistsDisableAction() = kotlinx.coroutines.test.runTest {
+    fun clubRepositoryPersistsDisableAction() = kotlinx.coroutines.test.runTest {
         val repository = RecordingClubRepository(enabledCodes = mutableSetOf("driver", "putter"))
 
-        SetClubEnabledUseCase(repository).invoke("driver", false)
+        repository.setClubEnabled("driver", false)
 
         assertFalse("driver" in repository.enabledCodes)
         assertTrue("putter" in repository.enabledCodes)
     }
 
     @Test
-    fun getEnabledClubsUseCaseReturnsEnabledCodes() = kotlinx.coroutines.test.runTest {
+    fun clubRepositoryReturnsEnabledCodes() = kotlinx.coroutines.test.runTest {
         val repository = RecordingClubRepository(enabledCodes = mutableSetOf("driver", "seven_iron"))
 
-        val result = GetEnabledClubsUseCase(repository).invoke()
+        val result = repository.getEnabledClubCodes()
 
         assertEquals(setOf("driver", "seven_iron"), result)
     }
 
+    // ── MeasurementPreferencesRepository seam ───────────────────────────────
+
     @Test
-    fun saveMeasurementPreferencesUseCaseNormalizesPresets() = kotlinx.coroutines.test.runTest {
+    fun measurementPreferencesSeamNormalizesPresetsOnSave() = kotlinx.coroutines.test.runTest {
         val repository = RecordingMeasurementPreferencesRepository()
 
-        SaveMeasurementPreferencesUseCase(repository).invoke(
+        repository.save(
             MeasurementPreferences(
                 unitSystem = UnitSystem.METRIC,
                 distanceUnit = DistanceUnit.YARDS,
@@ -130,76 +134,68 @@ class DataFoundationUseCaseTest {
             ),
         )
 
-        assertEquals(MeasurementPreferences.Metric, repository.lastSavedPreferences)
+        assertEquals(MeasurementPreferences.Metric, repository.lastPersistedPreferences)
     }
 }
 
-private class RecordingPracticeUnitRepository : PracticeUnitRepository {
+private class RecordingPracticeUnitRepository : PracticeUnitRepository() {
     var lastDraft: PracticeUnitDraft? = null
     var lastSavedUnitId: String? = null
 
-    override suspend fun listPracticeUnits(): List<PracticeUnit> = emptyList()
+    override suspend fun list(): List<PracticeUnit> = emptyList()
 
-    override suspend fun getPracticeUnit(unitId: String): PracticeUnit? = null
+    override suspend fun get(id: String): PracticeUnit? = null
 
-    override suspend fun savePracticeUnit(
-        draft: PracticeUnitDraft,
-        unitId: String?,
-    ): PracticeUnit {
-        lastDraft = draft
+    override suspend fun persist(validated: PracticeUnitDraft, unitId: String?): PracticeUnit {
+        lastDraft = validated
         lastSavedUnitId = unitId
         return PracticeUnit(
             id = unitId ?: "generated-unit",
-            title = draft.title,
+            title = validated.title,
             instructions = emptyList(),
-            notes = draft.notes,
-            focus = draft.focus,
-            defaultClubCode = draft.defaultClubCode,
+            notes = validated.notes,
+            focus = validated.focus,
+            defaultClubCode = validated.defaultClubCode,
             createdAt = Instant.parse("2026-06-15T00:00:00Z"),
             updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
         )
     }
 
-    override suspend fun deletePracticeUnit(unitId: String) = Unit
+    override suspend fun delete(id: String) = Unit
 }
 
-private class RecordingPracticeSessionRepository : PracticeSessionRepository {
+private class RecordingPracticeSessionRepository : PracticeSessionRepository() {
     var lastDraft: PracticeSessionDraft? = null
     var lastSavedSessionId: String? = null
 
-    override suspend fun listPracticeSessions(): List<PracticeSession> = emptyList()
+    override suspend fun list(): List<PracticeSession> = emptyList()
 
-    override suspend fun getPracticeSession(sessionId: String): PracticeSession? = null
+    override suspend fun get(id: String): PracticeSession? = null
 
-    override suspend fun savePracticeSession(
-        draft: PracticeSessionDraft,
-        sessionId: String?,
-    ): PracticeSession {
-        lastDraft = draft
+    override suspend fun persist(validated: PracticeSessionDraft, sessionId: String?): PracticeSession {
+        lastDraft = validated
         lastSavedSessionId = sessionId
         return PracticeSession(
             id = sessionId ?: "generated-session",
-            name = draft.name,
+            name = validated.name,
             items = emptyList(),
-            notes = draft.notes,
+            notes = validated.notes,
             createdAt = Instant.parse("2026-06-15T00:00:00Z"),
             updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
         )
     }
 
-    override suspend fun deletePracticeSession(sessionId: String) = Unit
+    override suspend fun delete(id: String) = Unit
 }
 
-private class RecordingMeasurementPreferencesRepository : MeasurementPreferencesRepository {
-    var lastSavedPreferences: MeasurementPreferences? = null
+private class RecordingMeasurementPreferencesRepository : MeasurementPreferencesRepository() {
+    var lastPersistedPreferences: MeasurementPreferences? = null
 
-    override suspend fun getMeasurementPreferences(): MeasurementPreferences = MeasurementPreferences.Imperial
+    override suspend fun get(): MeasurementPreferences = MeasurementPreferences.Imperial
 
-    override suspend fun saveMeasurementPreferences(
-        preferences: MeasurementPreferences,
-    ): MeasurementPreferences {
-        lastSavedPreferences = preferences
-        return preferences
+    override suspend fun persist(validated: MeasurementPreferences): MeasurementPreferences {
+        lastPersistedPreferences = validated
+        return validated
     }
 }
 

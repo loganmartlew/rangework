@@ -6,13 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.loganmartlew.rangework.android.ui.theme.ThemeMode
 import com.loganmartlew.rangework.android.ui.theme.ThemePreferenceStore
 import com.loganmartlew.rangework.shared.auth.AuthState
-import com.loganmartlew.rangework.shared.data.DataFoundation
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.EnabledClubCount
 import com.loganmartlew.rangework.shared.model.DistanceUnit
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.SpeedUnit
 import com.loganmartlew.rangework.shared.model.UnitSystem
+import com.loganmartlew.rangework.shared.repository.ClubRepository
+import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,7 +35,8 @@ data class SettingsUiState(
 }
 
 class SettingsViewModel(
-    private val dataFoundation: DataFoundation?,
+    private val measurementPreferencesRepository: MeasurementPreferencesRepository?,
+    private val clubRepository: ClubRepository?,
     private val themePreferenceStore: ThemePreferenceStore,
 ) : ViewModel() {
     private var activeUserId: String? = null
@@ -45,7 +47,7 @@ class SettingsViewModel(
 
     private val _uiState = MutableStateFlow(
         SettingsUiState(
-            dataConfigured = dataFoundation != null,
+            dataConfigured = measurementPreferencesRepository != null && clubRepository != null,
         ),
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -112,7 +114,7 @@ class SettingsViewModel(
     }
 
     fun setClubEnabled(code: String, enabled: Boolean) {
-        val foundation = dataFoundation ?: return
+        val repo = clubRepository ?: return
         val previous = _uiState.value.enabledClubCodes
         val token = ++clubToken
         _uiState.value = _uiState.value.copy(
@@ -121,10 +123,10 @@ class SettingsViewModel(
         viewModelScope.launch {
             try {
                 clubMutex.withLock {
-                    foundation.setClubEnabledUseCase(code, enabled)
+                    repo.setClubEnabled(code, enabled)
                 }
                 if (token == clubToken) {
-                    val refreshed = foundation.getEnabledClubsUseCase()
+                    val refreshed = repo.getEnabledClubCodes()
                     _uiState.value = _uiState.value.copy(enabledClubCodes = refreshed)
                 }
             } catch (e: Exception) {
@@ -139,7 +141,7 @@ class SettingsViewModel(
     }
 
     fun enableCommonBag() {
-        val foundation = dataFoundation ?: return
+        val repo = clubRepository ?: return
         val catalog = _uiState.value.clubCatalog
         val targetCodes = catalog.map { it.code }.filter { it in COMMON_BAG_CODES }.toSet()
         val token = ++clubToken
@@ -148,11 +150,11 @@ class SettingsViewModel(
             try {
                 clubMutex.withLock {
                     catalog.forEach { club ->
-                        foundation.setClubEnabledUseCase(club.code, club.code in COMMON_BAG_CODES)
+                        repo.setClubEnabled(club.code, club.code in COMMON_BAG_CODES)
                     }
                 }
                 if (token == clubToken) {
-                    val refreshed = foundation.getEnabledClubsUseCase()
+                    val refreshed = repo.getEnabledClubCodes()
                     _uiState.value = _uiState.value.copy(enabledClubCodes = refreshed)
                 }
             } catch (e: Exception) {
@@ -166,7 +168,7 @@ class SettingsViewModel(
     }
 
     fun disableAllClubs() {
-        val foundation = dataFoundation ?: return
+        val repo = clubRepository ?: return
         val catalog = _uiState.value.clubCatalog
         val token = ++clubToken
         _uiState.value = _uiState.value.copy(enabledClubCodes = emptySet())
@@ -174,11 +176,11 @@ class SettingsViewModel(
             try {
                 clubMutex.withLock {
                     catalog.forEach { club ->
-                        foundation.setClubEnabledUseCase(club.code, false)
+                        repo.setClubEnabled(club.code, false)
                     }
                 }
                 if (token == clubToken) {
-                    val refreshed = foundation.getEnabledClubsUseCase()
+                    val refreshed = repo.getEnabledClubCodes()
                     _uiState.value = _uiState.value.copy(enabledClubCodes = refreshed)
                 }
             } catch (e: Exception) {
@@ -192,11 +194,11 @@ class SettingsViewModel(
     }
 
     private fun loadClubs() {
-        val foundation = dataFoundation ?: return
+        val repo = clubRepository ?: return
         viewModelScope.launch {
             try {
-                val catalog = foundation.getClubCatalogUseCase()
-                val enabled = foundation.getEnabledClubsUseCase()
+                val catalog = repo.listCatalog()
+                val enabled = repo.getEnabledClubCodes()
                 _uiState.value = _uiState.value.copy(
                     clubCatalog = catalog,
                     enabledClubCodes = enabled,
@@ -210,11 +212,11 @@ class SettingsViewModel(
     }
 
     private fun loadMeasurementPreferences() {
-        val foundation = dataFoundation ?: return
+        val repo = measurementPreferencesRepository ?: return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isWorking = true)
             try {
-                val prefs = foundation.getMeasurementPreferencesUseCase()
+                val prefs = repo.get()
                 _uiState.value = _uiState.value.copy(
                     isWorking = false,
                     measurementPreferences = prefs,
@@ -229,18 +231,14 @@ class SettingsViewModel(
     }
 
     private fun saveMeasurementPreferences(preferences: MeasurementPreferences) {
-        val foundation = dataFoundation ?: return
+        val repo = measurementPreferencesRepository ?: return
         val previous = _uiState.value.measurementPreferences
-        // Optimistically reflect the change immediately, and tag this request so a
-        // slower in-flight save can't clobber the state with a stale result.
         val token = ++saveToken
         _uiState.value = _uiState.value.copy(measurementPreferences = preferences)
         viewModelScope.launch {
             try {
-                // Serialize persistence so concurrent fast toggles apply in click order
-                // instead of racing (which left the UI on an earlier selection).
                 val saved = saveMutex.withLock {
-                    foundation.saveMeasurementPreferencesUseCase(preferences)
+                    repo.save(preferences)
                 }
                 if (token == saveToken) {
                     _uiState.value = _uiState.value.copy(measurementPreferences = saved)
@@ -265,7 +263,8 @@ class SettingsViewModel(
         )
 
         fun factory(
-            dataFoundation: DataFoundation?,
+            measurementPreferencesRepository: MeasurementPreferencesRepository?,
+            clubRepository: ClubRepository?,
             themePreferenceStore: ThemePreferenceStore,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -274,7 +273,8 @@ class SettingsViewModel(
                     "Unsupported ViewModel class: ${modelClass.name}"
                 }
                 return SettingsViewModel(
-                    dataFoundation = dataFoundation,
+                    measurementPreferencesRepository = measurementPreferencesRepository,
+                    clubRepository = clubRepository,
                     themePreferenceStore = themePreferenceStore,
                 ) as T
             }

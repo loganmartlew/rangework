@@ -1,11 +1,13 @@
 package com.loganmartlew.rangework.shared.repository
 
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
+import com.loganmartlew.rangework.shared.model.validated
 
-interface MeasurementPreferencesRepository {
-    suspend fun getMeasurementPreferences(): MeasurementPreferences
+abstract class MeasurementPreferencesRepository {
+    suspend fun save(preferences: MeasurementPreferences): MeasurementPreferences =
+        persist(preferences.validated())
 
-    suspend fun saveMeasurementPreferences(
-        preferences: MeasurementPreferences,
-    ): MeasurementPreferences
+    protected abstract suspend fun persist(validated: MeasurementPreferences): MeasurementPreferences
+
+    abstract suspend fun get(): MeasurementPreferences
 }

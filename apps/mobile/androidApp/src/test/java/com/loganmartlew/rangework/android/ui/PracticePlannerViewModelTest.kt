@@ -3,48 +3,23 @@ package com.loganmartlew.rangework.android.ui
 import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.config.baselineEnvironment
 import com.loganmartlew.rangework.shared.data.DataFoundation
+import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSessionItem
+import com.loganmartlew.rangework.shared.model.PracticeSessionItemDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.CompletedRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.RangeSession
+import com.loganmartlew.rangework.shared.repository.AccountDeletionRepository
 import com.loganmartlew.rangework.shared.repository.ClubRepository
 import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
 import com.loganmartlew.rangework.shared.repository.PracticeSessionRepository
 import com.loganmartlew.rangework.shared.repository.PracticeUnitRepository
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
-import com.loganmartlew.rangework.shared.usecase.AbandonRangeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.CloseTimeEntryUseCase
-import com.loganmartlew.rangework.shared.usecase.DeletePracticeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.FinishRangeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.GetElapsedSecondsUseCase
-import com.loganmartlew.rangework.shared.usecase.GetRangeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.HasActiveRangeSessionsUseCase
-import com.loganmartlew.rangework.shared.usecase.ListActiveRangeSessionsUseCase
-import com.loganmartlew.rangework.shared.usecase.ListCompletedRangeSessionsUseCase
-import com.loganmartlew.rangework.shared.usecase.OverrideStepClubUseCase
-import com.loganmartlew.rangework.shared.usecase.RecordTimeEntryUseCase
-import com.loganmartlew.rangework.shared.usecase.StartRangeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.ToggleStepCompleteUseCase
-import com.loganmartlew.rangework.shared.usecase.UpdateLastViewedStepUseCase
-import com.loganmartlew.rangework.shared.usecase.DuplicatePracticeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.DeletePracticeUnitUseCase
-import com.loganmartlew.rangework.shared.usecase.DuplicateUnitUseCase
-import com.loganmartlew.rangework.shared.usecase.GetClubCatalogUseCase
-import com.loganmartlew.rangework.shared.usecase.GetEnabledClubsUseCase
-import com.loganmartlew.rangework.shared.usecase.GetMeasurementPreferencesUseCase
-import com.loganmartlew.rangework.shared.usecase.GetPracticeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.GetPracticeUnitUseCase
-import com.loganmartlew.rangework.shared.usecase.ListPracticeSessionsUseCase
-import com.loganmartlew.rangework.shared.usecase.ListPracticeUnitsUseCase
-import com.loganmartlew.rangework.shared.usecase.SaveMeasurementPreferencesUseCase
-import com.loganmartlew.rangework.shared.usecase.SavePracticeSessionUseCase
-import com.loganmartlew.rangework.shared.usecase.SavePracticeUnitUseCase
-import com.loganmartlew.rangework.shared.usecase.SetClubEnabledUseCase
 import com.loganmartlew.rangework.android.ui.PlannerStatus
 import com.loganmartlew.rangework.shared.model.NextMoveState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -520,7 +495,6 @@ class PracticePlannerViewModelTest {
 
     @Test
     fun nextMoveStateIsResumeEditingAfterSavingUnitWhenSessionsExist() = runTest {
-        // ResumeEditing only triggers when both units AND sessions exist and savedUnitId is set
         val repositories = FakePlannerRepositories()
         repositories.units += sampleUnit()
         repositories.sessions += sampleSession()
@@ -691,7 +665,6 @@ class PracticePlannerViewModelTest {
         )
 
         assertFalse("hasLoaded should be false before first auth", viewModel.uiState.value.hasLoaded)
-        // Before hasLoaded, isFirstRun logic should not trigger even with empty lists
         assertFalse(
             "isFirstRun must not be true until hasLoaded",
             viewModel.uiState.value.hasLoaded &&
@@ -712,28 +685,12 @@ class PracticePlannerViewModelTest {
     }
 }
 
-private class FakePlannerRepositories :
-    PracticeUnitRepository,
-    PracticeSessionRepository,
-    MeasurementPreferencesRepository,
-    ClubRepository {
-    constructor(
-        listUnitsException: Throwable? = null,
-        saveUnitException: Throwable? = null,
-        deleteUnitException: Throwable? = null,
-        listDelayMs: Long = 0L,
-    ) {
-        this.listUnitsException = listUnitsException
-        this.saveUnitException = saveUnitException
-        this.deleteUnitException = deleteUnitException
-        this.listDelayMs = listDelayMs
-    }
-
-    private var listUnitsException: Throwable? = null
-    private var saveUnitException: Throwable? = null
-    private var deleteUnitException: Throwable? = null
-    private var listDelayMs: Long = 0L
-
+private class FakePlannerRepositories(
+    private val listUnitsException: Throwable? = null,
+    private val saveUnitException: Throwable? = null,
+    private val deleteUnitException: Throwable? = null,
+    private val listDelayMs: Long = 0L,
+) {
     val units = mutableListOf<PracticeUnit>()
     val sessions = mutableListOf<PracticeSession>()
     val savedUnitDrafts = mutableListOf<PracticeUnitDraft>()
@@ -741,154 +698,112 @@ private class FakePlannerRepositories :
     var listUnitsCallCount = 0
     var listSessionsCallCount = 0
 
-    override suspend fun listPracticeUnits(): List<PracticeUnit> {
-        listUnitsCallCount += 1
-        if (listDelayMs > 0) {
-            delay(listDelayMs)
+    val practiceUnitRepository: PracticeUnitRepository = object : PracticeUnitRepository() {
+        override suspend fun list(): List<PracticeUnit> {
+            listUnitsCallCount += 1
+            if (listDelayMs > 0) delay(listDelayMs)
+            listUnitsException?.let { throw it }
+            return units.toList()
         }
-        listUnitsException?.let { throw it }
-        return units.toList()
-    }
 
-    override suspend fun getPracticeUnit(unitId: String): PracticeUnit? = units.firstOrNull { unit -> unit.id == unitId }
+        override suspend fun get(id: String): PracticeUnit? = units.firstOrNull { it.id == id }
 
-    override suspend fun savePracticeUnit(
-        draft: PracticeUnitDraft,
-        unitId: String?,
-    ): PracticeUnit {
-        saveUnitException?.let { throw it }
-        savedUnitDrafts += draft
-        val unit = PracticeUnit(
-            id = unitId ?: "unit-${units.size + 1}",
-            title = draft.title,
-            instructions = draft.instructions.mapIndexed { index, instruction ->
-                PracticeInstruction(
-                    id = "instruction-$index",
-                    order = index + 1,
-                    text = instruction.text,
-                    ballCount = instruction.ballCount,
-                )
-            },
-            notes = draft.notes,
-            focus = draft.focus,
-            defaultClubCode = draft.defaultClubCode,
-            createdAt = Instant.parse("2026-06-15T00:00:00Z"),
-            updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
-        )
-        units.removeAll { existing -> existing.id == unit.id }
-        units += unit
-        return unit
-    }
-
-    override suspend fun deletePracticeUnit(unitId: String) {
-        deleteUnitException?.let { throw it }
-        units.removeAll { unit -> unit.id == unitId }
-    }
-
-    override suspend fun listPracticeSessions(): List<PracticeSession> {
-        listSessionsCallCount += 1
-        if (listDelayMs > 0) {
-            delay(listDelayMs)
+        override suspend fun persist(validated: PracticeUnitDraft, unitId: String?): PracticeUnit {
+            saveUnitException?.let { throw it }
+            savedUnitDrafts += validated
+            val unit = PracticeUnit(
+                id = unitId ?: "unit-${units.size + 1}",
+                title = validated.title,
+                instructions = validated.instructions.mapIndexed { index, instruction ->
+                    PracticeInstruction(
+                        id = "instruction-$index",
+                        order = index + 1,
+                        text = instruction.text,
+                        ballCount = instruction.ballCount,
+                    )
+                },
+                notes = validated.notes,
+                focus = validated.focus,
+                defaultClubCode = validated.defaultClubCode,
+                createdAt = Instant.parse("2026-06-15T00:00:00Z"),
+                updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
+            )
+            units.removeAll { existing -> existing.id == unit.id }
+            units += unit
+            return unit
         }
-        return sessions.toList()
+
+        override suspend fun delete(id: String) {
+            deleteUnitException?.let { throw it }
+            units.removeAll { unit -> unit.id == id }
+        }
     }
 
-    override suspend fun getPracticeSession(sessionId: String): PracticeSession? =
-        sessions.firstOrNull { session -> session.id == sessionId }
+    val practiceSessionRepository: PracticeSessionRepository = object : PracticeSessionRepository() {
+        override suspend fun list(): List<PracticeSession> {
+            listSessionsCallCount += 1
+            if (listDelayMs > 0) delay(listDelayMs)
+            return sessions.toList()
+        }
 
-    override suspend fun savePracticeSession(
-        draft: PracticeSessionDraft,
-        sessionId: String?,
-    ): PracticeSession {
-        savedSessionDrafts += draft
-        val session = PracticeSession(
-            id = sessionId ?: "session-${sessions.size + 1}",
-            name = draft.name,
-            items = draft.items.mapIndexed { index, item ->
-                PracticeSessionItem(
-                    id = "session-item-$index",
-                    practiceUnitId = item.practiceUnitId,
-                    order = index + 1,
-                    repeatCount = item.repeatCount,
-                    clubCode = item.clubCode,
-                    notes = item.notes,
-                    focusCue = item.focusCue,
-                )
-            },
-            notes = draft.notes,
-            createdAt = Instant.parse("2026-06-15T00:00:00Z"),
-            updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
-        )
-        sessions.removeAll { existing -> existing.id == session.id }
-        sessions += session
-        return session
+        override suspend fun get(id: String): PracticeSession? = sessions.firstOrNull { it.id == id }
+
+        override suspend fun persist(validated: PracticeSessionDraft, sessionId: String?): PracticeSession {
+            savedSessionDrafts += validated
+            val session = PracticeSession(
+                id = sessionId ?: "session-${sessions.size + 1}",
+                name = validated.name,
+                items = validated.items.mapIndexed { index, item ->
+                    PracticeSessionItem(
+                        id = "session-item-$index",
+                        practiceUnitId = item.practiceUnitId,
+                        order = index + 1,
+                        repeatCount = item.repeatCount,
+                        clubCode = item.clubCode,
+                        notes = item.notes,
+                        focusCue = item.focusCue,
+                    )
+                },
+                notes = validated.notes,
+                createdAt = Instant.parse("2026-06-15T00:00:00Z"),
+                updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
+            )
+            sessions.removeAll { existing -> existing.id == session.id }
+            sessions += session
+            return session
+        }
+
+        override suspend fun delete(id: String) {
+            sessions.removeAll { it.id == id }
+        }
     }
 
-    override suspend fun deletePracticeSession(sessionId: String) {
-        sessions.removeAll { session -> session.id == sessionId }
+    val clubRepository: ClubRepository = object : ClubRepository {
+        override suspend fun listCatalog() = emptyList<com.loganmartlew.rangework.shared.model.Club>()
+        override suspend fun getEnabledClubCodes() = emptySet<String>()
+        override suspend fun setClubEnabled(code: String, enabled: Boolean) = Unit
     }
-
-    override suspend fun getMeasurementPreferences() =
-        com.loganmartlew.rangework.shared.model.MeasurementPreferences.Imperial
-
-    override suspend fun saveMeasurementPreferences(
-        preferences: com.loganmartlew.rangework.shared.model.MeasurementPreferences,
-    ) = preferences
-
-    override suspend fun listCatalog() = emptyList<com.loganmartlew.rangework.shared.model.Club>()
-
-    override suspend fun getEnabledClubCodes() = emptySet<String>()
-
-    override suspend fun setClubEnabled(code: String, enabled: Boolean) = Unit
 
     fun toDataFoundation(): DataFoundation {
-        val fakeRangeRepo = StubRangeSessionRepository()
+        val stubMeasurementPreferencesRepository = object : MeasurementPreferencesRepository() {
+            override suspend fun get() = MeasurementPreferences.Imperial
+            override suspend fun persist(validated: MeasurementPreferences) = validated
+        }
         return DataFoundation(
-            listPracticeUnitsUseCase = ListPracticeUnitsUseCase(this),
-            getPracticeUnitUseCase = GetPracticeUnitUseCase(this),
-            savePracticeUnitUseCase = SavePracticeUnitUseCase(this),
-            deletePracticeUnitUseCase = DeletePracticeUnitUseCase(this),
-            duplicatePracticeUnitUseCase = DuplicateUnitUseCase(
-                getPracticeUnitUseCase = GetPracticeUnitUseCase(this),
-                savePracticeUnitUseCase = SavePracticeUnitUseCase(this),
-            ),
-            listPracticeSessionsUseCase = ListPracticeSessionsUseCase(this),
-            getPracticeSessionUseCase = GetPracticeSessionUseCase(this),
-            savePracticeSessionUseCase = SavePracticeSessionUseCase(this),
-            deletePracticeSessionUseCase = DeletePracticeSessionUseCase(this),
-            duplicatePracticeSessionUseCase = DuplicatePracticeSessionUseCase(
-                getPracticeSessionUseCase = GetPracticeSessionUseCase(this),
-                savePracticeSessionUseCase = SavePracticeSessionUseCase(this),
-            ),
-            getMeasurementPreferencesUseCase = GetMeasurementPreferencesUseCase(this),
-            saveMeasurementPreferencesUseCase = SaveMeasurementPreferencesUseCase(this),
-            getClubCatalogUseCase = GetClubCatalogUseCase(this),
-            getEnabledClubsUseCase = GetEnabledClubsUseCase(this),
-            setClubEnabledUseCase = SetClubEnabledUseCase(this),
-            startRangeSessionUseCase = StartRangeSessionUseCase(fakeRangeRepo),
-            getRangeSessionUseCase = GetRangeSessionUseCase(fakeRangeRepo),
-            listActiveRangeSessionsUseCase = ListActiveRangeSessionsUseCase(fakeRangeRepo),
-            listCompletedRangeSessionsUseCase = ListCompletedRangeSessionsUseCase(fakeRangeRepo),
-            toggleStepCompleteUseCase = ToggleStepCompleteUseCase(fakeRangeRepo),
-            overrideStepClubUseCase = OverrideStepClubUseCase(fakeRangeRepo),
-            updateLastViewedStepUseCase = UpdateLastViewedStepUseCase(fakeRangeRepo),
-            finishRangeSessionUseCase = FinishRangeSessionUseCase(fakeRangeRepo),
-            abandonRangeSessionUseCase = AbandonRangeSessionUseCase(fakeRangeRepo),
-            recordTimeEntryUseCase = RecordTimeEntryUseCase(fakeRangeRepo),
-            closeTimeEntryUseCase = CloseTimeEntryUseCase(fakeRangeRepo),
-            getElapsedSecondsUseCase = GetElapsedSecondsUseCase(fakeRangeRepo),
-            hasActiveRangeSessionsUseCase = HasActiveRangeSessionsUseCase(fakeRangeRepo),
-            deleteAccountUseCase = com.loganmartlew.rangework.shared.usecase.DeleteAccountUseCase(
-                object : com.loganmartlew.rangework.shared.repository.AccountDeletionRepository {
-                    override suspend fun deleteAccount() = Unit
-                },
-            ),
+            practiceUnitRepository = practiceUnitRepository,
+            practiceSessionRepository = practiceSessionRepository,
+            measurementPreferencesRepository = stubMeasurementPreferencesRepository,
+            clubRepository = clubRepository,
+            rangeSessionRepository = StubRangeSessionRepository(),
+            accountDeletionRepository = object : AccountDeletionRepository {
+                override suspend fun deleteAccount() = Unit
+            },
         )
     }
 }
 
 private class StubRangeSessionRepository : RangeSessionRepository {
-    override suspend fun startSession(rangeSessionId: String, sessionId: String): RangeSession =
+    override suspend fun start(sessionId: String): RangeSession =
         error("Not implemented in stub")
 
     override suspend fun getSession(rangeSessionId: String): RangeSession? = null

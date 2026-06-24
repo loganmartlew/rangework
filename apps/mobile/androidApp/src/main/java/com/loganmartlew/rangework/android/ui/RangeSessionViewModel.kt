@@ -3,13 +3,13 @@ package com.loganmartlew.rangework.android.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.loganmartlew.rangework.shared.data.DataFoundation
 import com.loganmartlew.rangework.shared.model.RangeSession
 import com.loganmartlew.rangework.shared.model.completedBalls
 import com.loganmartlew.rangework.shared.model.completedStepCount
 import com.loganmartlew.rangework.shared.model.completionPercentage
 import com.loganmartlew.rangework.shared.model.totalBalls
 import com.loganmartlew.rangework.shared.model.totalStepCount
+import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -47,7 +47,7 @@ data class RangeSessionUiState(
 
 class RangeSessionViewModel(
     private val rangeSessionId: String,
-    private val dataFoundation: DataFoundation?,
+    private val rangeSessionRepository: RangeSessionRepository?,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RangeSessionUiState())
@@ -61,7 +61,7 @@ class RangeSessionViewModel(
     }
 
     private fun loadSession() {
-        val foundation = dataFoundation ?: run {
+        val repository = rangeSessionRepository ?: run {
             _uiState.value = RangeSessionUiState(
                 isLoading = false,
                 statusMessage = "Session data not available.",
@@ -70,7 +70,7 @@ class RangeSessionViewModel(
         }
         viewModelScope.launch {
             try {
-                val session = foundation.getRangeSessionUseCase(rangeSessionId)
+                val session = repository.getSession(rangeSessionId)
                 val lastIndex = session?.lastViewedStepIndex
                 val startIndex = if (session != null && lastIndex != null &&
                     lastIndex in 0 until session.snapshot.steps.size
@@ -125,17 +125,15 @@ class RangeSessionViewModel(
     fun toggleStepComplete(stepIndex: Int) {
         val state = _uiState.value
         val session = state.rangeSession ?: return
-        val foundation = dataFoundation ?: return
+        val repository = rangeSessionRepository ?: return
         val isCurrentlyComplete = stepIndex in state.completedStepIndices
 
-        // Optimistic update — apply immediately for responsive UX
         val optimisticIndices = if (isCurrentlyComplete) {
             state.completedStepIndices - stepIndex
         } else {
             state.completedStepIndices + stepIndex
         }
 
-        // Auto-advance: completing the current step advances to the next (if not at the end)
         val completing = !isCurrentlyComplete
         val isCurrentStep = stepIndex == state.currentStepIndex
         val totalSteps = session.snapshot.steps.size
@@ -157,19 +155,15 @@ class RangeSessionViewModel(
 
         viewModelScope.launch {
             try {
-                val updatedSession = foundation.toggleStepCompleteUseCase(
+                val updatedSession = repository.toggleStepComplete(
                     rangeSessionId = rangeSessionId,
                     stepIndex = stepIndex,
                     completed = !isCurrentlyComplete,
                 )
-                // Only refresh the session model; preserve completedStepIndices so
-                // concurrent optimistic toggles aren't overwritten by a stale server snapshot.
                 _uiState.value = _uiState.value.copy(
                     rangeSession = updatedSession,
                 )
             } catch (_: Exception) {
-                // Revert only this step's optimistic toggle; leave other steps and
-                // navigation untouched since the user may have acted while in-flight.
                 val current = _uiState.value
                 val revertedIndices = if (isCurrentlyComplete) {
                     current.completedStepIndices + stepIndex
@@ -197,7 +191,7 @@ class RangeSessionViewModel(
     fun overrideStepClub(stepIndex: Int, clubCode: String) {
         val state = _uiState.value
         val session = state.rangeSession ?: return
-        val foundation = dataFoundation ?: return
+        val repository = rangeSessionRepository ?: return
 
         val optimisticSession = session.copy(
             clubOverrides = session.clubOverrides + (stepIndex.toString() to clubCode),
@@ -206,7 +200,7 @@ class RangeSessionViewModel(
 
         viewModelScope.launch {
             try {
-                val updatedSession = foundation.overrideStepClubUseCase(
+                val updatedSession = repository.overrideStepClub(
                     rangeSessionId = rangeSessionId,
                     stepIndex = stepIndex,
                     clubCode = clubCode,
@@ -233,7 +227,7 @@ class RangeSessionViewModel(
         stopTick()
         val finalElapsed = state.elapsedSeconds
 
-        val foundation = dataFoundation ?: run {
+        val repository = rangeSessionRepository ?: run {
             _uiState.value = _uiState.value.copy(isFinishing = false)
             return
         }
@@ -241,11 +235,11 @@ class RangeSessionViewModel(
         viewModelScope.launch {
             if (enteredAt != null) {
                 try {
-                    foundation.closeTimeEntryUseCase(rangeSessionId, enteredAt, Clock.System.now())
+                    repository.closeTimeEntry(rangeSessionId, enteredAt, Clock.System.now())
                 } catch (_: Exception) { }
             }
             try {
-                foundation.finishRangeSessionUseCase(rangeSessionId)
+                repository.finishSession(rangeSessionId)
                 val summary = FinishSummaryData(
                     sessionName = session.sessionName,
                     totalBalls = session.totalBalls(),
@@ -287,7 +281,7 @@ class RangeSessionViewModel(
         currentEnteredAt = null
         stopTick()
 
-        val foundation = dataFoundation ?: run {
+        val repository = rangeSessionRepository ?: run {
             _uiState.value = _uiState.value.copy(isAbandoning = false)
             onNavigateBack()
             return
@@ -296,11 +290,11 @@ class RangeSessionViewModel(
         viewModelScope.launch {
             if (enteredAt != null) {
                 try {
-                    foundation.closeTimeEntryUseCase(rangeSessionId, enteredAt, Clock.System.now())
+                    repository.closeTimeEntry(rangeSessionId, enteredAt, Clock.System.now())
                 } catch (_: Exception) { }
             }
             try {
-                foundation.abandonRangeSessionUseCase(rangeSessionId)
+                repository.abandonSession(rangeSessionId)
                 onNavigateBack()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -312,13 +306,13 @@ class RangeSessionViewModel(
     }
 
     fun onScreenEnter() {
-        val foundation = dataFoundation ?: return
+        val repository = rangeSessionRepository ?: return
         if (currentEnteredAt != null) return
         val enteredAt = Clock.System.now()
         currentEnteredAt = enteredAt
         viewModelScope.launch {
             val elapsed = try {
-                foundation.getElapsedSecondsUseCase(rangeSessionId)
+                repository.getElapsedSeconds(rangeSessionId)
             } catch (_: Exception) {
                 0L
             }
@@ -327,7 +321,7 @@ class RangeSessionViewModel(
                 isTimerRunning = true,
             )
             try {
-                foundation.recordTimeEntryUseCase(rangeSessionId, enteredAt)
+                repository.recordTimeEntry(rangeSessionId, enteredAt)
             } catch (_: Exception) {
                 // fire-and-forget: network failures don't affect local timer
             }
@@ -340,11 +334,11 @@ class RangeSessionViewModel(
         currentEnteredAt = null
         stopTick()
         _uiState.value = _uiState.value.copy(isTimerRunning = false)
-        val foundation = dataFoundation ?: return
+        val repository = rangeSessionRepository ?: return
         val exitedAt = Clock.System.now()
         viewModelScope.launch {
             try {
-                foundation.closeTimeEntryUseCase(rangeSessionId, enteredAt, exitedAt)
+                repository.closeTimeEntry(rangeSessionId, enteredAt, exitedAt)
             } catch (_: Exception) {
                 // fire-and-forget: network failures don't affect local timer
             }
@@ -374,10 +368,10 @@ class RangeSessionViewModel(
     }
 
     private fun persistLastViewedStep(index: Int) {
-        val foundation = dataFoundation ?: return
+        val repository = rangeSessionRepository ?: return
         viewModelScope.launch {
             try {
-                foundation.updateLastViewedStepUseCase(rangeSessionId, index)
+                repository.updateLastViewedStep(rangeSessionId, index)
             } catch (_: Exception) {
                 // fire-and-forget: persistence failures don't surface to the user
             }
@@ -387,7 +381,7 @@ class RangeSessionViewModel(
     companion object {
         fun factory(
             rangeSessionId: String,
-            dataFoundation: DataFoundation?,
+            rangeSessionRepository: RangeSessionRepository?,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -396,7 +390,7 @@ class RangeSessionViewModel(
                 }
                 return RangeSessionViewModel(
                     rangeSessionId = rangeSessionId,
-                    dataFoundation = dataFoundation,
+                    rangeSessionRepository = rangeSessionRepository,
                 ) as T
             }
         }

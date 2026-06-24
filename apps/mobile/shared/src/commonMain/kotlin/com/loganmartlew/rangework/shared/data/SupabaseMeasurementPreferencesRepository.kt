@@ -14,27 +14,25 @@ private const val USER_PREFERENCES_TABLE = "user_preferences"
 
 class SupabaseMeasurementPreferencesRepository(
     private val client: SupabaseClient,
-) : MeasurementPreferencesRepository {
-    override suspend fun getMeasurementPreferences(): MeasurementPreferences = client.postgrest[USER_PREFERENCES_TABLE]
+) : MeasurementPreferencesRepository() {
+    override suspend fun get(): MeasurementPreferences = client.postgrest[USER_PREFERENCES_TABLE]
         .select()
         .decodeList<UserPreferencesRow>()
         .firstOrNull()
         ?.toModel()
         ?: MeasurementPreferences.Imperial
 
-    override suspend fun saveMeasurementPreferences(
-        preferences: MeasurementPreferences,
-    ): MeasurementPreferences {
+    override suspend fun persist(validated: MeasurementPreferences): MeasurementPreferences {
         client.postgrest[USER_PREFERENCES_TABLE].upsert(
             UserPreferencesInsertRow(
-                unitSystem = preferences.unitSystem,
-                distanceUnit = preferences.distanceUnit,
-                speedUnit = preferences.speedUnit,
+                unitSystem = validated.unitSystem,
+                distanceUnit = validated.distanceUnit,
+                speedUnit = validated.speedUnit,
             ),
         ) {
             onConflict = "user_id"
         }
-        return getMeasurementPreferences()
+        return get()
     }
 }
 

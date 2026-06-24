@@ -153,7 +153,8 @@ fun RangeworkApp(
     val settingsViewModel: SettingsViewModel = viewModel(
         factory = remember(rangeworkFoundation) {
             SettingsViewModel.factory(
-                dataFoundation = rangeworkFoundation?.dataFoundation,
+                measurementPreferencesRepository = rangeworkFoundation?.dataFoundation?.measurementPreferencesRepository,
+                clubRepository = rangeworkFoundation?.dataFoundation?.clubRepository,
                 themePreferenceStore = themePreferenceStore,
             )
         },
@@ -314,7 +315,7 @@ fun RangeworkApp(
                         factory = remember(rangeSessionId, rangeworkFoundation) {
                             RangeSessionViewModel.factory(
                                 rangeSessionId = rangeSessionId,
-                                dataFoundation = rangeworkFoundation?.dataFoundation,
+                                rangeSessionRepository = rangeworkFoundation?.dataFoundation?.rangeSessionRepository,
                             )
                         },
                     )
@@ -1193,7 +1194,7 @@ private fun AuthenticatedAppShell(
                         val deleteAccountViewModel: DeleteAccountViewModel = viewModel(
                             viewModelStoreOwner = backStackEntry,
                             factory = remember(dataFoundation) {
-                                DeleteAccountViewModel.factory(dataFoundation)
+                                DeleteAccountViewModel.factory(dataFoundation?.accountDeletionRepository)
                             },
                         )
                         val deleteAccountUiState by deleteAccountViewModel.uiState.collectAsStateWithLifecycle()

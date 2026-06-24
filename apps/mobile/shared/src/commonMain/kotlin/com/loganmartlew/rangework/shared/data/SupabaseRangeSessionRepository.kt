@@ -17,6 +17,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 private const val RANGE_SESSIONS_TABLE = "range_sessions"
 private const val RANGE_SESSION_TIME_ENTRIES_TABLE = "range_session_time_entries"
@@ -25,7 +27,9 @@ class SupabaseRangeSessionRepository(
     private val client: SupabaseClient,
 ) : RangeSessionRepository {
 
-    override suspend fun startSession(rangeSessionId: String, sessionId: String): RangeSession {
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun start(sessionId: String): RangeSession {
+        val rangeSessionId = Uuid.random().toString()
         val params = StartRangeSessionParams(
             rangeSessionId = rangeSessionId,
             sessionId = sessionId,

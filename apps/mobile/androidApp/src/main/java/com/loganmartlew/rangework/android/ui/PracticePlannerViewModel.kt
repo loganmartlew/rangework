@@ -132,6 +132,12 @@ data class PracticePlannerUiState(
 
 class PracticePlannerViewModel(
     private val environment: AppEnvironment,
+    // The planner spans four of the six aggregate seams (Practice Unit, Practice Session,
+    // Club, Range Session) behind a single all-or-nothing availability gate: DataFoundation
+    // is either fully wired or null as a whole. It deliberately takes the whole holder rather
+    // than four lockstep-nullable seams, which would encode states (e.g. Units present, Clubs
+    // absent) that can never occur. The other ViewModels narrow to their seam(s) because they
+    // touch only one or two; see issue #16.
     private val dataFoundation: DataFoundation?,
 ) : ViewModel() {
     private var activeUserId: String? = null
@@ -356,12 +362,12 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.savePracticeUnitUseCase(
+                    foundation.practiceUnitRepository.save(
                         draft = draft,
                         unitId = resolvedUnitId,
                     )
-                    val units = foundation.listPracticeUnitsUseCase()
-                    val sessions = foundation.listPracticeSessionsUseCase()
+                    val units = foundation.practiceUnitRepository.list()
+                    val sessions = foundation.practiceSessionRepository.list()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -414,9 +420,9 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.deletePracticeUnitUseCase(unitId)
-                    val units = foundation.listPracticeUnitsUseCase()
-                    val sessions = foundation.listPracticeSessionsUseCase()
+                    foundation.practiceUnitRepository.delete(unitId)
+                    val units = foundation.practiceUnitRepository.list()
+                    val sessions = foundation.practiceSessionRepository.list()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -585,12 +591,12 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.savePracticeSessionUseCase(
+                    foundation.practiceSessionRepository.save(
                         draft = draft,
                         sessionId = resolvedSessionId,
                     )
-                    val units = foundation.listPracticeUnitsUseCase()
-                    val sessions = foundation.listPracticeSessionsUseCase()
+                    val units = foundation.practiceUnitRepository.list()
+                    val sessions = foundation.practiceSessionRepository.list()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -643,9 +649,9 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.deletePracticeSessionUseCase(sessionId)
-                    val units = foundation.listPracticeUnitsUseCase()
-                    val sessions = foundation.listPracticeSessionsUseCase()
+                    foundation.practiceSessionRepository.delete(sessionId)
+                    val units = foundation.practiceUnitRepository.list()
+                    val sessions = foundation.practiceSessionRepository.list()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -680,8 +686,8 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, duplicatedUnitId = null)
             try {
-                val duplicated = foundation.duplicatePracticeUnitUseCase(unitId)
-                val units = foundation.listPracticeUnitsUseCase()
+                val duplicated = foundation.practiceUnitRepository.duplicate(unitId)
+                val units = foundation.practiceUnitRepository.list()
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isSaving = false,
@@ -709,8 +715,8 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, duplicatedSessionId = null)
             try {
-                val duplicated = foundation.duplicatePracticeSessionUseCase(sessionId)
-                val sessions = foundation.listPracticeSessionsUseCase()
+                val duplicated = foundation.practiceSessionRepository.duplicate(sessionId)
+                val sessions = foundation.practiceSessionRepository.list()
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isSaving = false,
@@ -740,9 +746,9 @@ class PracticePlannerViewModel(
                     defaultClubCode = unit.defaultClubCode,
                     instructions = unit.instructions.map { PracticeInstructionDraft(it.order, it.text, it.ballCount) },
                 )
-                foundation.savePracticeUnitUseCase(draft, unitId = unit.id)
-                val units = foundation.listPracticeUnitsUseCase()
-                val sessions = foundation.listPracticeSessionsUseCase()
+                foundation.practiceUnitRepository.save(draft, unitId = unit.id)
+                val units = foundation.practiceUnitRepository.list()
+                val sessions = foundation.practiceSessionRepository.list()
                 _uiState.value = _uiState.value.copy(
                     units = units,
                     sessions = sessions,
@@ -773,9 +779,9 @@ class PracticePlannerViewModel(
                         )
                     },
                 )
-                foundation.savePracticeSessionUseCase(draft, sessionId = session.id)
-                val units = foundation.listPracticeUnitsUseCase()
-                val sessions = foundation.listPracticeSessionsUseCase()
+                foundation.practiceSessionRepository.save(draft, sessionId = session.id)
+                val units = foundation.practiceUnitRepository.list()
+                val sessions = foundation.practiceSessionRepository.list()
                 _uiState.value = _uiState.value.copy(
                     units = units,
                     sessions = sessions,
@@ -803,7 +809,7 @@ class PracticePlannerViewModel(
         }
         viewModelScope.launch {
             try {
-                val rangeSession = foundation.startRangeSessionUseCase(sessionId)
+                val rangeSession = foundation.rangeSessionRepository.start(sessionId)
                 _uiState.value = _uiState.value.copy(
                     startedRangeSessionId = rangeSession.id,
                 )
@@ -840,8 +846,8 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    val units = foundation.listPracticeUnitsUseCase()
-                    val sessions = foundation.listPracticeSessionsUseCase()
+                    val units = foundation.practiceUnitRepository.list()
+                    val sessions = foundation.practiceSessionRepository.list()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -1010,8 +1016,8 @@ class PracticePlannerViewModel(
         val foundation = dataFoundation ?: return
         viewModelScope.launch {
             try {
-                val catalog = foundation.getClubCatalogUseCase()
-                val enabled = foundation.getEnabledClubsUseCase()
+                val catalog = foundation.clubRepository.listCatalog()
+                val enabled = foundation.clubRepository.getEnabledClubCodes()
                 _uiState.value = _uiState.value.copy(
                     clubCatalog = catalog,
                     enabledClubCodes = enabled,
@@ -1026,7 +1032,7 @@ class PracticePlannerViewModel(
         val foundation = dataFoundation ?: return
         viewModelScope.launch {
             try {
-                val activeSessions = foundation.listActiveRangeSessionsUseCase()
+                val activeSessions = foundation.rangeSessionRepository.listActiveSessions()
                 _uiState.value = _uiState.value.copy(activeRangeSessions = activeSessions)
             } catch (e: Exception) {
                 // Non-fatal: active sessions simply won't be shown
@@ -1038,7 +1044,7 @@ class PracticePlannerViewModel(
         val foundation = dataFoundation ?: return
         viewModelScope.launch {
             try {
-                val history = foundation.listCompletedRangeSessionsUseCase(sessionId)
+                val history = foundation.rangeSessionRepository.listCompletedSessions(sessionId)
                 _uiState.value = _uiState.value.copy(
                     completedRangeSessionHistory = _uiState.value.completedRangeSessionHistory.toMutableMap()
                         .apply { put(sessionId, history) }
@@ -1053,7 +1059,7 @@ class PracticePlannerViewModel(
         val foundation = dataFoundation ?: return
         viewModelScope.launch {
             try {
-                val newSession = foundation.startRangeSessionUseCase(sessionId)
+                val newSession = foundation.rangeSessionRepository.start(sessionId)
                 _uiState.value = _uiState.value.copy(startedRangeSessionId = newSession.id)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -1067,7 +1073,7 @@ class PracticePlannerViewModel(
         val foundation = dataFoundation ?: return
         viewModelScope.launch {
             try {
-                val hasActive = foundation.hasActiveRangeSessionsUseCase(sessionId)
+                val hasActive = foundation.rangeSessionRepository.hasActiveSessionsForTemplate(sessionId)
                 onResult(hasActive)
             } catch (e: Exception) {
                 // Default to no active sessions on error

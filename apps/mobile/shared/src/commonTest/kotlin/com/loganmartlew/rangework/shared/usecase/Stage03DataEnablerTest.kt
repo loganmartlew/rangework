@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
 
 class Stage03DataEnablerTest {
 
-    // ── DuplicateUnitUseCase ─────────────────────────────────────────────────
+    // ── PracticeUnitRepository.duplicate ────────────────────────────────────
 
     @Test
     fun duplicateUnitProducesIndependentCopyWithNoSharedReferences() = kotlinx.coroutines.test.runTest {
@@ -43,10 +43,7 @@ class Stage03DataEnablerTest {
         )
         val repo = StubPracticeUnitRepository(existing = original)
 
-        val copy = DuplicateUnitUseCase(
-            getPracticeUnitUseCase = GetPracticeUnitUseCase(repo),
-            savePracticeUnitUseCase = SavePracticeUnitUseCase(repo),
-        ).invoke("unit-original")
+        val copy = repo.duplicate("unit-original")
 
         assertNotEquals("unit-original", copy.id, "Duplicate must have a new id")
         assertEquals("Chip shots", copy.title)
@@ -353,22 +350,19 @@ private fun makeClub(code: String) = Club(
 
 private class StubPracticeUnitRepository(
     private val existing: PracticeUnit,
-) : PracticeUnitRepository {
+) : PracticeUnitRepository() {
     private val store = mutableMapOf(existing.id to existing)
 
-    override suspend fun listPracticeUnits(): List<PracticeUnit> = store.values.toList()
+    override suspend fun list(): List<PracticeUnit> = store.values.toList()
 
-    override suspend fun getPracticeUnit(unitId: String): PracticeUnit? = store[unitId]
+    override suspend fun get(id: String): PracticeUnit? = store[id]
 
-    override suspend fun savePracticeUnit(
-        draft: PracticeUnitDraft,
-        unitId: String?,
-    ): PracticeUnit {
+    override suspend fun persist(validated: PracticeUnitDraft, unitId: String?): PracticeUnit {
         val newId = unitId ?: "generated-${store.size + 1}"
         val saved = PracticeUnit(
             id = newId,
-            title = draft.title,
-            instructions = draft.instructions.mapIndexed { idx, d ->
+            title = validated.title,
+            instructions = validated.instructions.mapIndexed { idx, d ->
                 PracticeInstruction(
                     id = "gen-instr-${newId}-$idx",
                     order = d.order,
@@ -376,9 +370,9 @@ private class StubPracticeUnitRepository(
                     ballCount = d.ballCount,
                 )
             },
-            notes = draft.notes,
-            focus = draft.focus,
-            defaultClubCode = draft.defaultClubCode,
+            notes = validated.notes,
+            focus = validated.focus,
+            defaultClubCode = validated.defaultClubCode,
             createdAt = BASE_INSTANT,
             updatedAt = BASE_INSTANT,
         )
@@ -386,7 +380,7 @@ private class StubPracticeUnitRepository(
         return saved
     }
 
-    override suspend fun deletePracticeUnit(unitId: String) {
-        store.remove(unitId)
+    override suspend fun delete(id: String) {
+        store.remove(id)
     }
 }

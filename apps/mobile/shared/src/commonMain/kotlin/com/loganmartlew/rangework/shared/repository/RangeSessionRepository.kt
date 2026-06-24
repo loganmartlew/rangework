@@ -6,7 +6,7 @@ import com.loganmartlew.rangework.shared.model.RangeSession
 import kotlinx.datetime.Instant
 
 interface RangeSessionRepository {
-    suspend fun startSession(rangeSessionId: String, sessionId: String): RangeSession
+    suspend fun start(sessionId: String): RangeSession
     suspend fun getSession(rangeSessionId: String): RangeSession?
     suspend fun listActiveSessions(): List<ActiveRangeSessionSummary>
     suspend fun listCompletedSessions(sessionId: String): List<CompletedRangeSessionSummary>

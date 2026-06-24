@@ -3,7 +3,7 @@ package com.loganmartlew.rangework.android.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.loganmartlew.rangework.shared.data.DataFoundation
+import com.loganmartlew.rangework.shared.repository.AccountDeletionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,13 +17,13 @@ sealed class DeleteAccountUiState {
 }
 
 class DeleteAccountViewModel(
-    private val dataFoundation: DataFoundation?,
+    private val repository: AccountDeletionRepository?,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<DeleteAccountUiState>(DeleteAccountUiState.Idle)
     val uiState: StateFlow<DeleteAccountUiState> = _uiState.asStateFlow()
 
     fun deleteAccount() {
-        val foundation = dataFoundation ?: run {
+        val repo = repository ?: run {
             _uiState.value = DeleteAccountUiState.Error("Account deletion is not available in this build.")
             return
         }
@@ -32,7 +32,7 @@ class DeleteAccountViewModel(
 
         viewModelScope.launch {
             try {
-                foundation.deleteAccountUseCase()
+                repo.deleteAccount()
                 _uiState.value = DeleteAccountUiState.Deleted
             } catch (e: Exception) {
                 _uiState.value = DeleteAccountUiState.Error(
@@ -49,14 +49,14 @@ class DeleteAccountViewModel(
     }
 
     companion object {
-        fun factory(dataFoundation: DataFoundation?): ViewModelProvider.Factory =
+        fun factory(repository: AccountDeletionRepository?): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     require(modelClass.isAssignableFrom(DeleteAccountViewModel::class.java)) {
                         "Unsupported ViewModel class: ${modelClass.name}"
                     }
-                    return DeleteAccountViewModel(dataFoundation) as T
+                    return DeleteAccountViewModel(repository) as T
                 }
             }
     }
