@@ -3,7 +3,7 @@ package com.loganmartlew.rangework.android.ui
 import com.loganmartlew.rangework.shared.model.SECONDS_PER_BALL
 
 internal fun ballSummary(ballCount: Int?): String = when (ballCount) {
-    null -> "Ball total unavailable"
+    null -> "Ball count unavailable"
     0 -> "0 balls"
     1 -> "1 ball"
     else -> "$ballCount balls"

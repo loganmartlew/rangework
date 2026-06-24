@@ -273,7 +273,7 @@ private fun NextMoveCard(
             onAction = onCreateUnit
         }
         NextMoveState.UnitsNoSessions -> {
-            message = "Combine your units into a session template."
+            message = "Combine your units into a practice session."
             actionLabel = "New session"
             actionDescription = "Create a new session"
             onAction = onCreateSession

@@ -9,4 +9,4 @@
 ## Relationships
 
 - **Coaching → Planning & Execution**: The Coaching context creates and reads Practice Units and Practice Sessions via the same Supabase schema. All planning-layer terms (Practice Unit, Practice Session, Session Item, Club Code, etc.) carry the same meaning in both contexts — defined once in Planning & Execution, used without re-definition in Coaching.
-- **Site → Planning & Execution**: Marketing copy refers to planning concepts by name. No synonyms or shorthand — copy must use the canonical terms from Planning & Execution (e.g. "practice session" not "session template", "session item" not "slot", "range session" not "live session").
+- **Site → Planning & Execution**: Marketing copy refers to planning concepts by name. No synonyms or shorthand — copy must use the canonical terms from Planning & Execution (e.g. "practice session" not "session template", "session item" not "slot", "range session" not "live session"). Exception: "drill" is permitted as a player-facing synonym for Practice Unit in marketing copy, matching the Coaching context's convention.

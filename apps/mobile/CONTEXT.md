@@ -75,7 +75,7 @@ _Avoid_: club reference, club key, club id
 
 **Club Bag**:
 The set of Clubs a user has enabled from the catalog. Only clubs in a user's Bag appear in UI selectors and are valid targets for club assignments.
-_Avoid_: enabled clubs, equipped clubs, my clubs
+_Avoid_: equipped clubs, my clubs
 
 ### Derived values
 
