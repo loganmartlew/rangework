@@ -18,3 +18,5 @@ captures/
 # Supabase CLI scratch / local state
 supabase/.temp/
 supabase/.branches/
+
+.claude/skills
