@@ -225,7 +225,7 @@ describe('create_unit tool', () => {
       arguments: {
         title: 'Drill',
         instructions: [{ order: 1, text: 'Step 1' }],
-        default_club_reference: 'invalid_club',
+        default_club_code: 'invalid_club',
       },
     })) as {
       content: Array<{ type: string; text?: string }>;

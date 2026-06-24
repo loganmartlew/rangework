@@ -60,7 +60,7 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
         instructions = normalizedInstructions,
         notes = notes.normalizedOptionalText(),
         focus = focus.normalizedOptionalText(),
-        defaultClubReference = defaultClubReference.normalizedOptionalText(),
+        defaultClubCode = defaultClubCode.normalizedOptionalText(),
     )
 }
 
@@ -106,7 +106,7 @@ fun PracticeSessionDraft.validated(): PracticeSessionDraft {
                 practiceUnitId = item.practiceUnitId.trim(),
                 order = index + 1,
                 repeatCount = item.repeatCount,
-                clubReference = item.clubReference.normalizedOptionalText(),
+                clubCode = item.clubCode.normalizedOptionalText(),
                 notes = item.notes.normalizedOptionalText(),
                 focusCue = item.focusCue.normalizedOptionalText(),
             )

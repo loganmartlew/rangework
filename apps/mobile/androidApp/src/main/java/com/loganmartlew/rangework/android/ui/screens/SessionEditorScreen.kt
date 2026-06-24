@@ -64,7 +64,7 @@ internal fun SessionEditorScreen(
     onAddSessionItem: () -> Unit,
     onUpdateSessionItemUnit: (Int, String) -> Unit,
     onUpdateSessionItemRepeatCount: (Int, Int) -> Unit,
-    onUpdateSessionItemClubReference: (Int, String) -> Unit,
+    onUpdateSessionItemClubCode: (Int, String) -> Unit,
     onUpdateSessionItemNotes: (Int, String) -> Unit,
     onUpdateSessionItemFocusCue: (Int, String) -> Unit,
     onMoveSessionItem: (Int, Int) -> Unit,
@@ -195,7 +195,7 @@ internal fun SessionEditorScreen(
                         dragHandleModifier = Modifier.draggableHandle(),
                         onSelectUnit = { onUpdateSessionItemUnit(index, it) },
                         onUpdateRepeatCount = { onUpdateSessionItemRepeatCount(index, it) },
-                        onSelectClub = { onUpdateSessionItemClubReference(index, it) },
+                        onSelectClub = { onUpdateSessionItemClubCode(index, it) },
                         onUpdateNotes = { onUpdateSessionItemNotes(index, it) },
                         onUpdateFocusCue = { onUpdateSessionItemFocusCue(index, it) },
                         onMoveUp = { onMoveSessionItem(index, index - 1) },
@@ -263,7 +263,7 @@ private fun SessionItemEditorCard(
     }
     val repeatCountValue = item.repeatCount.trim().toIntOrNull() ?: 1
     val subtotal = if (hasUnit) item.derivedBallCount(selectedUnit) else null
-    val hasMoreOptions = item.clubReference.isNotBlank() ||
+    val hasMoreOptions = item.clubCode.isNotBlank() ||
         item.notes.isNotBlank() ||
         item.focusCue.isNotBlank()
 
@@ -367,7 +367,7 @@ private fun SessionItemEditorCard(
                 ) {
                     ClubPickerField(
                         label = "Session club override",
-                        selectedCode = item.clubReference.ifBlank { null },
+                        selectedCode = item.clubCode.ifBlank { null },
                         clubCatalog = clubCatalog,
                         enabledClubCodes = enabledClubCodes,
                         enabled = !isWorking,

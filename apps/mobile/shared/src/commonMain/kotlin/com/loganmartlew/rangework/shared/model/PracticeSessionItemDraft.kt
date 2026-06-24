@@ -7,7 +7,7 @@ data class PracticeSessionItemDraft(
     val practiceUnitId: String,
     val order: Int,
     val repeatCount: Int,
-    val clubReference: String? = null,
+    val clubCode: String? = null,
     val notes: String? = null,
     val focusCue: String? = null,
 )

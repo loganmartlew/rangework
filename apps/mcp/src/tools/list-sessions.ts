@@ -59,7 +59,7 @@ export function registerListSessionsTool(
       const { data: items, error: itemsError } = await ctx.supabaseClient
         .from('practice_session_items')
         .select(
-          'practice_session_id, practice_unit_id, sort_order, repeat_count, club_reference, notes, focus_cue',
+          'practice_session_id, practice_unit_id, sort_order, repeat_count, club_code, notes, focus_cue',
         )
         .in('practice_session_id', sessionIds)
         .order('sort_order', { ascending: true });
@@ -193,7 +193,7 @@ export function registerListSessionsTool(
               unit_id: item.practice_unit_id,
               unit_title: unit?.title ?? null,
               repeat_count: item.repeat_count,
-              club_reference: item.club_reference,
+              club_code: item.club_code,
               notes: item.notes,
               focus_cue: item.focus_cue,
             };

@@ -223,9 +223,9 @@ private fun SessionItemDetailRow(
     }
 
     // Club is only shown when item explicitly overrides the unit default
-    val isClubOverride = !item.clubReference.isNullOrBlank() &&
-        item.clubReference != unit?.defaultClubReference
-    val overrideClubName = if (isClubOverride) resolveClubName(item.clubReference) else null
+    val isClubOverride = !item.clubCode.isNullOrBlank() &&
+        item.clubCode != unit?.defaultClubCode
+    val overrideClubName = if (isClubOverride) resolveClubName(item.clubCode) else null
 
     val itemBallCount = item.derivedBallCount(unit)
 

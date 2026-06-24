@@ -66,7 +66,7 @@ describe('create_session tool', () => {
             practice_unit_id: 'unit-1',
             order: 1,
             repeat_count: 2,
-            club_reference: 'seven_iron',
+            club_code: 'seven_iron',
           },
           {
             practice_unit_id: 'unit-2',
@@ -276,7 +276,7 @@ describe('create_session tool', () => {
             practice_unit_id: 'unit-1',
             order: 1,
             repeat_count: 1,
-            club_reference: 'invalid_club',
+            club_code: 'invalid_club',
           },
         ],
       },

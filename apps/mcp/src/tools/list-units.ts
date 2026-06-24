@@ -25,7 +25,7 @@ export function registerListUnitsTool(
       // Fetch all practice units for the user, ordered by updated_at DESC
       const { data: units, error: unitsError } = await ctx.supabaseClient
         .from('practice_units')
-        .select('id, title, notes, focus, default_club_reference')
+        .select('id, title, notes, focus, default_club_code')
         .order('updated_at', { ascending: false });
 
       if (unitsError) {
@@ -102,7 +102,7 @@ export function registerListUnitsTool(
           title: unit.title,
           notes: unit.notes,
           focus: unit.focus,
-          default_club_reference: unit.default_club_reference,
+          default_club_code: unit.default_club_code,
           instruction_count: unitInstructions.length,
           total_ball_count: totalBallCount,
           has_uncounted_instructions: hasUncountedInstructions,

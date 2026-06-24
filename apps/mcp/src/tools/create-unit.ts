@@ -64,7 +64,7 @@ export function registerCreateUnitTool(
           .describe(
             'Optional context or reminders for the user (e.g. "Use an alignment stick").',
           ),
-        default_club_reference: z
+        default_club_code: z
           .string()
           .optional()
           .describe(
@@ -149,7 +149,7 @@ export function registerCreateUnitTool(
       }
 
       // Validate club code if provided
-      if (args.default_club_reference) {
+      if (args.default_club_code) {
         let allCodes: string[];
         try {
           allCodes = await fetchAllClubCodes(ctx.supabaseClient);
@@ -160,9 +160,9 @@ export function registerCreateUnitTool(
           );
         }
         const clubError = validateClubCode(
-          args.default_club_reference,
+          args.default_club_code,
           allCodes,
-          'default_club_reference',
+          'default_club_code',
         );
         if (clubError) return clubError;
       }
@@ -188,7 +188,7 @@ export function registerCreateUnitTool(
         p_title: title,
         p_notes: args.notes ?? null,
         p_focus: args.focus ?? null,
-        p_default_club_reference: args.default_club_reference ?? null,
+        p_default_club_code: args.default_club_code ?? null,
         p_instructions: instructionsJsonb,
       });
 
@@ -203,9 +203,9 @@ export function registerCreateUnitTool(
           }
           return toolError(
             ErrorCodes.UNKNOWN_CLUB_CODE,
-            `Unknown club code: ${args.default_club_reference}`,
+            `Unknown club code: ${args.default_club_code}`,
             {
-              field: 'default_club_reference',
+              field: 'default_club_code',
               valid_codes: allCodes,
             },
           );

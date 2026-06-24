@@ -771,7 +771,7 @@ private class FakePlannerRepositories :
             },
             notes = draft.notes,
             focus = draft.focus,
-            defaultClubReference = draft.defaultClubReference,
+            defaultClubCode = draft.defaultClubCode,
             createdAt = Instant.parse("2026-06-15T00:00:00Z"),
             updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
         )
@@ -810,7 +810,7 @@ private class FakePlannerRepositories :
                     practiceUnitId = item.practiceUnitId,
                     order = index + 1,
                     repeatCount = item.repeatCount,
-                    clubReference = item.clubReference,
+                    clubCode = item.clubCode,
                     notes = item.notes,
                     focusCue = item.focusCue,
                 )
@@ -953,7 +953,7 @@ private fun sampleSession(): PracticeSession = PracticeSession(
             practiceUnitId = "unit-1",
             order = 1,
             repeatCount = 2,
-            clubReference = "lob_wedge",
+            clubCode = "lob_wedge",
             notes = "Start here",
         ),
     ),

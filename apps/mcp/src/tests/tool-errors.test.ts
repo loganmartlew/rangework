@@ -26,13 +26,13 @@ describe('toolError', () => {
 
   it('includes valid_codes in data when provided', () => {
     const result = toolError(ErrorCodes.UNKNOWN_CLUB_CODE, 'Unknown club code: bogus', {
-      field: 'default_club_reference',
+      field: 'default_club_code',
       valid_codes: ['driver', 'seven_iron'],
     });
 
     const body = JSON.parse((result.content[0] as { type: string; text: string }).text) as ToolError;
     expect(body.code).toBe('UNKNOWN_CLUB_CODE');
-    expect(body.data?.field).toBe('default_club_reference');
+    expect(body.data?.field).toBe('default_club_code');
     expect(body.data?.valid_codes).toEqual(['driver', 'seven_iron']);
   });
 

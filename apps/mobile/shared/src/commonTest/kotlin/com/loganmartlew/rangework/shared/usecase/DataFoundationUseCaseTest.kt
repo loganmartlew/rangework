@@ -58,7 +58,7 @@ class DataFoundationUseCaseTest {
                         practiceUnitId = "  unit-4 ",
                         order = 9,
                         repeatCount = 3,
-                        clubReference = "  PW ",
+                        clubCode = "  PW ",
                     ),
                 ),
                 notes = "  Repeat twice ",
@@ -71,7 +71,7 @@ class DataFoundationUseCaseTest {
         assertEquals(listOf(1), repository.lastDraft?.items?.map { it.order })
         assertEquals("unit-4", repository.lastDraft?.items?.single()?.practiceUnitId)
         assertEquals(3, repository.lastDraft?.items?.single()?.repeatCount)
-        assertEquals("PW", repository.lastDraft?.items?.single()?.clubReference)
+        assertEquals("PW", repository.lastDraft?.items?.single()?.clubCode)
         assertEquals("session-7", repository.lastSavedSessionId)
     }
 
@@ -154,7 +154,7 @@ private class RecordingPracticeUnitRepository : PracticeUnitRepository {
             instructions = emptyList(),
             notes = draft.notes,
             focus = draft.focus,
-            defaultClubReference = draft.defaultClubReference,
+            defaultClubCode = draft.defaultClubCode,
             createdAt = Instant.parse("2026-06-15T00:00:00Z"),
             updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
         )

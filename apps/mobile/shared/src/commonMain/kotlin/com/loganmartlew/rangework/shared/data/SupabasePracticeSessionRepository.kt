@@ -81,7 +81,7 @@ class SupabasePracticeSessionRepository(
                     practiceUnitId = item.practiceUnitId,
                     order = item.order,
                     repeatCount = item.repeatCount,
-                    clubReference = item.clubReference,
+                    clubCode = item.clubCode,
                     notes = item.notes,
                     focusCue = item.focusCue,
                 )
@@ -131,8 +131,8 @@ private data class PracticeSessionItemRow(
     val sortOrder: Int,
     @SerialName("repeat_count")
     val repeatCount: Int,
-    @SerialName("club_reference")
-    val clubReference: String? = null,
+    @SerialName("club_code")
+    val clubCode: String? = null,
     val notes: String? = null,
     @SerialName("focus_cue")
     val focusCue: String? = null,
@@ -151,7 +151,7 @@ private data class SessionItemParam(
     @SerialName("practice_unit_id") val practiceUnitId: String,
     @SerialName("order") val order: Int,
     @SerialName("repeat_count") val repeatCount: Int,
-    @SerialName("club_reference") val clubReference: String?,
+    @SerialName("club_code") val clubCode: String?,
     @SerialName("notes") val notes: String?,
     @SerialName("focus_cue") val focusCue: String?,
 )
@@ -169,7 +169,7 @@ private fun PracticeSessionRow.toModel(
                 practiceUnitId = row.practiceUnitId,
                 order = row.sortOrder,
                 repeatCount = row.repeatCount,
-                clubReference = row.clubReference,
+                clubCode = row.clubCode,
                 notes = row.notes,
                 focusCue = row.focusCue,
             )

@@ -175,7 +175,7 @@ Returns all of the user's practice units, including full instruction text, ball 
       "title": "Gate Drill",
       "notes": null,
       "focus": "Keep the club face square through impact",
-      "default_club_reference": "seven_iron",
+      "default_club_code": "seven_iron",
       "instruction_count": 2,
       "total_ball_count": 15,
       "has_uncounted_instructions": false,
@@ -216,7 +216,7 @@ Returns all of the user's practice sessions, including their item lineup, club o
           "unit_id": "uuid",
           "unit_title": "Gate Drill",
           "repeat_count": 2,
-          "club_reference": "pitching_wedge",
+          "club_code": "pitching_wedge",
           "notes": null,
           "focus_cue": "Hinge earlier"
         }
@@ -246,12 +246,12 @@ Creates a new practice unit (a single drill) in the user's account. Returns the 
   ],
   "focus": "Keep the club face square through impact",
   "notes": "Use an alignment stick",
-  "default_club_reference": "seven_iron"
+  "default_club_code": "seven_iron"
 }
 ```
 
 - `title` and `instructions` are required. `instructions` must have 1–10 items.
-- `focus`, `notes`, and `default_club_reference` are optional.
+- `focus`, `notes`, and `default_club_code` are optional.
 - `ball_count` on each instruction is optional; omit rather than setting to null.
 - Club references must use the `code` from `get_user_clubs`, not the display name.
 
@@ -275,7 +275,7 @@ Creates a new practice session in the user's account. Call `list_units` or `crea
       "practice_unit_id": "uuid",
       "order": 1,
       "repeat_count": 2,
-      "club_reference": "seven_iron",
+      "club_code": "seven_iron",
       "focus_cue": "Hinge earlier",
       "notes": "Use the 50y stake"
     }
@@ -286,7 +286,7 @@ Creates a new practice session in the user's account. Call `list_units` or `crea
 
 - `name` and `items` are required. `items` must have at least 1 entry.
 - Each item's `practice_unit_id` must be a unit owned by the authenticated user.
-- `club_reference`, `focus_cue`, and `notes` on each item are optional.
+- `club_code`, `focus_cue`, and `notes` on each item are optional.
 - Session-level `notes` is optional.
 
 **Output:** `{ "session_id": "uuid" }`

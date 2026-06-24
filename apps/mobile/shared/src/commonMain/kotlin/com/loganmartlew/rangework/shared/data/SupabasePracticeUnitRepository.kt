@@ -77,7 +77,7 @@ class SupabasePracticeUnitRepository(
             title = draft.title,
             notes = draft.notes,
             focus = draft.focus,
-            defaultClubReference = draft.defaultClubReference,
+            defaultClubCode = draft.defaultClubCode,
             instructions = draft.instructions.map { instruction ->
                 InstructionParam(
                     order = instruction.order,
@@ -114,8 +114,8 @@ private data class PracticeUnitRow(
     val title: String,
     val notes: String? = null,
     val focus: String? = null,
-    @SerialName("default_club_reference")
-    val defaultClubReference: String? = null,
+    @SerialName("default_club_code")
+    val defaultClubCode: String? = null,
     @SerialName("created_at")
     val createdAt: Instant,
     @SerialName("updated_at")
@@ -140,7 +140,7 @@ private data class SavePracticeUnitParams(
     @SerialName("p_title") val title: String,
     @SerialName("p_notes") val notes: String?,
     @SerialName("p_focus") val focus: String?,
-    @SerialName("p_default_club_reference") val defaultClubReference: String?,
+    @SerialName("p_default_club_code") val defaultClubCode: String?,
     @SerialName("p_instructions") val instructions: List<InstructionParam>,
 )
 
@@ -168,7 +168,7 @@ private fun PracticeUnitRow.toModel(
         },
     notes = notes,
     focus = focus,
-    defaultClubReference = defaultClubReference,
+    defaultClubCode = defaultClubCode,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )

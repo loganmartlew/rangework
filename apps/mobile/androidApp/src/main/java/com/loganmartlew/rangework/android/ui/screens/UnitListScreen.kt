@@ -112,7 +112,7 @@ internal fun UnitListScreen(
                                     }
                                 },
                             )
-                            val clubName = unit.defaultClubReference
+                            val clubName = unit.defaultClubCode
                                 ?.takeIf(String::isNotBlank)
                                 ?.let { code ->
                                     plannerUiState.clubCatalog.firstOrNull { it.code == code }?.displayName ?: code

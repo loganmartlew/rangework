@@ -49,7 +49,7 @@ class DuplicateUnitUseCase(
             title = original.title,
             notes = original.notes,
             focus = original.focus,
-            defaultClubReference = original.defaultClubReference,
+            defaultClubCode = original.defaultClubCode,
             instructions = original.instructions.map { instruction ->
                 PracticeInstructionDraft(
                     order = instruction.order,

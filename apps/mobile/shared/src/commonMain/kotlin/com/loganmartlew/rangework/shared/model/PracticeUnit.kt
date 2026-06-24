@@ -10,7 +10,7 @@ data class PracticeUnit(
     val instructions: List<PracticeInstruction>,
     val notes: String? = null,
     val focus: String? = null,
-    val defaultClubReference: String? = null,
+    val defaultClubCode: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
 )

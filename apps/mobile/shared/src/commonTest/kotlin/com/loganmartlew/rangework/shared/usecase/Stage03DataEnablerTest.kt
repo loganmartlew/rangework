@@ -35,7 +35,7 @@ class Stage03DataEnablerTest {
             title = "Chip shots",
             notes = "Tight lies only",
             focus = "Weight forward",
-            defaultClubReference = "PW",
+            defaultClubCode = "PW",
             instructions = listOf(
                 PracticeInstruction(id = "instr-1", order = 1, text = "Grip down", ballCount = 10),
                 PracticeInstruction(id = "instr-2", order = 2, text = "Low finish", ballCount = 20),
@@ -52,7 +52,7 @@ class Stage03DataEnablerTest {
         assertEquals("Chip shots", copy.title)
         assertEquals("Tight lies only", copy.notes)
         assertEquals("Weight forward", copy.focus)
-        assertEquals("PW", copy.defaultClubReference)
+        assertEquals("PW", copy.defaultClubCode)
         assertEquals(2, copy.instructions.size)
         assertEquals("Grip down", copy.instructions[0].text)
         assertEquals(10, copy.instructions[0].ballCount)
@@ -307,7 +307,7 @@ private fun makeUnit(
     title: String = "Test unit",
     notes: String? = null,
     focus: String? = null,
-    defaultClubReference: String? = null,
+    defaultClubCode: String? = null,
     instructions: List<PracticeInstruction> = emptyList(),
     updatedAt: Instant = BASE_INSTANT,
 ) = PracticeUnit(
@@ -316,7 +316,7 @@ private fun makeUnit(
     instructions = instructions,
     notes = notes,
     focus = focus,
-    defaultClubReference = defaultClubReference,
+    defaultClubCode = defaultClubCode,
     createdAt = BASE_INSTANT,
     updatedAt = updatedAt,
 )
@@ -378,7 +378,7 @@ private class StubPracticeUnitRepository(
             },
             notes = draft.notes,
             focus = draft.focus,
-            defaultClubReference = draft.defaultClubReference,
+            defaultClubCode = draft.defaultClubCode,
             createdAt = BASE_INSTANT,
             updatedAt = BASE_INSTANT,
         )

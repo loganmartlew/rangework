@@ -61,7 +61,7 @@ describe('validateClubCode', () => {
     const result = validateClubCode(
       'seven_iron',
       allCodes,
-      'default_club_reference',
+      'default_club_code',
     );
     expect(result).toBeNull();
   });
@@ -70,7 +70,7 @@ describe('validateClubCode', () => {
     const result = validateClubCode(
       'bogus_club',
       allCodes,
-      'default_club_reference',
+      'default_club_code',
     );
     expect(result).not.toBeNull();
     expect(result!.isError).toBe(true);
@@ -80,14 +80,14 @@ describe('validateClubCode', () => {
     );
     expect(body.code).toBe('UNKNOWN_CLUB_CODE');
     expect(body.message).toContain('bogus_club');
-    expect(body.data.field).toBe('default_club_reference');
+    expect(body.data.field).toBe('default_club_code');
   });
 
   it('includes valid_codes from allCodes when no userEnabledCodes provided', () => {
     const result = validateClubCode(
       'bogus_club',
       allCodes,
-      'default_club_reference',
+      'default_club_code',
     );
     const body = JSON.parse(
       (result!.content[0] as { type: string; text: string }).text,
@@ -100,7 +100,7 @@ describe('validateClubCode', () => {
     const result = validateClubCode(
       'bogus_club',
       allCodes,
-      'default_club_reference',
+      'default_club_code',
       userCodes,
     );
     const body = JSON.parse(
@@ -113,11 +113,11 @@ describe('validateClubCode', () => {
     const result = validateClubCode(
       'bogus_club',
       allCodes,
-      'items[2].club_reference',
+      'items[2].club_code',
     );
     const body = JSON.parse(
       (result!.content[0] as { type: string; text: string }).text,
     );
-    expect(body.data.field).toBe('items[2].club_reference');
+    expect(body.data.field).toBe('items[2].club_code');
   });
 });

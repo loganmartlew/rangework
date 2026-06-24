@@ -54,7 +54,7 @@ class DuplicatePracticeSessionUseCase(
                     practiceUnitId = item.practiceUnitId,
                     order = item.order,
                     repeatCount = item.repeatCount,
-                    clubReference = item.clubReference,
+                    clubCode = item.clubCode,
                     notes = item.notes,
                     focusCue = item.focusCue,
                 )

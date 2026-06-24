@@ -50,7 +50,7 @@ internal fun UnitEditorScreen(
     onUpdateTitle: (String) -> Unit,
     onUpdateNotes: (String) -> Unit,
     onUpdateFocus: (String) -> Unit,
-    onUpdateDefaultClubReference: (String) -> Unit,
+    onUpdateDefaultClubCode: (String) -> Unit,
     onAddInstruction: () -> Unit,
     onUpdateInstructionText: (Int, String) -> Unit,
     onUpdateInstructionBallCount: (Int, Int) -> Unit,
@@ -131,11 +131,11 @@ internal fun UnitEditorScreen(
             item {
                 ClubPickerField(
                     label = "Default club",
-                    selectedCode = editor.defaultClubReference.ifBlank { null },
+                    selectedCode = editor.defaultClubCode.ifBlank { null },
                     clubCatalog = plannerUiState.clubCatalog,
                     enabledClubCodes = plannerUiState.enabledClubCodes,
                     enabled = !isWorking,
-                    onSelect = onUpdateDefaultClubReference,
+                    onSelect = onUpdateDefaultClubCode,
                 )
             }
 

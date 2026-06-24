@@ -50,7 +50,7 @@ data class PracticeUnitEditorState(
     val title: String = "",
     val notes: String = "",
     val focus: String = "",
-    val defaultClubReference: String = "",
+    val defaultClubCode: String = "",
     val instructions: List<PracticeInstructionEditorState> = listOf(
         PracticeInstructionEditorState(order = 1),
     ),
@@ -66,7 +66,7 @@ data class PracticeSessionItemEditorState(
     val order: Int,
     val practiceUnitId: String = "",
     val repeatCount: String = "1",
-    val clubReference: String = "",
+    val clubCode: String = "",
     val notes: String = "",
     val focusCue: String = "",
     val unitError: String? = null,
@@ -281,7 +281,7 @@ class PracticePlannerViewModel(
 
     fun updateUnitFocus(value: String) = updateUnitEditor { copy(focus = value) }
 
-    fun updateUnitDefaultClubReference(value: String) = updateUnitEditor { copy(defaultClubReference = value) }
+    fun updateUnitDefaultClubCode(value: String) = updateUnitEditor { copy(defaultClubCode = value) }
 
     fun addInstruction() = updateUnitEditor {
         copy(
@@ -497,8 +497,8 @@ class PracticePlannerViewModel(
 
     fun updateSessionItemRepeatCount(index: Int, value: Int) = updateSessionItemRepeatCount(index, value.toString())
 
-    fun updateSessionItemClubReference(index: Int, value: String) = updateSessionItem(index) {
-        copy(clubReference = value)
+    fun updateSessionItemClubCode(index: Int, value: String) = updateSessionItem(index) {
+        copy(clubCode = value)
     }
 
     fun updateSessionItemNotes(index: Int, value: String) = updateSessionItem(index) { copy(notes = value) }
@@ -737,7 +737,7 @@ class PracticePlannerViewModel(
                     title = unit.title,
                     notes = unit.notes,
                     focus = unit.focus,
-                    defaultClubReference = unit.defaultClubReference,
+                    defaultClubCode = unit.defaultClubCode,
                     instructions = unit.instructions.map { PracticeInstructionDraft(it.order, it.text, it.ballCount) },
                 )
                 foundation.savePracticeUnitUseCase(draft, unitId = unit.id)
@@ -767,7 +767,7 @@ class PracticePlannerViewModel(
                             practiceUnitId = item.practiceUnitId,
                             order = item.order,
                             repeatCount = item.repeatCount,
-                            clubReference = item.clubReference,
+                            clubCode = item.clubCode,
                             notes = item.notes,
                             focusCue = item.focusCue,
                         )
@@ -885,7 +885,7 @@ class PracticePlannerViewModel(
         },
         notes = draft.notes,
         focus = draft.focus,
-        defaultClubReference = draft.defaultClubReference,
+        defaultClubCode = draft.defaultClubCode,
         createdAt = now,
         updatedAt = now,
     )
@@ -904,7 +904,7 @@ class PracticePlannerViewModel(
                 practiceUnitId = item.practiceUnitId,
                 order = item.order,
                 repeatCount = item.repeatCount,
-                clubReference = item.clubReference,
+                clubCode = item.clubCode,
                 notes = item.notes,
                 focusCue = item.focusCue,
             )
@@ -1156,7 +1156,7 @@ private fun PracticeUnit.toEditorState(): PracticeUnitEditorState = PracticeUnit
     title = title,
     notes = notes.orEmpty(),
     focus = focus.orEmpty(),
-    defaultClubReference = defaultClubReference.orEmpty(),
+    defaultClubCode = defaultClubCode.orEmpty(),
     instructions = if (instructions.isEmpty()) {
         listOf(PracticeInstructionEditorState(order = 1))
     } else {
@@ -1181,7 +1181,7 @@ private fun PracticeSessionItem.toEditorState(): PracticeSessionItemEditorState 
     order = order,
     practiceUnitId = practiceUnitId,
     repeatCount = repeatCount.toString(),
-    clubReference = clubReference.orEmpty(),
+    clubCode = clubCode.orEmpty(),
     notes = notes.orEmpty(),
     focusCue = focusCue.orEmpty(),
 )
@@ -1197,7 +1197,7 @@ private fun PracticeUnitEditorState.toDraft(): PracticeUnitDraft = PracticeUnitD
     },
     notes = notes,
     focus = focus,
-    defaultClubReference = defaultClubReference,
+    defaultClubCode = defaultClubCode,
 )
 
 private fun PracticeSessionEditorState.toDraft(): PracticeSessionDraft = PracticeSessionDraft(
@@ -1208,7 +1208,7 @@ private fun PracticeSessionEditorState.toDraft(): PracticeSessionDraft = Practic
             practiceUnitId = item.practiceUnitId,
             order = item.order,
             repeatCount = item.repeatCount.parseRequiredInt("Repeat count"),
-            clubReference = item.clubReference,
+            clubCode = item.clubCode,
             notes = item.notes,
             focusCue = item.focusCue,
         )

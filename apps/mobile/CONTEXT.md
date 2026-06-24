@@ -70,7 +70,7 @@ A specific type of golf club in the system catalog, identified by a stable Club 
 _Avoid_: club type, equipment
 
 **Club Code**:
-The stable, lowercase-underscore identifier for a Club (e.g. `seven_iron`, `pitching_wedge`). All club assignments in practice data use Club Codes, not display names. Existing database columns named `club_reference` / `default_club_reference` are a misnomer and should be renamed to `club_code` / `default_club_code`.
+The stable, lowercase-underscore identifier for a Club (e.g. `seven_iron`, `pitching_wedge`). All club assignments in practice data use Club Codes, not display names.
 _Avoid_: club reference, club key, club id
 
 **Club Bag**:

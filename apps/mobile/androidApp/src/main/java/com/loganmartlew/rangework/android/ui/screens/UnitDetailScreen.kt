@@ -56,7 +56,7 @@ internal fun UnitDetailScreen(
             return@ScrollableScreen
         }
 
-        val defaultClubName = unit.defaultClubReference?.takeIf(String::isNotBlank)?.let { code ->
+        val defaultClubName = unit.defaultClubCode?.takeIf(String::isNotBlank)?.let { code ->
             plannerUiState.clubCatalog.firstOrNull { it.code == code }?.displayName ?: code
         } ?: "No club"
 

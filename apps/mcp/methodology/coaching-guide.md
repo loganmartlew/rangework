@@ -70,13 +70,13 @@ This is the most important structural rule. A **unit** is one drill. A **session
 - A unit's `ball_count` is the **smallest meaningful repetition** of the drill — usually **1 ball**, occasionally a small natural block (e.g. a "hit 3, then assess" routine is atomically 3). **Do not bake the whole session's volume into a unit.**
 - The session's `repeat_count` multiplies the entire unit. A 1-ball gate drill you want done 20 times → `repeat_count: 20`. A 3-step progression drill done twice → `repeat_count: 2`.
 - Because `repeat_count` multiplies *everything* in the unit, keep each unit focused on one repeatable action or one progression pass. Volume lives in the session, not the unit.
-- Reuse the same unit across different clubs with the per-item `club_reference` override, and vary the intent with `focus_cue` — never duplicate a unit just to change its club.
+- Reuse the same unit across different clubs with the per-item `club_code` override, and vary the intent with `focus_cue` — never duplicate a unit just to change its club.
 
 A unit built this way is composable: it can drop into many sessions at different volumes and with different clubs.
 
 ### Reuse before you create
 
-Always call `list_units` before building anything. Prefer reusing an existing unit whenever one matches the intent — even loosely. You can adapt it at the session level via `repeat_count`, `club_reference`, `focus_cue`, and per-item `notes` without touching the unit itself. Only create a new unit when nothing existing fits. When you present the plan, clearly mark which units are **reused** and which are **new**.
+Always call `list_units` before building anything. Prefer reusing an existing unit whenever one matches the intent — even loosely. You can adapt it at the session level via `repeat_count`, `club_code`, `focus_cue`, and per-item `notes` without touching the unit itself. Only create a new unit when nothing existing fits. When you present the plan, clearly mark which units are **reused** and which are **new**.
 
 ### Drill quality
 
@@ -128,13 +128,13 @@ Higher-handicap players benefit from more short-game even at range-only faciliti
 4. **Design the plan** — reuse-first, units atomic, volume in the session.
 5. **Present the proposed plan** for confirmation: mark each unit as reused or new (title, instructions, ball counts), and lay out the session structure (order, `repeat_count`, club per item, success targets). **Do not create anything until the player approves.**
 6. **On approval: call `create_unit`** for each *new* drill. Capture each returned `unit_id`.
-7. **Call `create_session`** referencing the new `unit_id` values plus any reused unit ids from step 3. Set `repeat_count` for volume, and `club_reference` / `focus_cue` / `notes` per item as needed.
+7. **Call `create_session`** referencing the new `unit_id` values plus any reused unit ids from step 3. Set `repeat_count` for volume, and `club_code` / `focus_cue` / `notes` per item as needed.
 8. **Confirm completion** — tell the player the session is ready in their Rangework app.
 
 ## Data format rules
 
-- `create_unit` requires `title` (non-empty) and `instructions` (1–10 items, each with `order`, `text`, optional `ball_count`). Optional: `focus`, `notes`, `default_club_reference`.
-- `create_session` requires `name` (non-empty) and `items` (1+ items, each with `practice_unit_id`, `order`, `repeat_count`, and optional `club_reference`, `focus_cue`, `notes`).
+- `create_unit` requires `title` (non-empty) and `instructions` (1–10 items, each with `order`, `text`, optional `ball_count`). Optional: `focus`, `notes`, `default_club_code`.
+- `create_session` requires `name` (non-empty) and `items` (1+ items, each with `practice_unit_id`, `order`, `repeat_count`, and optional `club_code`, `focus_cue`, `notes`).
 - Club references must use catalog `code` values from `get_user_clubs`.
 - `order` values must start at 1 and be unique within their array.
 - `ball_count` and `repeat_count` must be positive integers; omit `ball_count` rather than setting it to 0.

@@ -22,13 +22,13 @@ class DraftValidationTest {
             ),
             notes = "  Keep tempo steady  ",
             focus = "  Start line  ",
-            defaultClubReference = "  GW  ",
+            defaultClubCode = "  GW  ",
         ).validated()
 
         assertEquals("Wedge ladder", validated.title)
         assertEquals("Keep tempo steady", validated.notes)
         assertEquals("Start line", validated.focus)
-        assertEquals("GW", validated.defaultClubReference)
+        assertEquals("GW", validated.defaultClubCode)
         assertEquals(listOf(1, 2), validated.instructions.map(PracticeInstructionDraft::order))
         assertEquals("Finish with 5 flighted shots", validated.instructions.first().text)
         assertEquals(5, validated.instructions.first().ballCount)
@@ -59,7 +59,7 @@ class DraftValidationTest {
                     practiceUnitId = "  unit-2  ",
                     order = 8,
                     repeatCount = 2,
-                    clubReference = "  54*  ",
+                    clubCode = "  54*  ",
                     notes = "  Start here  ",
                     focusCue = "  Landing spot  ",
                 ),
@@ -76,7 +76,7 @@ class DraftValidationTest {
         assertEquals(listOf(1, 2), validated.items.map(PracticeSessionItemDraft::order))
         assertEquals(listOf("unit-2", "unit-2"), validated.items.map(PracticeSessionItemDraft::practiceUnitId))
         assertEquals(listOf(1, 2), validated.items.map(PracticeSessionItemDraft::repeatCount))
-        assertEquals("54*", validated.items.last().clubReference)
+        assertEquals("54*", validated.items.last().clubCode)
         assertEquals("Start here", validated.items.last().notes)
         assertEquals("Landing spot", validated.items.last().focusCue)
     }

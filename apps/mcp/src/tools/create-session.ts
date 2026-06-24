@@ -50,7 +50,7 @@ export function registerCreateSessionTool(
                 .describe(
                   'How many times to run this unit in the session (e.g. 2 = two rounds of this drill). Must be a positive integer.',
                 ),
-              club_reference: z
+              club_code: z
                 .string()
                 .optional()
                 .describe(
@@ -71,7 +71,7 @@ export function registerCreateSessionTool(
             }),
           )
           .describe(
-            'Ordered list of practice units. Each item needs `practice_unit_id`, `order` (starting at 1), `repeat_count`, and optionally a `club_reference`, `notes`, and `focus_cue`. Must have at least 1 item.',
+            'Ordered list of practice units. Each item needs `practice_unit_id`, `order` (starting at 1), `repeat_count`, and optionally a `club_code`, `notes`, and `focus_cue`. Must have at least 1 item.',
           ),
         notes: z
           .string()
@@ -163,7 +163,7 @@ export function registerCreateSessionTool(
 
       // Validate club codes if any are provided
       const clubReferences = args.items
-        .map(i => i.club_reference)
+        .map(i => i.club_code)
         .filter((ref): ref is string => ref !== undefined);
 
       if (clubReferences.length > 0) {
@@ -179,11 +179,11 @@ export function registerCreateSessionTool(
 
         for (let idx = 0; idx < args.items.length; idx++) {
           const item = args.items[idx]!;
-          if (item.club_reference) {
+          if (item.club_code) {
             const clubError = validateClubCode(
-              item.club_reference,
+              item.club_code,
               allCodes,
-              `items[${idx}].club_reference`,
+              `items[${idx}].club_code`,
             );
             if (clubError) return clubError;
           }
@@ -200,8 +200,8 @@ export function registerCreateSessionTool(
           order: item.order,
           repeat_count: item.repeat_count,
         };
-        if (item.club_reference !== undefined) {
-          obj.club_reference = item.club_reference;
+        if (item.club_code !== undefined) {
+          obj.club_code = item.club_code;
         }
         if (item.notes !== undefined) {
           obj.notes = item.notes;

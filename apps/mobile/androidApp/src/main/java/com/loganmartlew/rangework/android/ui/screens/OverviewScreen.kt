@@ -472,7 +472,7 @@ private fun PracticeUnit.recentMetadata(clubsByCode: Map<String, Club>): String 
         if (ballCount > 0) {
             add("$ballCount balls")
         }
-        defaultClubReference
+        defaultClubCode
             ?.takeIf { it.isNotBlank() }
             ?.let { clubCode -> clubsByCode[clubCode]?.displayName ?: clubCode }
             ?.let { clubName -> add(clubName) }
