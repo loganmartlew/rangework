@@ -6,8 +6,8 @@ plugins {
 }
 
 val tokenBuildTask = rootProject.tasks.named("generateUiTokens")
-val tokenKotlinDir = rootProject.rootDir.resolve("../../packages/ui-tokens/generated/android/kotlin")
-val tokenResDir = rootProject.rootDir.resolve("../../packages/ui-tokens/generated/android/res")
+val tokenKotlinDir = rootProject.rootDir.resolve("../../packages/design/generated/android/kotlin")
+val tokenResDir = rootProject.rootDir.resolve("../../packages/design/generated/android/res")
 
 val dotEnv: Map<String, String> = rootProject.rootDir.resolve(".env")
     .takeIf { it.exists() }

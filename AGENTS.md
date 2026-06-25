@@ -9,7 +9,7 @@ Rangework is an Android-first golf practice planning app. This monorepo uses pnp
 | `apps/mobile/`        | Android/KMP app — `androidApp` (Compose UI) + `shared` (KMP business logic)      |
 | `apps/mcp/`           | MCP server (Cloudflare Worker, TypeScript) — AI-assisted practice planning tools |
 | `apps/site/`          | Marketing/support website (Astro + Svelte + Tailwind)                            |
-| `packages/ui-tokens/` | Shared design tokens consumed by Android build and the site                      |
+| `packages/design/`    | Shared design tokens + brand-asset pipeline consumed by Android build and the site |
 | `supabase/`           | DB schema, migrations, RLS rules, Edge Function config                           |
 | `README.md`           | Quick build/config reference                                                     |
 | `RANGEWORK.md`        | Product overview and feature descriptions                                        |

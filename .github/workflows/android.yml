@@ -6,11 +6,11 @@ on:
       - main
     paths:
       - 'apps/mobile/**'
-      - 'packages/ui-tokens/**'
+      - 'packages/design/**'
   pull_request:
     paths:
       - 'apps/mobile/**'
-      - 'packages/ui-tokens/**'
+      - 'packages/design/**'
   workflow_dispatch:
 
 concurrency:

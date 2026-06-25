@@ -54,18 +54,18 @@ importers:
 
   apps/mobile:
     devDependencies:
-      '@rangework/ui-tokens':
+      '@rangework/design':
         specifier: workspace:*
-        version: link:../../packages/ui-tokens
+        version: link:../../packages/design
 
   apps/site:
     dependencies:
       '@astrojs/svelte':
         specifier: ^8.1.2
         version: 8.1.2(@types/node@26.0.0)(astro@6.4.8(@types/node@26.0.0)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.62.0)(yaml@2.9.0))(jiti@2.7.0)(lightningcss@1.32.0)(svelte@5.56.3(@typescript-eslint/types@8.61.1))(typescript@6.0.3)(yaml@2.9.0)
-      '@rangework/ui-tokens':
+      '@rangework/design':
         specifier: workspace:*
-        version: link:../../packages/ui-tokens
+        version: link:../../packages/design
       '@supabase/supabase-js':
         specifier: ^2.49.0
         version: 2.108.2
@@ -107,7 +107,7 @@ importers:
         specifier: ^8.61.1
         version: 8.61.1(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)
 
-  packages/ui-tokens:
+  packages/design:
     devDependencies:
       style-dictionary:
         specifier: ^4.3.3
