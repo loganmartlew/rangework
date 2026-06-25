@@ -34,6 +34,24 @@ _Avoid_: focus, mental note, tip
 The number of balls expected for a single Practice Instruction. Summed across all instructions to give a Practice Unit's total; multiplied by Repeat Count to give a Session Item's total.
 _Avoid_: shot count, ball total (for the per-instruction value)
 
+### Tagging
+
+**Tag**:
+A label drawn from a single shared vocabulary, attached to Practice Units and Practice Sessions to organise and filter them (and to give the Coaching context a vocabulary for discovering relevant content). A Tag attached to a Practice Session expresses that session's own goal or focus, which is set independently and may differ from the Tags of the Units it contains.
+_Avoid_: label, category, topic, keyword
+
+**Default Tag**:
+A Tag in the app-defined global catalog, owned by no user and identified by a stable code (e.g. `short_game`, `putting`). Shared by every user; the same Default Tag row is referenced by all. Mirrors the Club catalog pattern.
+_Avoid_: system tag, built-in tag, preset
+
+**Custom Tag**:
+A Tag created and owned by a single user, extending the shared vocabulary beyond the Default Tags. Visible and usable only by its owner; may be renamed or deleted by the owner.
+_Avoid_: user tag, personal label
+
+**Tag Code**:
+The lowercase-underscore slug identifying a Tag (e.g. `short_game`). For a Default Tag the code is curated and globally stable; for a Custom Tag it is slugged from the name and unique per owner. The code is the dedup key (typing a name that slugs to an existing code reuses that Tag) and the handle the Coaching context uses, but Tag attachments reference a Tag by its identity, not its code, so a Custom Tag can be renamed without breaking attachments. Custom Tag codes carry no cross-user meaning.
+_Avoid_: tag slug, tag key, tag id
+
 ### Execution layer
 
 **Range Session**:
