@@ -7,6 +7,15 @@ on:
         description: 'Version to release (semver, e.g. 1.0.0)'
         required: true
         type: string
+      track:
+        description: 'Google Play track to publish to'
+        required: true
+        default: internal
+        type: choice
+        options:
+          - internal
+          - closed
+          - production
 
 concurrency:
   group: release-${{ github.workflow }}-${{ github.ref }}
@@ -130,3 +139,12 @@ jobs:
             apps/mobile/androidApp/build/outputs/apk/release/androidApp-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.loganmartlew.rangework.android
+          releaseFiles: apps/mobile/androidApp/build/outputs/bundle/release/androidApp-release.aab
+          track: ${{ github.event.inputs.track }}
+          status: completed
