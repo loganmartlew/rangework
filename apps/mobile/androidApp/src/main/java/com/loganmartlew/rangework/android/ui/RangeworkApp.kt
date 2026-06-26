@@ -93,6 +93,7 @@ import com.loganmartlew.rangework.android.ui.screens.SessionListScreen
 import com.loganmartlew.rangework.android.ui.screens.DeleteAccountScreen
 import com.loganmartlew.rangework.android.ui.screens.WebViewScreen
 import com.loganmartlew.rangework.android.ui.screens.ManageClubsScreen
+import com.loganmartlew.rangework.android.ui.screens.ManageTagsScreen
 import com.loganmartlew.rangework.android.ui.screens.SettingsScreen
 import com.loganmartlew.rangework.android.ui.screens.UnitDetailScreen
 import com.loganmartlew.rangework.android.ui.screens.UnitEditorScreen
@@ -155,6 +156,7 @@ fun RangeworkApp(
             SettingsViewModel.factory(
                 measurementPreferencesRepository = rangeworkFoundation?.dataFoundation?.measurementPreferencesRepository,
                 clubRepository = rangeworkFoundation?.dataFoundation?.clubRepository,
+                tagRepository = rangeworkFoundation?.dataFoundation?.tagRepository,
                 themePreferenceStore = themePreferenceStore,
             )
         },
@@ -234,6 +236,8 @@ fun RangeworkApp(
             onMoveInstructionDown = plannerViewModel::moveInstructionDown,
             onMoveInstruction = plannerViewModel::moveInstruction,
             onRemoveInstruction = plannerViewModel::removeInstruction,
+            onToggleTag = plannerViewModel::toggleUnitTag,
+            onCreateTag = plannerViewModel::createUnitTag,
             onSave = plannerViewModel::saveUnit,
         )
     }
@@ -256,6 +260,8 @@ fun RangeworkApp(
             onUpdateItemFocusCue = plannerViewModel::updateSessionItemFocusCue,
             onMoveItem = plannerViewModel::moveSessionItem,
             onRemoveItem = plannerViewModel::removeSessionItem,
+            onToggleTag = plannerViewModel::toggleSessionTag,
+            onCreateTag = plannerViewModel::createSessionTag,
             onSave = plannerViewModel::saveSession,
         )
     }
@@ -269,6 +275,10 @@ fun RangeworkApp(
             onSetClubEnabled = settingsViewModel::setClubEnabled,
             onEnableCommonBag = settingsViewModel::enableCommonBag,
             onDisableAllClubs = settingsViewModel::disableAllClubs,
+            onRenameTag = settingsViewModel::renameCustomTag,
+            onDeleteTag = settingsViewModel::deleteCustomTag,
+            onLoadTagAttachmentCounts = settingsViewModel::loadAttachmentCounts,
+            onLoadTags = settingsViewModel::loadTags,
         )
     }
 
@@ -306,6 +316,10 @@ fun RangeworkApp(
                         onNavigateToRangeSession = { rangeSessionId ->
                             rootNavController.navigate(RangeworkRoutes.rangeSession(rangeSessionId))
                         },
+                        onToggleUnitTagFilter = plannerViewModel::toggleUnitTagFilter,
+                        onClearUnitTagFilter = plannerViewModel::clearUnitTagFilter,
+                        onToggleSessionTagFilter = plannerViewModel::toggleSessionTagFilter,
+                        onClearSessionTagFilter = plannerViewModel::clearSessionTagFilter,
                     )
                 }
                 composable(RangeworkRoutes.RangeSession) { backStackEntry ->
@@ -444,6 +458,10 @@ private fun AuthenticatedAppShell(
     onStartRangeSessionFromPicker: (String) -> Unit,
     onLoadRangeSessionHistory: (String) -> Unit,
     onNavigateToRangeSession: (String) -> Unit,
+    onToggleUnitTagFilter: (String) -> Unit,
+    onClearUnitTagFilter: () -> Unit,
+    onToggleSessionTagFilter: (String) -> Unit,
+    onClearSessionTagFilter: () -> Unit,
 ) {
     if (authUiState.authState !is AuthState.SignedIn) {
         Box(modifier = Modifier.fillMaxSize())
@@ -962,6 +980,8 @@ private fun AuthenticatedAppShell(
                             },
                             onDeleteUnit = unitActions.onDelete,
                             onDuplicateUnit = unitActions.onDuplicate,
+                            onToggleTagFilter = onToggleUnitTagFilter,
+                            onClearTagFilter = onClearUnitTagFilter,
                         )
                     }
                     composable(RangeworkRoutes.UnitCreate) {
@@ -991,6 +1011,8 @@ private fun AuthenticatedAppShell(
                             onMoveInstructionDown = unitActions.onMoveInstructionDown,
                             onMoveInstruction = unitActions.onMoveInstruction,
                             onRemoveInstruction = unitActions.onRemoveInstruction,
+                            onToggleTag = unitActions.onToggleTag,
+                            onCreateTag = unitActions.onCreateTag,
                         )
                     }
                     composable(RangeworkRoutes.UnitDetail) { backStackEntry ->
@@ -1039,6 +1061,8 @@ private fun AuthenticatedAppShell(
                             onMoveInstructionDown = unitActions.onMoveInstructionDown,
                             onMoveInstruction = unitActions.onMoveInstruction,
                             onRemoveInstruction = unitActions.onRemoveInstruction,
+                            onToggleTag = unitActions.onToggleTag,
+                            onCreateTag = unitActions.onCreateTag,
                         )
                     }
                     composable(RangeworkRoutes.Sessions) {
@@ -1058,6 +1082,8 @@ private fun AuthenticatedAppShell(
                             },
                             onDeleteSession = sessionActions.onDelete,
                             onDuplicateSession = sessionActions.onDuplicate,
+                            onToggleTagFilter = onToggleSessionTagFilter,
+                            onClearTagFilter = onClearSessionTagFilter,
                             onGoToUnits = {
                                 shellNavController.navigate(RangeworkRoutes.Units) {
                                     launchSingleTop = true
@@ -1099,6 +1125,8 @@ private fun AuthenticatedAppShell(
                                 unitActions.onBeginNew()
                                 shellNavController.navigate(RangeworkRoutes.UnitCreate)
                             },
+                            onToggleTag = sessionActions.onToggleTag,
+                            onCreateTag = sessionActions.onCreateTag,
                         )
                     }
                     composable(RangeworkRoutes.SessionDetail) { backStackEntry ->
@@ -1151,6 +1179,8 @@ private fun AuthenticatedAppShell(
                                 unitActions.onBeginNew()
                                 shellNavController.navigate(RangeworkRoutes.UnitCreate)
                             },
+                            onToggleTag = sessionActions.onToggleTag,
+                            onCreateTag = sessionActions.onCreateTag,
                         )
                     }
                     composable(RangeworkRoutes.Settings) {
@@ -1166,6 +1196,9 @@ private fun AuthenticatedAppShell(
                             },
                             onNavigateToManageClubs = {
                                 shellNavController.navigate(RangeworkRoutes.ManageClubs)
+                            },
+                            onNavigateToManageTags = {
+                                shellNavController.navigate(RangeworkRoutes.ManageTags)
                             },
                             onNavigateToDeleteAccount = {
                                 shellNavController.navigate(RangeworkRoutes.DeleteAccount)
@@ -1188,6 +1221,15 @@ private fun AuthenticatedAppShell(
                             onSetClubEnabled = settingsActions.onSetClubEnabled,
                             onEnableCommonBag = settingsActions.onEnableCommonBag,
                             onDisableAllClubs = settingsActions.onDisableAllClubs,
+                        )
+                    }
+                    composable(RangeworkRoutes.ManageTags) {
+                        LaunchedEffect(Unit) { settingsActions.onLoadTags() }
+                        ManageTagsScreen(
+                            settingsUiState = settingsUiState,
+                            onRenameTag = settingsActions.onRenameTag,
+                            onDeleteTag = settingsActions.onDeleteTag,
+                            onLoadAttachmentCounts = settingsActions.onLoadTagAttachmentCounts,
                         )
                     }
                     composable(RangeworkRoutes.DeleteAccount) { backStackEntry ->
@@ -1259,6 +1301,7 @@ internal fun titleForRoute(route: String): String = when {
     route == RangeworkRoutes.Settings -> "Settings"
     route == RangeworkRoutes.AiSessionPlans -> "AI Session Plans"
     route == RangeworkRoutes.ManageClubs -> "Club bag"
+    route == RangeworkRoutes.ManageTags -> "Tags"
     route == RangeworkRoutes.DeleteAccount -> "Delete account"
     route.startsWith("settings/legal/") -> when (route.removePrefix("settings/legal/")) {
         "privacy-policy" -> "Privacy Policy"

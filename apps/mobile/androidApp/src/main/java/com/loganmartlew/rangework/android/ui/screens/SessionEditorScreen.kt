@@ -46,6 +46,7 @@ import com.loganmartlew.rangework.android.ui.components.MoreOptionsExpander
 import com.loganmartlew.rangework.android.ui.components.NumberBadge
 import com.loganmartlew.rangework.android.ui.components.ReorderableItemRow
 import com.loganmartlew.rangework.android.ui.components.StickyTotalBar
+import com.loganmartlew.rangework.android.ui.components.TagPicker
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.PracticeUnit
@@ -70,6 +71,8 @@ internal fun SessionEditorScreen(
     onMoveSessionItem: (Int, Int) -> Unit,
     onRemoveSessionItem: (Int) -> Unit,
     onNavigateToCreateUnit: () -> Unit,
+    onToggleTag: (String) -> Unit,
+    onCreateTag: (String) -> Unit,
 ) {
     val editor = plannerUiState.sessionEditor
     val isWorking = plannerUiState.isWorking
@@ -150,6 +153,14 @@ internal fun SessionEditorScreen(
                             minLines = 3,
                         )
                     }
+
+                    TagPicker(
+                        availableTags = plannerUiState.availableTags,
+                        selectedTagIds = editor.tagIds,
+                        enabled = !isWorking,
+                        onToggle = onToggleTag,
+                        onCreate = onCreateTag,
+                    )
 
                     Text(
                         text = "SESSION ITEMS",

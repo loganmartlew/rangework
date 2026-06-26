@@ -4,7 +4,7 @@
 
 ## Schema overview
 
-Planning data centers on: `practice_units`, `practice_unit_instructions`, `practice_sessions`, `practice_session_items`, `user_preferences`, `clubs` (catalog), and `user_enabled_clubs`. Includes atomic save RPCs (`save_practice_unit`, `save_practice_session`).
+Planning data centers on: `practice_units`, `practice_unit_instructions`, `practice_sessions`, `practice_session_items`, `user_preferences`, `clubs` (catalog), and `user_enabled_clubs`. Tagging adds an owner-nullable `tags` table (NULL owner = Default Tag) plus `practice_unit_tags` / `practice_session_tags` join tables, the `slugify_tag` / `create_or_get_tag` / `count_tag_attachments` functions, and a `p_tag_ids uuid[]` parameter on the save RPCs. Includes atomic save RPCs (`save_practice_unit`, `save_practice_session`).
 
 ## Conventions
 

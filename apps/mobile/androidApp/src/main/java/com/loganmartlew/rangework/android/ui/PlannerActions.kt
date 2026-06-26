@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.android.ui
 import com.loganmartlew.rangework.android.ui.theme.ThemeMode
 import com.loganmartlew.rangework.shared.model.DistanceUnit
 import com.loganmartlew.rangework.shared.model.SpeedUnit
+import com.loganmartlew.rangework.shared.model.TagAttachmentCounts
 
 data class UnitEditorActions(
     val onBeginNew: () -> Unit,
@@ -23,6 +24,8 @@ data class UnitEditorActions(
     val onMoveInstructionDown: (Int) -> Unit,
     val onMoveInstruction: (Int, Int) -> Unit,
     val onRemoveInstruction: (Int) -> Unit,
+    val onToggleTag: (String) -> Unit,
+    val onCreateTag: (String) -> Unit,
     val onSave: () -> Unit,
 )
 
@@ -43,6 +46,8 @@ data class SessionEditorActions(
     val onUpdateItemFocusCue: (Int, String) -> Unit,
     val onMoveItem: (Int, Int) -> Unit,
     val onRemoveItem: (Int) -> Unit,
+    val onToggleTag: (String) -> Unit,
+    val onCreateTag: (String) -> Unit,
     val onSave: () -> Unit,
 )
 
@@ -54,4 +59,8 @@ data class SettingsActions(
     val onSetClubEnabled: (String, Boolean) -> Unit,
     val onEnableCommonBag: () -> Unit,
     val onDisableAllClubs: () -> Unit,
+    val onRenameTag: (String, String) -> Unit,
+    val onDeleteTag: (String) -> Unit,
+    val onLoadTagAttachmentCounts: (String, (TagAttachmentCounts) -> Unit) -> Unit,
+    val onLoadTags: () -> Unit,
 )

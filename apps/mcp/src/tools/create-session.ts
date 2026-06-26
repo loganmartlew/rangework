@@ -7,6 +7,7 @@ import {
   fetchAllClubCodes,
   validateClubCode,
 } from '../validation/club-codes.js';
+import { resolveTagCodes } from '../validation/tags.js';
 
 /**
  * Tool: `create_session`
@@ -78,6 +79,12 @@ export function registerCreateSessionTool(
           .optional()
           .describe(
             'Optional session-level notes (e.g. "Tournament prep — focus on short game").',
+          ),
+        tag_codes: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Optional existing tag codes describing the session's own goal (e.g. [\"short_game\"]). Set independently of the units' tags. Use codes from `list_tags`; unknown codes are rejected. At most 8.",
           ),
       },
     },
@@ -190,6 +197,18 @@ export function registerCreateSessionTool(
         }
       }
 
+      // Resolve tag codes to ids (rejects unknown codes; never creates tags)
+      let tagIds: string[] = [];
+      if (args.tag_codes && args.tag_codes.length > 0) {
+        const resolved = await resolveTagCodes(
+          ctx.supabaseClient,
+          args.tag_codes,
+          'tag_codes',
+        );
+        if ('error' in resolved) return resolved.error;
+        tagIds = resolved.ids;
+      }
+
       // Generate session ID
       const sessionId = crypto.randomUUID();
 
@@ -218,6 +237,7 @@ export function registerCreateSessionTool(
         p_name: name,
         p_notes: args.notes ?? null,
         p_items: itemsJsonb,
+        p_tag_ids: tagIds,
       });
 
       if (error) {

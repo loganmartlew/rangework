@@ -8,6 +8,7 @@ import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesReposi
 import com.loganmartlew.rangework.shared.repository.PracticeSessionRepository
 import com.loganmartlew.rangework.shared.repository.PracticeUnitRepository
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
+import com.loganmartlew.rangework.shared.repository.TagRepository
 import io.github.jan.supabase.SupabaseClient
 
 data class DataFoundation(
@@ -15,6 +16,7 @@ data class DataFoundation(
     val practiceSessionRepository: PracticeSessionRepository,
     val measurementPreferencesRepository: MeasurementPreferencesRepository,
     val clubRepository: ClubRepository,
+    val tagRepository: TagRepository,
     val rangeSessionRepository: RangeSessionRepository,
     val accountDeletionRepository: AccountDeletionRepository,
 )
@@ -39,6 +41,7 @@ fun createDataFoundation(client: SupabaseClient): DataFoundation = DataFoundatio
     practiceSessionRepository = SupabasePracticeSessionRepository(client),
     measurementPreferencesRepository = SupabaseMeasurementPreferencesRepository(client),
     clubRepository = SupabaseClubRepository(client),
+    tagRepository = SupabaseTagRepository(client),
     rangeSessionRepository = SupabaseRangeSessionRepository(client),
     accountDeletionRepository = SupabaseAccountDeletionRepository(client),
 )

@@ -34,6 +34,8 @@ fun PracticeUnitDraft.validationIssues(): List<ValidationIssue> {
         )
     }
 
+    issues += tagValidationIssues(tagIds)
+
     return issues
 }
 
@@ -61,6 +63,7 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
         notes = notes.normalizedOptionalText(),
         focus = focus.normalizedOptionalText(),
         defaultClubCode = defaultClubCode.normalizedOptionalText(),
+        tagIds = tagIds.normalizedTagIds(),
     )
 }
 
@@ -92,6 +95,8 @@ fun PracticeSessionDraft.validationIssues(): List<ValidationIssue> {
         )
     }
 
+    issues += tagValidationIssues(tagIds)
+
     return issues
 }
 
@@ -120,6 +125,7 @@ fun PracticeSessionDraft.validated(): PracticeSessionDraft {
         name = normalizedName,
         items = normalizedItems,
         notes = notes.normalizedOptionalText(),
+        tagIds = tagIds.normalizedTagIds(),
     )
 }
 
@@ -132,3 +138,20 @@ fun MeasurementPreferences.validated(): MeasurementPreferences = when (unitSyste
 private fun String?.normalizedOptionalText(): String? = this
     ?.trim()
     ?.takeIf(String::isNotEmpty)
+
+/** De-duplicated, order-preserving tag ids with blanks removed. */
+private fun List<String>.normalizedTagIds(): List<String> = this
+    .mapNotNull { it.trim().takeIf(String::isNotEmpty) }
+    .distinct()
+
+private fun tagValidationIssues(tagIds: List<String>): List<ValidationIssue> {
+    if (tagIds.normalizedTagIds().size > MAX_TAGS_PER_ITEM) {
+        return listOf(
+            ValidationIssue(
+                field = "tags",
+                message = "At most $MAX_TAGS_PER_ITEM tags can be attached.",
+            ),
+        )
+    }
+    return emptyList()
+}

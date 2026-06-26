@@ -4,6 +4,7 @@ import com.loganmartlew.rangework.shared.model.PracticeInstruction
 import com.loganmartlew.rangework.shared.model.PracticeInstructionDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
+import com.loganmartlew.rangework.shared.model.Tag
 import com.loganmartlew.rangework.shared.model.validated
 
 abstract class PracticeUnitRepository {
@@ -25,6 +26,7 @@ abstract class PracticeUnitRepository {
                         ballCount = instruction.ballCount,
                     )
                 },
+                tagIds = unit.tags.map(Tag::id),
             ),
             null,
         )

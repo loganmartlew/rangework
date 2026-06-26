@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.shared.repository
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSessionItemDraft
+import com.loganmartlew.rangework.shared.model.Tag
 import com.loganmartlew.rangework.shared.model.validated
 
 abstract class PracticeSessionRepository {
@@ -25,6 +26,7 @@ abstract class PracticeSessionRepository {
                         focusCue = item.focusCue,
                     )
                 },
+                tagIds = session.tags.map(Tag::id),
             ),
             null,
         )

@@ -37,6 +37,7 @@ import com.loganmartlew.rangework.android.ui.components.DockedSaveBar
 import com.loganmartlew.rangework.android.ui.components.MoreOptionsExpander
 import com.loganmartlew.rangework.android.ui.components.NumberBadge
 import com.loganmartlew.rangework.android.ui.components.ReorderableItemRow
+import com.loganmartlew.rangework.android.ui.components.TagPicker
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -58,6 +59,8 @@ internal fun UnitEditorScreen(
     onMoveInstructionDown: (Int) -> Unit,
     onMoveInstruction: (Int, Int) -> Unit,
     onRemoveInstruction: (Int) -> Unit,
+    onToggleTag: (String) -> Unit,
+    onCreateTag: (String) -> Unit,
 ) {
     val editor = plannerUiState.unitEditor
     val isWorking = plannerUiState.isWorking
@@ -67,7 +70,8 @@ internal fun UnitEditorScreen(
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        val headerCount = 4
+        // Header items before the instruction list: title, notes/focus, club, tags, INSTRUCTIONS label.
+        val headerCount = 5
         onMoveInstruction(from.index - headerCount, to.index - headerCount)
     }
 
@@ -136,6 +140,16 @@ internal fun UnitEditorScreen(
                     enabledClubCodes = plannerUiState.enabledClubCodes,
                     enabled = !isWorking,
                     onSelect = onUpdateDefaultClubCode,
+                )
+            }
+
+            item {
+                TagPicker(
+                    availableTags = plannerUiState.availableTags,
+                    selectedTagIds = editor.tagIds,
+                    enabled = !isWorking,
+                    onToggle = onToggleTag,
+                    onCreate = onCreateTag,
                 )
             }
 

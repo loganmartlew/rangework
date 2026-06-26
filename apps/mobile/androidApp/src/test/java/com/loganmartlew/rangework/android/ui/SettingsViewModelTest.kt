@@ -246,10 +246,12 @@ class SettingsViewModelTest {
     private fun createViewModel(
         repo: FakeMeasurementPreferencesRepository = FakeMeasurementPreferencesRepository(),
         clubRepo: FakeClubRepository = FakeClubRepository(),
+        tagRepo: com.loganmartlew.rangework.shared.repository.TagRepository = FakeTagRepository(),
         themePreferenceStore: FakeThemePreferenceStore = FakeThemePreferenceStore(),
     ): SettingsViewModel = SettingsViewModel(
         measurementPreferencesRepository = repo,
         clubRepository = clubRepo,
+        tagRepository = tagRepo,
         themePreferenceStore = themePreferenceStore,
     )
 
@@ -265,6 +267,17 @@ private class FakeClubRepository(
     override suspend fun setClubEnabled(code: String, enabled: Boolean) {
         if (enabled) enabledCodes.add(code) else enabledCodes.remove(code)
     }
+}
+
+private class FakeTagRepository : com.loganmartlew.rangework.shared.repository.TagRepository {
+    override suspend fun list() = emptyList<com.loganmartlew.rangework.shared.model.Tag>()
+    override suspend fun createOrGet(name: String) =
+        com.loganmartlew.rangework.shared.model.Tag("tag-$name", name.lowercase(), name, false)
+    override suspend fun rename(tagId: String, newName: String) =
+        com.loganmartlew.rangework.shared.model.Tag(tagId, newName.lowercase(), newName, false)
+    override suspend fun delete(tagId: String) = Unit
+    override suspend fun attachmentCounts(tagId: String) =
+        com.loganmartlew.rangework.shared.model.TagAttachmentCounts(0, 0)
 }
 
 private fun sampleClub(code: String) = Club(

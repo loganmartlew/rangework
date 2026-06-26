@@ -7,6 +7,7 @@ import {
   fetchAllClubCodes,
   validateClubCode,
 } from '../validation/club-codes.js';
+import { resolveTagCodes } from '../validation/tags.js';
 
 /**
  * Tool: `create_unit`
@@ -69,6 +70,12 @@ export function registerCreateUnitTool(
           .optional()
           .describe(
             'Optional default club for this drill. Use the `code` from `get_user_clubs`.',
+          ),
+        tag_codes: z
+          .array(z.string())
+          .optional()
+          .describe(
+            'Optional existing tag codes to classify this drill (e.g. ["putting", "short_game"]). Use codes from `list_tags`. Unknown codes are rejected — mint a tag with `create_tag` first. At most 8.',
           ),
       },
     },
@@ -167,6 +174,18 @@ export function registerCreateUnitTool(
         if (clubError) return clubError;
       }
 
+      // Resolve tag codes to ids (rejects unknown codes; never creates tags)
+      let tagIds: string[] = [];
+      if (args.tag_codes && args.tag_codes.length > 0) {
+        const resolved = await resolveTagCodes(
+          ctx.supabaseClient,
+          args.tag_codes,
+          'tag_codes',
+        );
+        if ('error' in resolved) return resolved.error;
+        tagIds = resolved.ids;
+      }
+
       // Generate unit ID
       const unitId = crypto.randomUUID();
 
@@ -190,6 +209,7 @@ export function registerCreateUnitTool(
         p_focus: args.focus ?? null,
         p_default_club_code: args.default_club_code ?? null,
         p_instructions: instructionsJsonb,
+        p_tag_ids: tagIds,
       });
 
       if (error) {

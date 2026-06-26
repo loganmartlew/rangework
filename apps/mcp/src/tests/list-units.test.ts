@@ -53,7 +53,10 @@ describe('list_units tool', () => {
           };
         }
         return {
-          select: () => ({ order: async () => ({ data: [], error: null }) }),
+          select: () => ({
+            order: async () => ({ data: [], error: null }),
+            in: async () => ({ data: [], error: null }),
+          }),
         };
       },
     } as unknown as UserContext['supabaseClient'];
@@ -143,7 +146,10 @@ describe('list_units tool', () => {
           };
         }
         return {
-          select: () => ({ order: async () => ({ data: [], error: null }) }),
+          select: () => ({
+            order: async () => ({ data: [], error: null }),
+            in: async () => ({ data: [], error: null }),
+          }),
         };
       },
     } as unknown as UserContext['supabaseClient'];
