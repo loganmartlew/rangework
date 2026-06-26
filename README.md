@@ -42,6 +42,29 @@ cd apps/mobile
 
 The baseline GitHub Actions workflow lives in `.github/workflows/android.yml`. It installs pnpm dependencies, builds shared tokens, and runs the shared and Android unit-test plus debug assembly path shown above for pull requests, pushes to `main`, and manual dispatches. Release builds are validated by the separate manual release workflow.
 
+## Releasing to Google Play
+
+Releases are cut by manually dispatching the **Release** workflow (`.github/workflows/release.yml`) from GitHub Actions. It builds a signed AAB and APK, attaches both to a GitHub Release, and uploads the AAB to Google Play.
+
+Dispatch inputs:
+
+| Input     | Description                                                        |
+| --------- | ----------------------------------------------------------------- |
+| `version` | Semver to release (e.g. `1.0.0`). Drives the tag and `versionCode`. |
+| `track`   | Google Play track: `internal` (default), `closed`, or `production`. |
+
+`versionCode` is derived as `MAJOR*10000 + MINOR*100 + PATCH`, so bump `version` each release — Play rejects duplicate version codes. The APK is built and attached to the GitHub Release for debugging only; Play receives the AAB.
+
+GitHub secrets required (in addition to the signing/Supabase secrets the build already uses):
+
+| Secret                     | Where to get it                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------ |
+| `PLAY_SERVICE_ACCOUNT_JSON` | Google Cloud → Service Accounts → JSON key, with the Google Play Android Developer API enabled and the account invited in Play Console → Users and permissions (Release to testing tracks). |
+
+First-time setup: the Google Play Publishing API cannot create the first release on a new app, so the **first AAB must be uploaded manually** through the Play Console UI (Internal testing). After that, the workflow publishes automatically on the chosen track.
+
+Testing-track flow for new personal developer accounts: start on **internal testing** to validate the pipeline, then move to **closed testing** with the required number of testers opted in for 14 continuous days (check the exact count in Play Console) before applying for **production** access.
+
 ## Auth config
 
 Provide these values through your user-level `~/.gradle/gradle.properties` file or environment variables so they stay out of source control:
