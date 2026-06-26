@@ -41,6 +41,12 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check committed Play Store icon is in sync
+        run: |
+          pnpm --filter @rangework/design build
+          cmp packages/design/generated/brand/play-icon-512.png business-docs/stores/rangework_play_icon_512.png \
+            || { echo "::error::business-docs/stores/rangework_play_icon_512.png is stale — regenerate with 'pnpm --filter @rangework/design build' and copy packages/design/generated/brand/play-icon-512.png over it"; exit 1; }
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:

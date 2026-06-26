@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     "./tailwind-theme.css": "./dist/web/tailwind-theme.css",
-    "./fonts.css": "./dist/web/fonts.css"
+    "./fonts.css": "./dist/web/fonts.css",
+    "./brand/logo.svg": "./generated/brand/logo.svg"
   },
   "scripts": {
     "build": "node ./scripts/build.mjs"
