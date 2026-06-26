@@ -10,6 +10,9 @@
     "build": "node ./scripts/build.mjs"
   },
   "devDependencies": {
-    "style-dictionary": "^4.3.3"
+    "@resvg/resvg-js": "^2.6.2",
+    "png-to-ico": "^2.1.8",
+    "style-dictionary": "^4.3.3",
+    "svgson": "^5.3.1"
   }
 }
