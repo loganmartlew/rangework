@@ -8,8 +8,8 @@ supabase/.env
 node_modules/
 .pnpm-store/
 .turbo/
-packages/ui-tokens/dist/
-packages/ui-tokens/generated/
+packages/design/dist/
+packages/design/generated/
 **/build/
 captures/
 *.jks
