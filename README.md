@@ -77,6 +77,20 @@ Provide these values through your user-level `~/.gradle/gradle.properties` file 
 
 The repo-level Supabase CLI scaffold lives in `supabase/config.toml`. Keep the Google provider `client_id` aligned with `rangeworkGoogleWebClientId`, and inject the real provider secret through your Supabase project or local CLI config rather than source control.
 
+### Android OAuth clients (signing-certificate registration)
+
+Credential Manager's "Sign in with Google" only issues an ID token when the calling app's **package name + signing-certificate SHA-1** is registered as an **Android OAuth 2.0 client** in the *same* Google Cloud project as `rangeworkGoogleWebClientId`. The web client ID alone is not enough — if the SHA-1 isn't registered, the account picker still appears but no credential is returned and sign-in silently fails.
+
+Because the install path determines which key signs the app, register a SHA-1 for **each** path you distribute through (Google Cloud Console → APIs & Services → Credentials → OAuth client ID → Android, package `com.loganmartlew.rangework.android`):
+
+| Install path                          | Signing key                     | Where to get the SHA-1                                                                 |
+| ------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------- |
+| Android Studio / `adb` debug install  | Local debug keystore            | `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey` (pw `android`) |
+| Google Play (any track, incl. internal) | **Play App Signing** key      | Play Console → app → Test and release → Setup → App integrity → **App signing key certificate** |
+| Sideloaded release `.apk` from a GitHub Release | Upload key (the CI keystore) | Play Console → same **App integrity** page → **Upload key certificate**                |
+
+> The most common production-only failure ("works over adb, won't sign in from Play internal testing") is a missing **App signing key** SHA-1 — Play re-signs the uploaded AAB with a key whose fingerprint differs from your upload/debug keys.
+
 ## Local development with Supabase
 
 ### Prerequisites
