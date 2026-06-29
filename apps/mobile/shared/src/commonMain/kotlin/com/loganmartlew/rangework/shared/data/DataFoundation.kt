@@ -2,17 +2,16 @@ package com.loganmartlew.rangework.shared.data
 
 import com.loganmartlew.rangework.shared.auth.AuthFoundation
 import com.loganmartlew.rangework.shared.auth.createAuthFoundation
+import com.loganmartlew.rangework.shared.library.DefaultPracticeLibrary
+import com.loganmartlew.rangework.shared.library.PracticeLibrary
 import com.loganmartlew.rangework.shared.repository.AccountDeletionRepository
 import com.loganmartlew.rangework.shared.repository.ClubRepository
 import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
-import com.loganmartlew.rangework.shared.repository.PracticeSessionRepository
-import com.loganmartlew.rangework.shared.repository.PracticeUnitRepository
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
 import io.github.jan.supabase.SupabaseClient
 
 data class DataFoundation(
-    val practiceUnitRepository: PracticeUnitRepository,
-    val practiceSessionRepository: PracticeSessionRepository,
+    val practiceLibrary: PracticeLibrary,
     val measurementPreferencesRepository: MeasurementPreferencesRepository,
     val clubRepository: ClubRepository,
     val rangeSessionRepository: RangeSessionRepository,
@@ -34,14 +33,17 @@ fun createDataFoundation(config: SupabaseEndpointConfig): DataFoundation? {
     )
 }
 
-fun createDataFoundation(client: SupabaseClient): DataFoundation = DataFoundation(
-    practiceUnitRepository = SupabasePracticeUnitRepository(client),
-    practiceSessionRepository = SupabasePracticeSessionRepository(client),
-    measurementPreferencesRepository = SupabaseMeasurementPreferencesRepository(client),
-    clubRepository = SupabaseClubRepository(client),
-    rangeSessionRepository = SupabaseRangeSessionRepository(client),
-    accountDeletionRepository = SupabaseAccountDeletionRepository(client),
-)
+fun createDataFoundation(client: SupabaseClient): DataFoundation {
+    val unitRepository = SupabasePracticeUnitRepository(client)
+    val sessionRepository = SupabasePracticeSessionRepository(client)
+    return DataFoundation(
+        practiceLibrary = DefaultPracticeLibrary(unitRepository, sessionRepository),
+        measurementPreferencesRepository = SupabaseMeasurementPreferencesRepository(client),
+        clubRepository = SupabaseClubRepository(client),
+        rangeSessionRepository = SupabaseRangeSessionRepository(client),
+        accountDeletionRepository = SupabaseAccountDeletionRepository(client),
+    )
+}
 
 fun createRangeworkFoundation(config: SupabaseEndpointConfig): RangeworkFoundation? {
     if (!config.isConfigured) {

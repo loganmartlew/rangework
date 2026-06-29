@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.android.ui
 import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.config.baselineEnvironment
 import com.loganmartlew.rangework.shared.data.DataFoundation
+import com.loganmartlew.rangework.shared.library.DefaultPracticeLibrary
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
 import com.loganmartlew.rangework.shared.model.PracticeSession
@@ -698,7 +699,7 @@ private class FakePlannerRepositories(
     var listUnitsCallCount = 0
     var listSessionsCallCount = 0
 
-    val practiceUnitRepository: PracticeUnitRepository = object : PracticeUnitRepository() {
+    val unitRepository: PracticeUnitRepository = object : PracticeUnitRepository() {
         override suspend fun list(): List<PracticeUnit> {
             listUnitsCallCount += 1
             if (listDelayMs > 0) delay(listDelayMs)
@@ -739,7 +740,7 @@ private class FakePlannerRepositories(
         }
     }
 
-    val practiceSessionRepository: PracticeSessionRepository = object : PracticeSessionRepository() {
+    val sessionRepository: PracticeSessionRepository = object : PracticeSessionRepository() {
         override suspend fun list(): List<PracticeSession> {
             listSessionsCallCount += 1
             if (listDelayMs > 0) delay(listDelayMs)
@@ -778,6 +779,8 @@ private class FakePlannerRepositories(
         }
     }
 
+    val practiceLibrary = DefaultPracticeLibrary(unitRepository, sessionRepository)
+
     val clubRepository: ClubRepository = object : ClubRepository {
         override suspend fun listCatalog() = emptyList<com.loganmartlew.rangework.shared.model.Club>()
         override suspend fun getEnabledClubCodes() = emptySet<String>()
@@ -790,8 +793,7 @@ private class FakePlannerRepositories(
             override suspend fun persist(validated: MeasurementPreferences) = validated
         }
         return DataFoundation(
-            practiceUnitRepository = practiceUnitRepository,
-            practiceSessionRepository = practiceSessionRepository,
+            practiceLibrary = practiceLibrary,
             measurementPreferencesRepository = stubMeasurementPreferencesRepository,
             clubRepository = clubRepository,
             rangeSessionRepository = StubRangeSessionRepository(),

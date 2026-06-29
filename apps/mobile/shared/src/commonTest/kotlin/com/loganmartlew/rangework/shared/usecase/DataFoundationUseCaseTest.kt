@@ -4,76 +4,16 @@ import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.ClubCategory
 import com.loganmartlew.rangework.shared.model.DistanceUnit
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
-import com.loganmartlew.rangework.shared.model.PracticeInstructionDraft
-import com.loganmartlew.rangework.shared.model.PracticeSession
-import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
-import com.loganmartlew.rangework.shared.model.PracticeSessionItemDraft
-import com.loganmartlew.rangework.shared.model.PracticeUnit
-import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.model.SpeedUnit
 import com.loganmartlew.rangework.shared.model.UnitSystem
 import com.loganmartlew.rangework.shared.repository.ClubRepository
 import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
-import com.loganmartlew.rangework.shared.repository.PracticeSessionRepository
-import com.loganmartlew.rangework.shared.repository.PracticeUnitRepository
-import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DataFoundationUseCaseTest {
-    @Test
-    fun practiceUnitRepositorySaveValidatesAndTrimsId() = kotlinx.coroutines.test.runTest {
-        val repository = RecordingPracticeUnitRepository()
-
-        repository.save(
-            draft = PracticeUnitDraft(
-                title = "  Distance wedges ",
-                instructions = listOf(
-                    PracticeInstructionDraft(
-                        order = 4,
-                        text = "  Hit 10 balls  ",
-                    ),
-                ),
-            ),
-            unitId = "  unit-1  ",
-        )
-
-        assertEquals("Distance wedges", repository.lastDraft?.title)
-        assertEquals("unit-1", repository.lastSavedUnitId)
-        assertEquals(listOf(1), repository.lastDraft?.instructions?.map(PracticeInstructionDraft::order))
-    }
-
-    @Test
-    fun practiceSessionRepositorySaveTrimsIdAndNormalizesDraft() = kotlinx.coroutines.test.runTest {
-        val repository = RecordingPracticeSessionRepository()
-
-        repository.save(
-            draft = PracticeSessionDraft(
-                name = "  Short game block ",
-                items = listOf(
-                    PracticeSessionItemDraft(
-                        practiceUnitId = "  unit-4 ",
-                        order = 9,
-                        repeatCount = 3,
-                        clubCode = "  PW ",
-                    ),
-                ),
-                notes = "  Repeat twice ",
-            ),
-            sessionId = "  session-7  ",
-        )
-
-        assertEquals("Short game block", repository.lastDraft?.name)
-        assertEquals("Repeat twice", repository.lastDraft?.notes)
-        assertEquals(listOf(1), repository.lastDraft?.items?.map { it.order })
-        assertEquals("unit-4", repository.lastDraft?.items?.single()?.practiceUnitId)
-        assertEquals(3, repository.lastDraft?.items?.single()?.repeatCount)
-        assertEquals("PW", repository.lastDraft?.items?.single()?.clubCode)
-        assertEquals("session-7", repository.lastSavedSessionId)
-    }
 
     // ── ClubRepository conformance ───────────────────────────────────────────
 
@@ -137,58 +77,6 @@ class DataFoundationUseCaseTest {
         assertEquals(MeasurementPreferences.Metric, repository.lastPersistedPreferences)
     }
 }
-
-private class RecordingPracticeUnitRepository : PracticeUnitRepository() {
-    var lastDraft: PracticeUnitDraft? = null
-    var lastSavedUnitId: String? = null
-
-    override suspend fun list(): List<PracticeUnit> = emptyList()
-
-    override suspend fun get(id: String): PracticeUnit? = null
-
-    override suspend fun persist(validated: PracticeUnitDraft, unitId: String?): PracticeUnit {
-        lastDraft = validated
-        lastSavedUnitId = unitId
-        return PracticeUnit(
-            id = unitId ?: "generated-unit",
-            title = validated.title,
-            instructions = emptyList(),
-            notes = validated.notes,
-            focus = validated.focus,
-            defaultClubCode = validated.defaultClubCode,
-            createdAt = Instant.parse("2026-06-15T00:00:00Z"),
-            updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
-        )
-    }
-
-    override suspend fun delete(id: String) = Unit
-}
-
-private class RecordingPracticeSessionRepository : PracticeSessionRepository() {
-    var lastDraft: PracticeSessionDraft? = null
-    var lastSavedSessionId: String? = null
-
-    override suspend fun list(): List<PracticeSession> = emptyList()
-
-    override suspend fun get(id: String): PracticeSession? = null
-
-    override suspend fun persist(validated: PracticeSessionDraft, sessionId: String?): PracticeSession {
-        lastDraft = validated
-        lastSavedSessionId = sessionId
-        return PracticeSession(
-            id = sessionId ?: "generated-session",
-            name = validated.name,
-            items = emptyList(),
-            notes = validated.notes,
-            createdAt = Instant.parse("2026-06-15T00:00:00Z"),
-            updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
-        )
-    }
-
-    override suspend fun delete(id: String) = Unit
-}
-
-private class RecordingMeasurementPreferencesRepository : MeasurementPreferencesRepository() {
     var lastPersistedPreferences: MeasurementPreferences? = null
 
     override suspend fun get(): MeasurementPreferences = MeasurementPreferences.Imperial

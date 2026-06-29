@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.config.AppEnvironment
 import com.loganmartlew.rangework.shared.data.DataFoundation
+import com.loganmartlew.rangework.shared.library.PracticeLibraryResult
 import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.CompletedRangeSessionSummary
@@ -23,7 +24,6 @@ import com.loganmartlew.rangework.shared.model.RecentItem
 import com.loganmartlew.rangework.shared.model.ValidationIssue
 import com.loganmartlew.rangework.shared.model.recentItems
 import com.loganmartlew.rangework.shared.model.resolveNextMoveState
-import com.loganmartlew.rangework.shared.model.validationIssues
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -328,7 +328,8 @@ class PracticePlannerViewModel(
 
         val editor = _uiState.value.unitEditor
         val draft = editor.toDraft()
-        val issues = draft.validationIssues()
+        val library = foundation.practiceLibrary
+        val issues = library.validateUnit(draft)
 
         if (issues.isNotEmpty()) {
             _uiState.value = _uiState.value.copy(
@@ -362,20 +363,33 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.practiceUnitRepository.save(
-                        draft = draft,
-                        unitId = resolvedUnitId,
-                    )
-                    val units = foundation.practiceUnitRepository.list()
-                    val sessions = foundation.practiceSessionRepository.list()
-                    if (token == operationToken) {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            units = units,
-                            sessions = sessions,
-                            unitEditor = _uiState.value.unitEditor.resolveWith(units),
-                            sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
-                        )
+                    when (val result = library.saveUnit(draft = draft, unitId = resolvedUnitId)) {
+                        is PracticeLibraryResult.Saved -> {
+                            val units = library.listUnits()
+                            val sessions = library.listSessions()
+                            if (token == operationToken) {
+                                _uiState.value = _uiState.value.copy(
+                                    isLoading = false,
+                                    units = units,
+                                    sessions = sessions,
+                                    unitEditor = _uiState.value.unitEditor.resolveWith(units),
+                                    sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
+                                )
+                            }
+                        }
+                        is PracticeLibraryResult.Invalid -> {
+                            if (token == operationToken) {
+                                _uiState.value = _uiState.value.copy(
+                                    units = previousUnits,
+                                    sessions = previousSessions,
+                                    unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
+                                    sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
+                                    status = PlannerStatus.Notification(
+                                        result.issues.joinToString(" ") { it.message },
+                                    ),
+                                )
+                            }
+                        }
                     }
                 } catch (exception: Exception) {
                     if (token == operationToken) {
@@ -417,12 +431,13 @@ class PracticePlannerViewModel(
         )
 
         val token = ++operationToken
+        val library = foundation.practiceLibrary
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.practiceUnitRepository.delete(unitId)
-                    val units = foundation.practiceUnitRepository.list()
-                    val sessions = foundation.practiceSessionRepository.list()
+                    library.deleteUnit(unitId)
+                    val units = library.listUnits()
+                    val sessions = library.listSessions()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -557,7 +572,8 @@ class PracticePlannerViewModel(
         }
 
         val draft = editor.toDraft()
-        val issues = draft.validationIssues()
+        val library = foundation.practiceLibrary
+        val issues = library.validateSession(draft)
 
         if (issues.isNotEmpty()) {
             _uiState.value = _uiState.value.copy(
@@ -591,20 +607,33 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.practiceSessionRepository.save(
-                        draft = draft,
-                        sessionId = resolvedSessionId,
-                    )
-                    val units = foundation.practiceUnitRepository.list()
-                    val sessions = foundation.practiceSessionRepository.list()
-                    if (token == operationToken) {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            units = units,
-                            sessions = sessions,
-                            unitEditor = _uiState.value.unitEditor.resolveWith(units),
-                            sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
-                        )
+                    when (val result = library.saveSession(draft = draft, sessionId = resolvedSessionId)) {
+                        is PracticeLibraryResult.Saved -> {
+                            val units = library.listUnits()
+                            val sessions = library.listSessions()
+                            if (token == operationToken) {
+                                _uiState.value = _uiState.value.copy(
+                                    isLoading = false,
+                                    units = units,
+                                    sessions = sessions,
+                                    unitEditor = _uiState.value.unitEditor.resolveWith(units),
+                                    sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
+                                )
+                            }
+                        }
+                        is PracticeLibraryResult.Invalid -> {
+                            if (token == operationToken) {
+                                _uiState.value = _uiState.value.copy(
+                                    units = previousUnits,
+                                    sessions = previousSessions,
+                                    unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
+                                    sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
+                                    status = PlannerStatus.Notification(
+                                        result.issues.joinToString(" ") { it.message },
+                                    ),
+                                )
+                            }
+                        }
                     }
                 } catch (exception: Exception) {
                     if (token == operationToken) {
@@ -646,12 +675,13 @@ class PracticePlannerViewModel(
         )
 
         val token = ++operationToken
+        val library = foundation.practiceLibrary
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.practiceSessionRepository.delete(sessionId)
-                    val units = foundation.practiceUnitRepository.list()
-                    val sessions = foundation.practiceSessionRepository.list()
+                    library.deleteSession(sessionId)
+                    val units = library.listUnits()
+                    val sessions = library.listSessions()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -683,11 +713,12 @@ class PracticePlannerViewModel(
             return
         }
 
+        val library = foundation.practiceLibrary
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, duplicatedUnitId = null)
             try {
-                val duplicated = foundation.practiceUnitRepository.duplicate(unitId)
-                val units = foundation.practiceUnitRepository.list()
+                val duplicated = library.duplicateUnit(unitId)
+                val units = library.listUnits()
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isSaving = false,
@@ -712,11 +743,12 @@ class PracticePlannerViewModel(
             return
         }
 
+        val library = foundation.practiceLibrary
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, duplicatedSessionId = null)
             try {
-                val duplicated = foundation.practiceSessionRepository.duplicate(sessionId)
-                val sessions = foundation.practiceSessionRepository.list()
+                val duplicated = library.duplicateSession(sessionId)
+                val sessions = library.listSessions()
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isSaving = false,
@@ -737,18 +769,12 @@ class PracticePlannerViewModel(
     fun restoreUnit(unit: PracticeUnit) {
         val foundation = dataFoundation ?: return markPlannerUnavailable()
         if (activeUserId == null) { markSignedOut(); return }
+        val library = foundation.practiceLibrary
         viewModelScope.launch {
             try {
-                val draft = PracticeUnitDraft(
-                    title = unit.title,
-                    notes = unit.notes,
-                    focus = unit.focus,
-                    defaultClubCode = unit.defaultClubCode,
-                    instructions = unit.instructions.map { PracticeInstructionDraft(it.order, it.text, it.ballCount) },
-                )
-                foundation.practiceUnitRepository.save(draft, unitId = unit.id)
-                val units = foundation.practiceUnitRepository.list()
-                val sessions = foundation.practiceSessionRepository.list()
+                library.restoreUnit(unit)
+                val units = library.listUnits()
+                val sessions = library.listSessions()
                 _uiState.value = _uiState.value.copy(
                     units = units,
                     sessions = sessions,
@@ -763,25 +789,12 @@ class PracticePlannerViewModel(
     fun restoreSession(session: PracticeSession) {
         val foundation = dataFoundation ?: return markPlannerUnavailable()
         if (activeUserId == null) { markSignedOut(); return }
+        val library = foundation.practiceLibrary
         viewModelScope.launch {
             try {
-                val draft = PracticeSessionDraft(
-                    name = session.name,
-                    notes = session.notes,
-                    items = session.items.map { item ->
-                        PracticeSessionItemDraft(
-                            practiceUnitId = item.practiceUnitId,
-                            order = item.order,
-                            repeatCount = item.repeatCount,
-                            clubCode = item.clubCode,
-                            notes = item.notes,
-                            focusCue = item.focusCue,
-                        )
-                    },
-                )
-                foundation.practiceSessionRepository.save(draft, sessionId = session.id)
-                val units = foundation.practiceUnitRepository.list()
-                val sessions = foundation.practiceSessionRepository.list()
+                library.restoreSession(session)
+                val units = library.listUnits()
+                val sessions = library.listSessions()
                 _uiState.value = _uiState.value.copy(
                     units = units,
                     sessions = sessions,
@@ -843,11 +856,12 @@ class PracticePlannerViewModel(
         _uiState.value = _uiState.value.copy(isLoading = true)
 
         val token = ++operationToken
+        val library = foundation.practiceLibrary
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    val units = foundation.practiceUnitRepository.list()
-                    val sessions = foundation.practiceSessionRepository.list()
+                    val units = library.listUnits()
+                    val sessions = library.listSessions()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
