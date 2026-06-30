@@ -87,14 +87,14 @@ class PracticeLibraryTest {
     }
 
     @Test
-    fun saveUnitReturnsInvalidOnZeroBallCount() = kotlinx.coroutines.test.runTest {
+    fun saveUnitReturnsInvalidOnNegativeBallCount() = kotlinx.coroutines.test.runTest {
         val (library, _) = createLibrary()
 
         val result = library.saveUnit(
             draft = PracticeUnitDraft(
                 title = "My drill",
                 instructions = listOf(
-                    PracticeInstructionDraft(order = 1, text = "Hit", ballCount = 0),
+                    PracticeInstructionDraft(order = 1, text = "Hit", ballCount = -1),
                 ),
             ),
         )
@@ -102,6 +102,25 @@ class PracticeLibraryTest {
         assertIs<PracticeLibraryResult.Invalid>(result)
         val invalid = result as PracticeLibraryResult.Invalid
         assertTrue(invalid.issues.any { it.field == "instructions[0].ballCount" })
+    }
+
+    @Test
+    fun saveUnitPersistsZeroBallCount() = kotlinx.coroutines.test.runTest {
+        val (library, unitRepo) = createLibrary()
+
+        val result = library.saveUnit(
+            draft = PracticeUnitDraft(
+                title = "Feel work",
+                instructions = listOf(
+                    PracticeInstructionDraft(order = 1, text = "Five practice swings", ballCount = 0),
+                ),
+            ),
+        )
+
+        assertIs<PracticeLibraryResult.Saved<*>>(result)
+        val saved = (result as PracticeLibraryResult.Saved).value
+        assertEquals(0, saved.instructions.single().ballCount)
+        assertEquals(0, unitRepo.drafts.single().instructions.single().ballCount)
     }
 
     @Test

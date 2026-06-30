@@ -143,7 +143,7 @@ object PracticeDraftEditor {
             if (value < 0) {
                 issues += ValidationIssue(
                     target = ValidationTarget.InstructionBallCount(index),
-                    message = "Ball count must be a positive number.",
+                    message = "Ball count cannot be negative.",
                 )
                 return@let null
             }
