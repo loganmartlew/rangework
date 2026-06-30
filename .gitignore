@@ -20,3 +20,5 @@ supabase/.temp/
 supabase/.branches/
 
 .claude/skills
+.claude/worktrees
+.worktrees
