@@ -34,7 +34,6 @@ class SupabasePracticeUnitRepository(
         val instructionRows = client.postgrest[PRACTICE_UNIT_INSTRUCTIONS_TABLE]
             .select()
             .decodeList<PracticeUnitInstructionRow>()
-            .groupBy(PracticeUnitInstructionRow::practiceUnitId)
 
         val tagsById = client.loadVisibleTagsById()
         val tagsByUnit = client.postgrest[PRACTICE_UNIT_TAGS_TABLE]
@@ -42,14 +41,23 @@ class SupabasePracticeUnitRepository(
             .decodeList<PracticeUnitTagRow>()
             .groupBy(PracticeUnitTagRow::practiceUnitId)
 
-        return unitRows
-            .map { row ->
+        return assembleParentsWithChildren(
+            parents = unitRows,
+            children = instructionRows,
+            parentId = PracticeUnitRow::id,
+            childParentId = PracticeUnitInstructionRow::practiceUnitId,
+            childOrder = PracticeUnitInstructionRow::sortOrder,
+            toModel = { row, instructions ->
                 row.toModel(
-                    instructions = instructionRows[row.id].orEmpty(),
-                    tags = resolveTags(tagsByUnit[row.id].orEmpty().map(PracticeUnitTagRow::tagId), tagsById),
+                    instructions = instructions,
+                    tags = resolveTags(
+                        tagsByUnit[row.id].orEmpty().map(PracticeUnitTagRow::tagId),
+                        tagsById,
+                    ),
                 )
-            }
-            .sortedByDescending(PracticeUnit::updatedAt)
+            },
+            modelSort = PracticeUnit::updatedAt,
+        )
     }
 
     override suspend fun get(id: String): PracticeUnit? {
@@ -81,7 +89,12 @@ class SupabasePracticeUnitRepository(
             .map(PracticeUnitTagRow::tagId)
         val tags = resolveTags(tagIds, client.loadVisibleTagsById())
 
-        return unitRow.toModel(instructionRows, tags)
+        return assembleParentWithChildren(
+            parent = unitRow,
+            children = instructionRows,
+            childOrder = PracticeUnitInstructionRow::sortOrder,
+            toModel = { row, instructions -> row.toModel(instructions, tags) },
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -176,16 +189,14 @@ private fun PracticeUnitRow.toModel(
 ): PracticeUnit = PracticeUnit(
     id = id,
     title = title,
-    instructions = instructions
-        .sortedBy(PracticeUnitInstructionRow::sortOrder)
-        .map { row ->
-            PracticeInstruction(
-                id = row.id,
-                order = row.sortOrder,
-                text = row.text,
-                ballCount = row.ballCount,
-            )
-        },
+    instructions = instructions.map { row ->
+        PracticeInstruction(
+            id = row.id,
+            order = row.sortOrder,
+            text = row.text,
+            ballCount = row.ballCount,
+        )
+    },
     notes = notes,
     focus = focus,
     defaultClubCode = defaultClubCode,

@@ -4,6 +4,7 @@ import com.loganmartlew.rangework.shared.model.SharedValidationException
 import com.loganmartlew.rangework.shared.model.Tag
 import com.loganmartlew.rangework.shared.model.TagAttachmentCounts
 import com.loganmartlew.rangework.shared.model.ValidationIssue
+import com.loganmartlew.rangework.shared.model.ValidationTarget
 import com.loganmartlew.rangework.shared.model.slugifyTag
 import com.loganmartlew.rangework.shared.repository.TagRepository
 import io.github.jan.supabase.SupabaseClient
@@ -36,7 +37,7 @@ class SupabaseTagRepository(
             ?: throw SharedValidationException(
                 listOf(
                     ValidationIssue(
-                        field = "name",
+                        target = ValidationTarget.Tags,
                         message = "Tag name must contain at least one letter or number.",
                     ),
                 ),
@@ -56,7 +57,7 @@ class SupabaseTagRepository(
         if (trimmed.isEmpty()) {
             throw SharedValidationException(
                 listOf(
-                    ValidationIssue(field = "name", message = "Tag name cannot be blank."),
+                    ValidationIssue(target = ValidationTarget.Tags, message = "Tag name cannot be blank."),
                 ),
             )
         }

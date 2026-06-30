@@ -34,7 +34,6 @@ class SupabasePracticeSessionRepository(
         val itemRows = client.postgrest[PRACTICE_SESSION_ITEMS_TABLE]
             .select()
             .decodeList<PracticeSessionItemRow>()
-            .groupBy(PracticeSessionItemRow::practiceSessionId)
 
         val tagsById = client.loadVisibleTagsById()
         val tagsBySession = client.postgrest[PRACTICE_SESSION_TAGS_TABLE]
@@ -42,17 +41,23 @@ class SupabasePracticeSessionRepository(
             .decodeList<PracticeSessionTagRow>()
             .groupBy(PracticeSessionTagRow::practiceSessionId)
 
-        return sessionRows
-            .map { row ->
+        return assembleParentsWithChildren(
+            parents = sessionRows,
+            children = itemRows,
+            parentId = PracticeSessionRow::id,
+            childParentId = PracticeSessionItemRow::practiceSessionId,
+            childOrder = PracticeSessionItemRow::sortOrder,
+            toModel = { row, items ->
                 row.toModel(
-                    items = itemRows[row.id].orEmpty(),
+                    items = items,
                     tags = resolveTags(
                         tagsBySession[row.id].orEmpty().map(PracticeSessionTagRow::tagId),
                         tagsById,
                     ),
                 )
-            }
-            .sortedByDescending(PracticeSession::updatedAt)
+            },
+            modelSort = PracticeSession::updatedAt,
+        )
     }
 
     override suspend fun get(id: String): PracticeSession? {
@@ -84,7 +89,12 @@ class SupabasePracticeSessionRepository(
             .map(PracticeSessionTagRow::tagId)
         val tags = resolveTags(tagIds, client.loadVisibleTagsById())
 
-        return sessionRow.toModel(itemRows, tags)
+        return assembleParentWithChildren(
+            parent = sessionRow,
+            children = itemRows,
+            childOrder = PracticeSessionItemRow::sortOrder,
+            toModel = { row, items -> row.toModel(items, tags) },
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -181,19 +191,17 @@ private fun PracticeSessionRow.toModel(
 ): PracticeSession = PracticeSession(
     id = id,
     name = name,
-    items = items
-        .sortedBy(PracticeSessionItemRow::sortOrder)
-        .map { row ->
-            PracticeSessionItem(
-                id = row.id,
-                practiceUnitId = row.practiceUnitId,
-                order = row.sortOrder,
-                repeatCount = row.repeatCount,
-                clubCode = row.clubCode,
-                notes = row.notes,
-                focusCue = row.focusCue,
-            )
-        },
+    items = items.map { row ->
+        PracticeSessionItem(
+            id = row.id,
+            practiceUnitId = row.practiceUnitId,
+            order = row.sortOrder,
+            repeatCount = row.repeatCount,
+            clubCode = row.clubCode,
+            notes = row.notes,
+            focusCue = row.focusCue,
+        )
+    },
     notes = notes,
     tags = tags,
     createdAt = createdAt,

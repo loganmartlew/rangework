@@ -23,6 +23,7 @@ import com.loganmartlew.rangework.shared.model.RecentItem
 import com.loganmartlew.rangework.shared.model.Tag
 import com.loganmartlew.rangework.shared.model.MAX_TAGS_PER_ITEM
 import com.loganmartlew.rangework.shared.model.ValidationIssue
+import com.loganmartlew.rangework.shared.model.ValidationTarget
 import com.loganmartlew.rangework.shared.model.filteredByAnyTag
 import com.loganmartlew.rangework.shared.model.recentItems
 import com.loganmartlew.rangework.shared.model.resolveNextMoveState
@@ -383,12 +384,13 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.practiceUnitRepository.save(
+                    val library = foundation.practiceLibrary
+                    library.saveUnit(
                         draft = draft,
                         unitId = resolvedUnitId,
                     )
-                    val units = foundation.practiceUnitRepository.list()
-                    val sessions = foundation.practiceSessionRepository.list()
+                    val units = library.listUnits()
+                    val sessions = library.listSessions()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -438,12 +440,13 @@ class PracticePlannerViewModel(
         )
 
         val token = ++operationToken
+        val library = foundation.practiceLibrary
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.practiceUnitRepository.delete(unitId)
-                    val units = foundation.practiceUnitRepository.list()
-                    val sessions = foundation.practiceSessionRepository.list()
+                    library.deleteUnit(unitId)
+                    val units = library.listUnits()
+                    val sessions = library.listSessions()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -563,7 +566,7 @@ class PracticePlannerViewModel(
 
         val parseIssues = editor.items.mapIndexedNotNull { index, item ->
             if (item.repeatCount.trim().isEmpty()) {
-                ValidationIssue("items[$index].repeatCount", "Repeat count is required.")
+                ValidationIssue(ValidationTarget.ItemRepeatCount(index), "Repeat count is required.")
             } else {
                 null
             }
@@ -609,15 +612,16 @@ class PracticePlannerViewModel(
         )
 
         val token = ++operationToken
+        val library = foundation.practiceLibrary
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.practiceSessionRepository.save(
+                    library.saveSession(
                         draft = draft,
                         sessionId = resolvedSessionId,
                     )
-                    val units = foundation.practiceUnitRepository.list()
-                    val sessions = foundation.practiceSessionRepository.list()
+                    val units = library.listUnits()
+                    val sessions = library.listSessions()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -667,12 +671,13 @@ class PracticePlannerViewModel(
         )
 
         val token = ++operationToken
+        val library = foundation.practiceLibrary
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    foundation.practiceSessionRepository.delete(sessionId)
-                    val units = foundation.practiceUnitRepository.list()
-                    val sessions = foundation.practiceSessionRepository.list()
+                    library.deleteSession(sessionId)
+                    val units = library.listUnits()
+                    val sessions = library.listSessions()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -707,8 +712,8 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, duplicatedUnitId = null)
             try {
-                val duplicated = foundation.practiceUnitRepository.duplicate(unitId)
-                val units = foundation.practiceUnitRepository.list()
+                val duplicated = foundation.practiceLibrary.duplicateUnit(unitId)
+                val units = foundation.practiceLibrary.listUnits()
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isSaving = false,
@@ -736,8 +741,8 @@ class PracticePlannerViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, duplicatedSessionId = null)
             try {
-                val duplicated = foundation.practiceSessionRepository.duplicate(sessionId)
-                val sessions = foundation.practiceSessionRepository.list()
+                val duplicated = foundation.practiceLibrary.duplicateSession(sessionId)
+                val sessions = foundation.practiceLibrary.listSessions()
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isSaving = false,
@@ -760,21 +765,13 @@ class PracticePlannerViewModel(
         if (activeUserId == null) { markSignedOut(); return }
         viewModelScope.launch {
             try {
-                val draft = PracticeUnitDraft(
-                    title = unit.title,
-                    notes = unit.notes,
-                    focus = unit.focus,
-                    defaultClubCode = unit.defaultClubCode,
-                    instructions = unit.instructions.map { PracticeInstructionDraft(it.order, it.text, it.ballCount) },
-                    tagIds = unit.tags.map(Tag::id),
-                )
-                foundation.practiceUnitRepository.save(draft, unitId = unit.id)
-                val units = foundation.practiceUnitRepository.list()
-                val sessions = foundation.practiceSessionRepository.list()
+                val restored = foundation.practiceLibrary.restoreUnit(unit)
+                val units = foundation.practiceLibrary.listUnits()
+                val sessions = foundation.practiceLibrary.listSessions()
                 _uiState.value = _uiState.value.copy(
                     units = units,
                     sessions = sessions,
-                    status = PlannerStatus.Notification("Restored \"${unit.title}\"."),
+                    status = PlannerStatus.Notification("Restored \"${restored.title}\"."),
                 )
             } catch (e: Exception) {
                 markSaveFailure(e, "Restore failed.")
@@ -787,28 +784,13 @@ class PracticePlannerViewModel(
         if (activeUserId == null) { markSignedOut(); return }
         viewModelScope.launch {
             try {
-                val draft = PracticeSessionDraft(
-                    name = session.name,
-                    notes = session.notes,
-                    tagIds = session.tags.map(Tag::id),
-                    items = session.items.map { item ->
-                        PracticeSessionItemDraft(
-                            practiceUnitId = item.practiceUnitId,
-                            order = item.order,
-                            repeatCount = item.repeatCount,
-                            clubCode = item.clubCode,
-                            notes = item.notes,
-                            focusCue = item.focusCue,
-                        )
-                    },
-                )
-                foundation.practiceSessionRepository.save(draft, sessionId = session.id)
-                val units = foundation.practiceUnitRepository.list()
-                val sessions = foundation.practiceSessionRepository.list()
+                val restored = foundation.practiceLibrary.restoreSession(session)
+                val units = foundation.practiceLibrary.listUnits()
+                val sessions = foundation.practiceLibrary.listSessions()
                 _uiState.value = _uiState.value.copy(
                     units = units,
                     sessions = sessions,
-                    status = PlannerStatus.Notification("Restored \"${session.name}\"."),
+                    status = PlannerStatus.Notification("Restored \"${restored.name}\"."),
                 )
             } catch (e: Exception) {
                 markSaveFailure(e, "Restore failed.")
@@ -866,11 +848,12 @@ class PracticePlannerViewModel(
         _uiState.value = _uiState.value.copy(isLoading = true)
 
         val token = ++operationToken
+        val library = foundation.practiceLibrary
         viewModelScope.launch {
             operationMutex.withLock {
                 try {
-                    val units = foundation.practiceUnitRepository.list()
-                    val sessions = foundation.practiceSessionRepository.list()
+                    val units = library.listUnits()
+                    val sessions = library.listSessions()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -1389,25 +1372,22 @@ private fun <T> List<T>.moveItem(
     return mutable.toList()
 }
 
-private val issueIndexRegex = Regex("\\[(\\d+)]")
-
-private fun issueIndex(field: String): Int? =
-    issueIndexRegex.find(field)?.groupValues?.get(1)?.toIntOrNull()
-
 private fun PracticeUnitEditorState.withErrors(issues: List<ValidationIssue>): PracticeUnitEditorState {
     var updated = this
     for (issue in issues) {
-        val idx = issueIndex(issue.field)
-        when {
-            issue.field == "title" -> updated = updated.copy(titleError = issue.message)
-            idx != null && issue.field.endsWith("].text") ->
-                updated = updated.copy(instructions = updated.instructions.mapIndexed { i, instr ->
-                    if (i == idx) instr.copy(textError = issue.message) else instr
-                })
-            idx != null && issue.field.endsWith("].ballCount") ->
-                updated = updated.copy(instructions = updated.instructions.mapIndexed { i, instr ->
-                    if (i == idx) instr.copy(ballCountError = issue.message) else instr
-                })
+        when (val target = issue.target) {
+            ValidationTarget.UnitTitle -> updated = updated.copy(titleError = issue.message)
+            is ValidationTarget.InstructionText -> updated = updated.copy(
+                instructions = updated.instructions.mapIndexed { i, instr ->
+                    if (i == target.index) instr.copy(textError = issue.message) else instr
+                },
+            )
+            is ValidationTarget.InstructionBallCount -> updated = updated.copy(
+                instructions = updated.instructions.mapIndexed { i, instr ->
+                    if (i == target.index) instr.copy(ballCountError = issue.message) else instr
+                },
+            )
+            else -> { /* UnitInstructions, Tags — no per-field placement needed */ }
         }
     }
     return updated
@@ -1416,17 +1396,19 @@ private fun PracticeUnitEditorState.withErrors(issues: List<ValidationIssue>): P
 private fun PracticeSessionEditorState.withErrors(issues: List<ValidationIssue>): PracticeSessionEditorState {
     var updated = this
     for (issue in issues) {
-        val idx = issueIndex(issue.field)
-        when {
-            issue.field == "name" -> updated = updated.copy(nameError = issue.message)
-            idx != null && issue.field.endsWith("].practiceUnitId") ->
-                updated = updated.copy(items = updated.items.mapIndexed { i, item ->
-                    if (i == idx) item.copy(unitError = issue.message) else item
-                })
-            idx != null && issue.field.endsWith("].repeatCount") ->
-                updated = updated.copy(items = updated.items.mapIndexed { i, item ->
-                    if (i == idx) item.copy(repeatCountError = issue.message) else item
-                })
+        when (val target = issue.target) {
+            ValidationTarget.SessionName -> updated = updated.copy(nameError = issue.message)
+            is ValidationTarget.ItemUnitReference -> updated = updated.copy(
+                items = updated.items.mapIndexed { i, item ->
+                    if (i == target.index) item.copy(unitError = issue.message) else item
+                },
+            )
+            is ValidationTarget.ItemRepeatCount -> updated = updated.copy(
+                items = updated.items.mapIndexed { i, item ->
+                    if (i == target.index) item.copy(repeatCountError = issue.message) else item
+                },
+            )
+            else -> { /* Tags — no per-field placement needed */ }
         }
     }
     return updated

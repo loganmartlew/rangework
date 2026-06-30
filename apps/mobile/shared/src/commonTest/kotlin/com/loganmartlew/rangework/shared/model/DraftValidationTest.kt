@@ -187,7 +187,7 @@ class DraftValidationTest {
             instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit through gate")),
             tagIds = nineTags,
         ).validationIssues()
-        assertEquals(true, issues.any { it.field == "tags" })
+        assertEquals(true, issues.any { it.target == ValidationTarget.Tags })
     }
 
     @Test
