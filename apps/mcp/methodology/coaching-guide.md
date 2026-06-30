@@ -71,6 +71,7 @@ This is the most important structural rule. A **unit** is one drill. A **session
 - The session's `repeat_count` multiplies the entire unit. A 1-ball gate drill you want done 20 times → `repeat_count: 20`. A 3-step progression drill done twice → `repeat_count: 2`.
 - Because `repeat_count` multiplies *everything* in the unit, keep each unit focused on one repeatable action or one progression pass. Volume lives in the session, not the unit.
 - Reuse the same unit across different clubs with the per-item `club_code` override, and vary the intent with `focus_cue` — never duplicate a unit just to change its club.
+- When a drill **intrinsically varies club across its steps** — a wedge ladder (GW, then SW, then LW), a strike-zone ladder (9-iron up through 5-iron) — set a per-instruction `club_code` on each step so the variation is baked into the drill itself. Leave `club_code` off a step to inherit the unit's `default_club_code`, so you only specify clubs where they differ (e.g. set the default plus one override). Reach for per-step clubs only when the club genuinely changes mid-drill; when the whole drill uses one club, use `default_club_code` (or the per-item override at the session level).
 
 A unit built this way is composable: it can drop into many sessions at different volumes and with different clubs.
 
@@ -143,7 +144,7 @@ Higher-handicap players benefit from more short-game even at range-only faciliti
 
 ## Data format rules
 
-- `create_unit` requires `title` (non-empty) and `instructions` (1–10 items, each with `order`, `text`, optional `ball_count`). Optional: `focus`, `notes`, `default_club_code`.
+- `create_unit` requires `title` (non-empty) and `instructions` (1–10 items, each with `order`, `text`, optional `ball_count`, optional `club_code` to vary club per step). Optional: `focus`, `notes`, `default_club_code`.
 - `create_session` requires `name` (non-empty) and `items` (1+ items, each with `practice_unit_id`, `order`, `repeat_count`, and optional `club_code`, `focus_cue`, `notes`).
 - Club references must use catalog `code` values from `get_user_clubs`.
 - `tag_codes` (optional on `create_unit` / `create_session`) must be existing codes from `list_tags`; unknown codes are rejected. Mint a tag with `create_tag` only when nothing fits. Max 8 per item.

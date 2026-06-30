@@ -14,8 +14,9 @@ import { resolveTagCodes } from '../validation/tags.js';
  *
  * Creates a new practice unit (a single drill) in the user's account.
  * A unit has a title, one to ten step-by-step instructions (each with optional
- * ball count), optional coaching focus, and an optional default club.
- * Returns the new unit's id — save this to use in `create_session`.
+ * ball count and optional per-instruction club), optional coaching focus, and an
+ * optional default club. A step with no club of its own falls back to the unit's
+ * default club. Returns the new unit's id — save this to use in `create_session`.
  * Club references must use the `code` field from `get_user_clubs`, not the display name.
  */
 export function registerCreateUnitTool(
@@ -47,6 +48,12 @@ export function registerCreateUnitTool(
                 .optional()
                 .describe(
                   'Optional number of balls for this step. Must be a positive integer if provided.',
+                ),
+              club_code: z
+                .string()
+                .optional()
+                .describe(
+                  'Optional club for this specific step. Use the `code` from `get_user_clubs` (same vocabulary as `default_club_code`). When set, this step uses this club; when omitted, the step falls back to the unit `default_club_code`. Use this to vary club across steps (e.g. a wedge ladder: GW, then SW, then LW).',
                 ),
             }),
           )
@@ -141,7 +148,9 @@ export function registerCreateUnitTool(
             { field: `instructions[${idx}].ball_count` },
           );
         }
-        instructions.push({ ...inst, text });
+        // Treat a blank per-instruction club_code as "use default" (absent).
+        const clubCode = inst.club_code?.trim() ? inst.club_code.trim() : undefined;
+        instructions.push({ ...inst, text, club_code: clubCode });
       }
 
       // Check for duplicate order values
@@ -155,8 +164,26 @@ export function registerCreateUnitTool(
         );
       }
 
-      // Validate club code if provided
+      // Validate every club code provided — the unit default plus any
+      // per-instruction club — against the catalog in a single fetch. This is
+      // the primary guard; the post-RPC FK branch below is a safety net.
+      const clubCodesToValidate: Array<{ code: string; field: string }> = [];
       if (args.default_club_code) {
+        clubCodesToValidate.push({
+          code: args.default_club_code,
+          field: 'default_club_code',
+        });
+      }
+      instructions.forEach((inst, idx) => {
+        if (inst.club_code) {
+          clubCodesToValidate.push({
+            code: inst.club_code,
+            field: `instructions[${idx}].club_code`,
+          });
+        }
+      });
+
+      if (clubCodesToValidate.length > 0) {
         let allCodes: string[];
         try {
           allCodes = await fetchAllClubCodes(ctx.supabaseClient);
@@ -166,12 +193,10 @@ export function registerCreateUnitTool(
             'Failed to validate club code. Please try again.',
           );
         }
-        const clubError = validateClubCode(
-          args.default_club_code,
-          allCodes,
-          'default_club_code',
-        );
-        if (clubError) return clubError;
+        for (const { code, field } of clubCodesToValidate) {
+          const clubError = validateClubCode(code, allCodes, field);
+          if (clubError) return clubError;
+        }
       }
 
       // Resolve tag codes to ids (rejects unknown codes; never creates tags)
@@ -189,7 +214,7 @@ export function registerCreateUnitTool(
       // Generate unit ID
       const unitId = crypto.randomUUID();
 
-      // Build instructions JSONB (omit ball_count key if not provided)
+      // Build instructions JSONB (omit ball_count / club_code keys if not provided)
       const instructionsJsonb = instructions.map(inst => {
         const obj: Record<string, unknown> = {
           order: inst.order,
@@ -197,6 +222,9 @@ export function registerCreateUnitTool(
         };
         if (inst.ball_count !== undefined) {
           obj.ball_count = inst.ball_count;
+        }
+        if (inst.club_code !== undefined) {
+          obj.club_code = inst.club_code;
         }
         return obj;
       });
@@ -213,7 +241,11 @@ export function registerCreateUnitTool(
       });
 
       if (error) {
-        // Map FK violation to UNKNOWN_CLUB_CODE
+        // A club-code FK violation here should be unreachable: every club code
+        // (unit default + per-instruction) is pre-validated above. Since any of
+        // N instructions may now carry a club, this branch can no longer
+        // attribute the violation to a specific field, so it returns a
+        // non-field-specific error with the valid-codes hint as a safety net.
         if (error.message.includes('foreign key') || error.code === '23503') {
           let allCodes: string[] = [];
           try {
@@ -223,9 +255,8 @@ export function registerCreateUnitTool(
           }
           return toolError(
             ErrorCodes.UNKNOWN_CLUB_CODE,
-            `Unknown club code: ${args.default_club_code}`,
+            'One of the provided club codes is not in the catalog. Use a `code` from `get_user_clubs`.',
             {
-              field: 'default_club_code',
               valid_codes: allCodes,
             },
           );
