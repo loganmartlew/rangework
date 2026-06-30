@@ -111,6 +111,7 @@ class SupabasePracticeUnitRepository(
                     order = instruction.order,
                     text = instruction.text,
                     ballCount = instruction.ballCount,
+                    clubCode = instruction.clubCode,
                 )
             },
             tagIds = validated.tagIds,
@@ -160,6 +161,8 @@ private data class PracticeUnitInstructionRow(
     val text: String,
     @SerialName("ball_count")
     val ballCount: Int? = null,
+    @SerialName("club_code")
+    val clubCode: String? = null,
 )
 
 @Serializable
@@ -178,6 +181,7 @@ private data class InstructionParam(
     @SerialName("order") val order: Int,
     @SerialName("text") val text: String,
     @SerialName("ball_count") val ballCount: Int? = null,
+    @SerialName("club_code") val clubCode: String? = null,
 )
 
 internal fun resolveTags(tagIds: List<String>, tagsById: Map<String, Tag>): List<Tag> =
@@ -195,6 +199,7 @@ private fun PracticeUnitRow.toModel(
             order = row.sortOrder,
             text = row.text,
             ballCount = row.ballCount,
+            clubCode = row.clubCode,
         )
     },
     notes = notes,

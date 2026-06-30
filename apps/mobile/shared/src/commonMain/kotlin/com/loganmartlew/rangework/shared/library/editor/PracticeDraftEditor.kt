@@ -90,6 +90,7 @@ object PracticeDraftEditor {
                 order = instr.order,
                 text = instr.text,
                 ballCount = ballCount,
+                clubCode = instr.clubCode,
             )
         }
 

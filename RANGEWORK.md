@@ -6,7 +6,7 @@ Rangework is an Android app for golfers who want to practice with purpose. Inste
 
 The core idea is a three-level structure:
 
-**Practice Units** are individual drills. Each unit has a name, an ordered list of instructions (with optional ball counts per instruction), and optional context like notes, a mental focus cue, and a default club. A unit might be something like "50-yard pitch shots" with instructions for three different landing-zone targets, each consuming 10 balls.
+**Practice Units** are individual drills. Each unit has a name, an ordered list of instructions (with optional ball counts and an optional club per instruction), and optional context like notes, a mental focus cue, and a default club. Each instruction can set its own club to vary the club mid-drill — a wedge ladder (GW → SW → LW) as a single unit — while an instruction that sets no club of its own falls back to the unit's default club. A unit might be something like "50-yard pitch shots" with instructions for three different landing-zone targets, each consuming 10 balls.
 
 **Practice Sessions** are templates that combine units into a full practice plan. You pick which units to include, set how many times each one repeats, and optionally override the club or add session-specific notes for each session item. The app tallies the total ball count for the session so you know exactly what you're signing up for before you leave the house.
 
@@ -18,7 +18,7 @@ All data is saved to the cloud and tied to your account, so your plans are avail
 
 ### Practice Units
 
-- Create units with a title, ordered instructions, ball counts per instruction, notes, focus cue, and a default club
+- Create units with a title, ordered instructions, ball counts per instruction, an optional per-instruction club (falling back to the unit default when unset), notes, focus cue, and a default club
 - View a list of all your units, including instruction count and total ball count at a glance
 - Open a unit to see its full detail
 - Edit or delete any unit

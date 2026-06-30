@@ -50,6 +50,7 @@ class DefaultPracticeLibrary(
                     order = instruction.order,
                     text = instruction.text,
                     ballCount = instruction.ballCount,
+                    clubCode = instruction.clubCode,
                 )
             },
             tagIds = unit.tags.map(Tag::id),
@@ -68,6 +69,7 @@ class DefaultPracticeLibrary(
                     order = instruction.order,
                     text = instruction.text,
                     ballCount = instruction.ballCount,
+                    clubCode = instruction.clubCode,
                 )
             },
             tagIds = unit.tags.map(Tag::id),

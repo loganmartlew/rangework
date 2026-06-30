@@ -36,6 +36,7 @@ data class PracticeInstructionDraftInput(
     val order: Int,
     val text: String = "",
     val ballCount: String = "1",
+    val clubCode: String = "",
     val textError: String? = null,
     val ballCountError: String? = null,
 ) {

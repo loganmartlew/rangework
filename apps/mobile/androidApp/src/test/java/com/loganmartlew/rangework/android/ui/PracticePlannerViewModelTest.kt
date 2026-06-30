@@ -384,6 +384,35 @@ class PracticePlannerViewModelTest {
     }
 
     @Test
+    fun settingAndClearingInstructionClubFlowsThroughToSavedPayload() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        // Set a per-instruction club and save.
+        viewModel.updateUnitTitle("Wedge ladder")
+        viewModel.updateInstructionText(0, "Hit gap wedges")
+        viewModel.updateInstructionClubCode(0, "gap_wedge")
+        viewModel.saveUnit()
+        advanceUntilIdle()
+
+        assertEquals("gap_wedge", repositories.savedUnitDrafts.last().instructions.single().clubCode)
+        assertEquals("gap_wedge", viewModel.uiState.value.unitEditor.instructions.first().clubCode)
+
+        // Clear the per-instruction club back to "use default" and save again.
+        viewModel.updateInstructionClubCode(0, "")
+        viewModel.saveUnit()
+        advanceUntilIdle()
+
+        assertEquals(null, repositories.savedUnitDrafts.last().instructions.single().clubCode)
+        assertEquals("", viewModel.uiState.value.unitEditor.instructions.first().clubCode)
+    }
+
+    @Test
     fun moveInstructionReordersToArbitraryIndex() = runTest {
         val repositories = FakePlannerRepositories()
         repositories.units += sampleUnit().copy(
@@ -721,6 +750,7 @@ private class FakePlannerRepositories(
                         order = index + 1,
                         text = instruction.text,
                         ballCount = instruction.ballCount,
+                        clubCode = instruction.clubCode,
                     )
                 },
                 notes = validated.notes,
