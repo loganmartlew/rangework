@@ -1,5 +1,7 @@
 package com.loganmartlew.rangework.shared.library.editor
 
+import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
+import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.model.ValidationTarget
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,7 +22,7 @@ class PracticeDraftEditorTest {
             ),
         )
         val result = PracticeDraftEditor.reviewUnit(input)
-        assertIs<DraftReview.Valid<*>>(result)
+        assertIs<DraftReview.Valid<PracticeUnitDraft>>(result)
         assertEquals("Iron Consistency", result.draft.title)
     }
 
@@ -118,7 +120,7 @@ class PracticeDraftEditorTest {
             ),
         )
         val result = PracticeDraftEditor.reviewSession(input)
-        assertIs<DraftReview.Valid<*>>(result)
+        assertIs<DraftReview.Valid<PracticeSessionDraft>>(result)
         assertEquals("Monday Plan", result.draft.name)
     }
 

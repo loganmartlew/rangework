@@ -114,8 +114,8 @@ class DraftValidationTest {
         ).validationIssues()
 
         val targets = issues.map { it.target }
-        assertTrue(targets.contains(ValidationTarget.InstructionText(0))) { "Expected InstructionText(0) in $targets" }
-        assertTrue(targets.contains(ValidationTarget.InstructionBallCount(0))) { "Expected InstructionBallCount(0) in $targets" }
+        assertTrue("Expected InstructionText(0) in $targets") { targets.contains(ValidationTarget.InstructionText(0)) }
+        assertTrue("Expected InstructionBallCount(0) in $targets") { targets.contains(ValidationTarget.InstructionBallCount(0)) }
     }
 
     @Test
@@ -141,7 +141,7 @@ class DraftValidationTest {
         ).validationIssues()
 
         val targets = issues.map { it.target }
-        assertTrue(targets.contains(ValidationTarget.ItemUnitReference(0))) { "Expected ItemUnitReference(0) in $targets" }
+        assertTrue("Expected ItemUnitReference(0) in $targets") { targets.contains(ValidationTarget.ItemUnitReference(0)) }
     }
 
     @Test
@@ -158,7 +158,7 @@ class DraftValidationTest {
         ).validationIssues()
 
         val targets = issues.map { it.target }
-        assertTrue(targets.contains(ValidationTarget.ItemRepeatCount(0))) { "Expected ItemRepeatCount(0) in $targets" }
+        assertTrue("Expected ItemRepeatCount(0) in $targets") { targets.contains(ValidationTarget.ItemRepeatCount(0)) }
     }
 
     @Test

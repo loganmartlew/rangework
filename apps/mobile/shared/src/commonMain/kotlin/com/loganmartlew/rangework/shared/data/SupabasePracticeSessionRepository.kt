@@ -33,15 +33,16 @@ class SupabasePracticeSessionRepository(
         val itemRows = client.postgrest[PRACTICE_SESSION_ITEMS_TABLE]
             .select()
             .decodeList<PracticeSessionItemRow>()
-            .groupBy(PracticeSessionItemRow::practiceSessionId)
 
-        return sessionRows
-            .map { row ->
-                row.toModel(
-                    items = itemRows[row.id].orEmpty(),
-                )
-            }
-            .sortedByDescending(PracticeSession::updatedAt)
+        return assembleParentsWithChildren(
+            parents = sessionRows,
+            children = itemRows,
+            parentId = PracticeSessionRow::id,
+            childParentId = PracticeSessionItemRow::practiceSessionId,
+            childOrder = PracticeSessionItemRow::sortOrder,
+            toModel = PracticeSessionRow::toModel,
+            modelSort = PracticeSession::updatedAt,
+        )
     }
 
     override suspend fun get(id: String): PracticeSession? {
@@ -63,7 +64,12 @@ class SupabasePracticeSessionRepository(
             }
             .decodeList<PracticeSessionItemRow>()
 
-        return sessionRow.toModel(itemRows)
+        return assembleParentWithChildren(
+            parent = sessionRow,
+            children = itemRows,
+            childOrder = PracticeSessionItemRow::sortOrder,
+            toModel = PracticeSessionRow::toModel,
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -158,7 +164,6 @@ private fun PracticeSessionRow.toModel(
     id = id,
     name = name,
     items = items
-        .sortedBy(PracticeSessionItemRow::sortOrder)
         .map { row ->
             PracticeSessionItem(
                 id = row.id,

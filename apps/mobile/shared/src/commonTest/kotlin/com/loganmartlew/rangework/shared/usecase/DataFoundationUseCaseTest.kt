@@ -77,6 +77,8 @@ class DataFoundationUseCaseTest {
         assertEquals(MeasurementPreferences.Metric, repository.lastPersistedPreferences)
     }
 }
+
+private class RecordingMeasurementPreferencesRepository : MeasurementPreferencesRepository() {
     var lastPersistedPreferences: MeasurementPreferences? = null
 
     override suspend fun get(): MeasurementPreferences = MeasurementPreferences.Imperial
