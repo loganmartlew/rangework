@@ -162,9 +162,6 @@ fun RangeworkApp(
         },
     )
     val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
-    val rootRoute = remember(authUiState.authState) {
-        rootRouteForAuthState(authUiState.authState)
-    }
 
     val isReady = remember(authUiState.authState, plannerUiState.hasLoaded) {
         when (authUiState.authState) {
@@ -186,18 +183,29 @@ fun RangeworkApp(
         settingsViewModel.onAuthStateChanged(authUiState.authState)
     }
 
-    LaunchedEffect(rootRoute) {
-        val target = if (rootRoute == RangeworkRoutes.SignIn) {
-            RangeworkRoutes.SignIn
-        } else {
-            RangeworkRoutes.Authenticated
-        }
-        if (rootNavController.currentDestination?.route != target) {
-            rootNavController.navigate(target) {
-                popUpTo(rootNavController.graph.findStartDestination().id) {
-                    inclusive = target == RangeworkRoutes.SignIn
+    LaunchedEffect(authUiState.authState) {
+        val currentRootRoute = rootNavController.currentDestination?.route
+        when (authUiState.authState) {
+            AuthState.Restoring -> Unit
+            is AuthState.SignedIn -> {
+                val alreadyInAuthenticatedArea = currentRootRoute == RangeworkRoutes.Authenticated ||
+                    currentRootRoute?.startsWith("range-sessions/") == true
+                if (!alreadyInAuthenticatedArea) {
+                    rootNavController.navigate(RangeworkRoutes.Authenticated) {
+                        popUpTo(rootNavController.graph.findStartDestination().id)
+                        launchSingleTop = true
+                    }
                 }
-                launchSingleTop = true
+            }
+            AuthState.SignedOut, is AuthState.Error -> {
+                if (currentRootRoute != RangeworkRoutes.SignIn) {
+                    rootNavController.navigate(RangeworkRoutes.SignIn) {
+                        popUpTo(rootNavController.graph.findStartDestination().id) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
             }
         }
     }
