@@ -1,9 +1,11 @@
 package com.loganmartlew.rangework.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +33,8 @@ import com.loganmartlew.rangework.android.ui.components.ListEntryCard
 import com.loganmartlew.rangework.android.ui.components.PlanningListContent
 import com.loganmartlew.rangework.android.ui.components.RefreshableScrollableScreen
 import com.loganmartlew.rangework.android.ui.components.SwipeActionBackground
+import com.loganmartlew.rangework.android.ui.components.TagChipRow
+import com.loganmartlew.rangework.android.ui.components.TagFilterBar
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.derivedBallCount
@@ -46,6 +50,8 @@ internal fun SessionListScreen(
     onDeleteSession: (String) -> Unit,
     onDuplicateSession: (String) -> Unit,
     onGoToUnits: () -> Unit,
+    onToggleTagFilter: (String) -> Unit,
+    onClearTagFilter: () -> Unit,
 ) {
     val unitsById = remember(plannerUiState.units) {
         plannerUiState.units.associateBy(PracticeUnit::id)
@@ -100,7 +106,22 @@ internal fun SessionListScreen(
                         onAction = onCreateSession,
                     )
                 } else {
-                    plannerUiState.sessions.forEach { session ->
+                    TagFilterBar(
+                        availableTags = plannerUiState.availableTags,
+                        selectedTagIds = plannerUiState.sessionTagFilter,
+                        onToggle = onToggleTagFilter,
+                        onClear = onClearTagFilter,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                    val visibleSessions = plannerUiState.filteredSessions
+                    if (visibleSessions.isEmpty()) {
+                        Text(
+                            text = "No sessions match the selected tags.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    visibleSessions.forEach { session ->
                         key(session.id) {
                             val dismissState = rememberSwipeToDismissBoxState(
                                 confirmValueChange = { value ->
@@ -132,16 +153,21 @@ internal fun SessionListScreen(
                                     title = session.name,
                                     supportingText = unitLineup,
                                     metadataRow = {
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
+                                        Column(
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
-                                            BallCountPill(count = ballCount)
-                                            Text(
-                                                text = "$itemCount item${if (itemCount == 1) "" else "s"}",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                BallCountPill(count = ballCount)
+                                                Text(
+                                                    text = "$itemCount item${if (itemCount == 1) "" else "s"}",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                            TagChipRow(tags = session.tags)
                                         }
                                     },
                                     onClick = { onViewSession(session.id) },

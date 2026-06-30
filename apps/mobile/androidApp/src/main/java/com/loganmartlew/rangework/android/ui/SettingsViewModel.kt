@@ -11,9 +11,12 @@ import com.loganmartlew.rangework.shared.model.EnabledClubCount
 import com.loganmartlew.rangework.shared.model.DistanceUnit
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.SpeedUnit
+import com.loganmartlew.rangework.shared.model.Tag
+import com.loganmartlew.rangework.shared.model.TagAttachmentCounts
 import com.loganmartlew.rangework.shared.model.UnitSystem
 import com.loganmartlew.rangework.shared.repository.ClubRepository
 import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
+import com.loganmartlew.rangework.shared.repository.TagRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,16 +30,24 @@ data class SettingsUiState(
     val measurementPreferences: MeasurementPreferences = MeasurementPreferences.Imperial,
     val clubCatalog: List<Club> = emptyList(),
     val enabledClubCodes: Set<String> = emptySet(),
+    val tags: List<Tag> = emptyList(),
     val isWorking: Boolean = false,
     val statusMessage: String? = null,
 ) {
     val enabledClubCount: EnabledClubCount
         get() = EnabledClubCount.from(clubCatalog, enabledClubCodes)
+
+    val defaultTags: List<Tag>
+        get() = tags.filter(Tag::isDefault)
+
+    val customTags: List<Tag>
+        get() = tags.filterNot(Tag::isDefault)
 }
 
 class SettingsViewModel(
     private val measurementPreferencesRepository: MeasurementPreferencesRepository?,
     private val clubRepository: ClubRepository?,
+    private val tagRepository: TagRepository?,
     private val themePreferenceStore: ThemePreferenceStore,
 ) : ViewModel() {
     private var activeUserId: String? = null
@@ -66,6 +77,7 @@ class SettingsViewModel(
                 activeUserId = authState.userId
                 loadMeasurementPreferences()
                 loadClubs()
+                loadTags()
             }
 
             AuthState.Restoring -> {
@@ -81,6 +93,7 @@ class SettingsViewModel(
                     measurementPreferences = MeasurementPreferences.Imperial,
                     clubCatalog = emptyList(),
                     enabledClubCodes = emptySet(),
+                    tags = emptyList(),
                     statusMessage = null,
                 )
             }
@@ -193,6 +206,52 @@ class SettingsViewModel(
         }
     }
 
+    fun loadTags() {
+        val repo = tagRepository ?: return
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(tags = repo.list())
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(statusMessage = "Could not load tags.")
+            }
+        }
+    }
+
+    fun renameCustomTag(tagId: String, newName: String) {
+        val repo = tagRepository ?: return
+        viewModelScope.launch {
+            try {
+                repo.rename(tagId, newName)
+                _uiState.value = _uiState.value.copy(tags = repo.list())
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(statusMessage = "Could not rename tag.")
+            }
+        }
+    }
+
+    fun deleteCustomTag(tagId: String) {
+        val repo = tagRepository ?: return
+        viewModelScope.launch {
+            try {
+                repo.delete(tagId)
+                _uiState.value = _uiState.value.copy(tags = repo.list())
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(statusMessage = "Could not delete tag.")
+            }
+        }
+    }
+
+    fun loadAttachmentCounts(tagId: String, onResult: (TagAttachmentCounts) -> Unit) {
+        val repo = tagRepository ?: return
+        viewModelScope.launch {
+            try {
+                onResult(repo.attachmentCounts(tagId))
+            } catch (e: Exception) {
+                onResult(TagAttachmentCounts(unitCount = 0, sessionCount = 0))
+            }
+        }
+    }
+
     private fun loadClubs() {
         val repo = clubRepository ?: return
         viewModelScope.launch {
@@ -265,6 +324,7 @@ class SettingsViewModel(
         fun factory(
             measurementPreferencesRepository: MeasurementPreferencesRepository?,
             clubRepository: ClubRepository?,
+            tagRepository: TagRepository?,
             themePreferenceStore: ThemePreferenceStore,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -275,6 +335,7 @@ class SettingsViewModel(
                 return SettingsViewModel(
                     measurementPreferencesRepository = measurementPreferencesRepository,
                     clubRepository = clubRepository,
+                    tagRepository = tagRepository,
                     themePreferenceStore = themePreferenceStore,
                 ) as T
             }

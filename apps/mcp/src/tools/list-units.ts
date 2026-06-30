@@ -1,14 +1,17 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { UserContext } from '../auth/userContext.js';
+import { z } from 'zod';
 
 /**
  * Tool: `list_units`
  *
  * Returns all of the user's practice units, including full instruction text,
- * ball counts, club assignment, and coaching notes. Call this before creating
- * new units to avoid duplication and to find units that can be reused in a
- * new session. If `has_uncounted_instructions` is true, some instructions
- * have no ball count — treat `total_ball_count` as a partial estimate.
+ * ball counts, club assignment, coaching notes, and tags. Call this before
+ * creating new units to avoid duplication and to find units that can be reused
+ * in a new session. Pass `tag_codes` to find units in a skill area (OR: a unit
+ * matches if it carries any of the codes). If `has_uncounted_instructions` is
+ * true, some instructions have no ball count — treat `total_ball_count` as a
+ * partial estimate.
  */
 export function registerListUnitsTool(
   server: McpServer,
@@ -18,10 +21,17 @@ export function registerListUnitsTool(
     'list_units',
     {
       description:
-        "Returns all of the user's practice units, including full instruction text, ball counts, club assignment, and coaching notes. Call this before creating new units to avoid duplication and to find units that can be reused in a new session. If `has_uncounted_instructions` is true, some instructions have no ball count — treat `total_ball_count` as a partial estimate.",
-      inputSchema: {},
+        "Returns all of the user's practice units, including full instruction text, ball counts, club assignment, coaching notes, and tags. Call this before creating new units to avoid duplication and to find units that can be reused in a new session. Pass `tag_codes` to filter by skill area (OR semantics). If `has_uncounted_instructions` is true, some instructions have no ball count — treat `total_ball_count` as a partial estimate.",
+      inputSchema: {
+        tag_codes: z
+          .array(z.string())
+          .optional()
+          .describe(
+            'Optional tag codes to filter by, using OR semantics: a unit is returned if it carries at least one of these codes. Use codes from `list_tags`.',
+          ),
+      },
     },
-    async () => {
+    async args => {
       // Fetch all practice units for the user, ordered by updated_at DESC
       const { data: units, error: unitsError } = await ctx.supabaseClient
         .from('practice_units')
@@ -86,6 +96,44 @@ export function registerListUnitsTool(
         instructionsByUnit.set(inst.practice_unit_id, existing);
       }
 
+      // Fetch tags for these units
+      const { data: unitTags, error: unitTagsError } = await ctx.supabaseClient
+        .from('practice_unit_tags')
+        .select('practice_unit_id, tags(code, display_name)')
+        .in('practice_unit_id', unitIds);
+
+      if (unitTagsError) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                code: 'DATABASE_ERROR',
+                message: 'Failed to fetch unit tags.',
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const tagsByUnit = new Map<
+        string,
+        Array<{ code: string; display_name: string }>
+      >();
+      for (const row of unitTags ?? []) {
+        const tag = row.tags as unknown as {
+          code: string;
+          display_name: string;
+        } | null;
+        if (!tag) continue;
+        const existing = tagsByUnit.get(row.practice_unit_id) ?? [];
+        existing.push({ code: tag.code, display_name: tag.display_name });
+        tagsByUnit.set(row.practice_unit_id, existing);
+      }
+
+      const filterCodes = args.tag_codes ?? [];
+
       // Build output for each unit
       const unitsOutput = units.map(unit => {
         const unitInstructions = instructionsByUnit.get(unit.id) ?? [];
@@ -97,6 +145,8 @@ export function registerListUnitsTool(
           ? null
           : unitInstructions.reduce((sum, i) => sum + (i.ball_count ?? 0), 0);
 
+        const tags = tagsByUnit.get(unit.id) ?? [];
+
         return {
           id: unit.id,
           title: unit.title,
@@ -106,6 +156,7 @@ export function registerListUnitsTool(
           instruction_count: unitInstructions.length,
           total_ball_count: totalBallCount,
           has_uncounted_instructions: hasUncountedInstructions,
+          tags,
           instructions: unitInstructions.map(i => ({
             order: i.sort_order,
             text: i.text,
@@ -114,11 +165,19 @@ export function registerListUnitsTool(
         };
       });
 
+      // Apply OR tag filter: keep units carrying at least one of the codes.
+      const filteredUnits =
+        filterCodes.length === 0
+          ? unitsOutput
+          : unitsOutput.filter(u =>
+              u.tags.some(t => filterCodes.includes(t.code)),
+            );
+
       return {
         content: [
           {
             type: 'text' as const,
-            text: JSON.stringify({ units: unitsOutput }),
+            text: JSON.stringify({ units: filteredUnits }),
           },
         ],
       };

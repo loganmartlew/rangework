@@ -7,4 +7,5 @@ data class PracticeSessionDraft(
     val name: String,
     val items: List<PracticeSessionItemDraft>,
     val notes: String? = null,
+    val tagIds: List<String> = emptyList(),
 )

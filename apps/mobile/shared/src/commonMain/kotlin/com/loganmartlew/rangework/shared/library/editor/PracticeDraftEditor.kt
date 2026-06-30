@@ -101,6 +101,7 @@ object PracticeDraftEditor {
                     notes = input.notes,
                     focus = input.focus,
                     defaultClubCode = input.defaultClubCode,
+                    tagIds = input.tagIds,
                 )
             } else null,
             issues = parseIssues,
@@ -128,6 +129,7 @@ object PracticeDraftEditor {
                     name = input.name,
                     items = items,
                     notes = input.notes,
+                    tagIds = input.tagIds,
                 )
             } else null,
             issues = parseIssues,
@@ -205,7 +207,8 @@ object PracticeDraftEditor {
                 )
                 is ValidationTarget.SessionName,
                 is ValidationTarget.ItemUnitReference,
-                is ValidationTarget.ItemRepeatCount -> updated // not applicable for units
+                is ValidationTarget.ItemRepeatCount,
+                is ValidationTarget.Tags -> updated // not applicable for units
             }
         }
         return updated
@@ -232,7 +235,8 @@ object PracticeDraftEditor {
                 is ValidationTarget.UnitTitle,
                 is ValidationTarget.UnitInstructions,
                 is ValidationTarget.InstructionText,
-                is ValidationTarget.InstructionBallCount -> updated // not applicable for sessions
+                is ValidationTarget.InstructionBallCount,
+                is ValidationTarget.Tags -> updated // not applicable for sessions
             }
         }
         return updated

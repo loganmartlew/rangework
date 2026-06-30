@@ -1,9 +1,11 @@
 package com.loganmartlew.rangework.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Widgets
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,6 +34,8 @@ import com.loganmartlew.rangework.android.ui.components.ListEntryCard
 import com.loganmartlew.rangework.android.ui.components.PlanningListContent
 import com.loganmartlew.rangework.android.ui.components.RefreshableScrollableScreen
 import com.loganmartlew.rangework.android.ui.components.SwipeActionBackground
+import com.loganmartlew.rangework.android.ui.components.TagChipRow
+import com.loganmartlew.rangework.android.ui.components.TagFilterBar
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.derivedBallCount
 import com.loganmartlew.rangework.shared.model.sessionsUsingUnit
@@ -46,6 +50,8 @@ internal fun UnitListScreen(
     onEditUnit: (String) -> Unit,
     onDeleteUnit: (String) -> Unit,
     onDuplicateUnit: (String) -> Unit,
+    onToggleTagFilter: (String) -> Unit,
+    onClearTagFilter: () -> Unit,
 ) {
     var pendingDeleteUnit by remember { mutableStateOf<PracticeUnit?>(null) }
 
@@ -95,7 +101,22 @@ internal fun UnitListScreen(
                         onAction = onCreateUnit,
                     )
                 } else {
-                    plannerUiState.units.forEach { unit ->
+                    TagFilterBar(
+                        availableTags = plannerUiState.availableTags,
+                        selectedTagIds = plannerUiState.unitTagFilter,
+                        onToggle = onToggleTagFilter,
+                        onClear = onClearTagFilter,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                    val visibleUnits = plannerUiState.filteredUnits
+                    if (visibleUnits.isEmpty()) {
+                        Text(
+                            text = "No units match the selected tags.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    visibleUnits.forEach { unit ->
                         key(unit.id) {
                             val dismissState = rememberSwipeToDismissBoxState(
                                 confirmValueChange = { value ->
@@ -128,16 +149,21 @@ internal fun UnitListScreen(
                                     title = unit.title,
                                     supportingText = unit.instructions.joinToString("  •  ") { it.text }.ifBlank { "No instructions." },
                                     metadataRow = {
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
+                                        Column(
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
-                                            clubName?.let { ClubChip(name = it) }
-                                            Text(
-                                                text = "$instructionCount instruction${if (instructionCount == 1) "" else "s"}  •  ${ballSummary(unit.derivedBallCount())}",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                clubName?.let { ClubChip(name = it) }
+                                                Text(
+                                                    text = "$instructionCount instruction${if (instructionCount == 1) "" else "s"}  •  ${ballSummary(unit.derivedBallCount())}",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                            TagChipRow(tags = unit.tags)
                                         }
                                     },
                                     onClick = { onViewUnit(unit.id) },

@@ -5,6 +5,8 @@ import { registerListUnitsTool } from './tools/list-units.js';
 import { registerListSessionsTool } from './tools/list-sessions.js';
 import { registerCreateUnitTool } from './tools/create-unit.js';
 import { registerCreateSessionTool } from './tools/create-session.js';
+import { registerListTagsTool } from './tools/list-tags.js';
+import { registerCreateTagTool } from './tools/create-tag.js';
 import { registerGetCoachingGuideTool } from './tools/get-coaching-guide.js';
 import { registerBuildPracticePlanPrompt } from './prompts/build-practice-plan.js';
 import type { UserContext } from './auth/userContext.js';
@@ -44,6 +46,8 @@ export function createServer(
   registerListSessionsTool(server, userContext);
   registerCreateUnitTool(server, userContext);
   registerCreateSessionTool(server, userContext);
+  registerListTagsTool(server, userContext);
+  registerCreateTagTool(server, userContext);
   registerGetCoachingGuideTool(server, bucket);
   registerBuildPracticePlanPrompt(server, bucket);
 

@@ -787,6 +787,23 @@ private class FakePlannerRepositories(
         override suspend fun setClubEnabled(code: String, enabled: Boolean) = Unit
     }
 
+    val tagRepository: com.loganmartlew.rangework.shared.repository.TagRepository =
+        object : com.loganmartlew.rangework.shared.repository.TagRepository {
+            override suspend fun list() = emptyList<com.loganmartlew.rangework.shared.model.Tag>()
+            override suspend fun createOrGet(name: String) =
+                com.loganmartlew.rangework.shared.model.Tag(
+                    id = "tag-$name",
+                    code = name.lowercase(),
+                    displayName = name,
+                    isDefault = false,
+                )
+            override suspend fun rename(tagId: String, newName: String) =
+                com.loganmartlew.rangework.shared.model.Tag(tagId, newName.lowercase(), newName, false)
+            override suspend fun delete(tagId: String) = Unit
+            override suspend fun attachmentCounts(tagId: String) =
+                com.loganmartlew.rangework.shared.model.TagAttachmentCounts(0, 0)
+        }
+
     fun toDataFoundation(): DataFoundation {
         val stubMeasurementPreferencesRepository = object : MeasurementPreferencesRepository() {
             override suspend fun get() = MeasurementPreferences.Imperial
@@ -796,6 +813,7 @@ private class FakePlannerRepositories(
             practiceLibrary = practiceLibrary,
             measurementPreferencesRepository = stubMeasurementPreferencesRepository,
             clubRepository = clubRepository,
+            tagRepository = tagRepository,
             rangeSessionRepository = StubRangeSessionRepository(),
             accountDeletionRepository = object : AccountDeletionRepository {
                 override suspend fun deleteAccount() = Unit

@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.shared.data
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
+import com.loganmartlew.rangework.shared.model.Tag
 import com.loganmartlew.rangework.shared.repository.PracticeUnitRepository
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
@@ -34,13 +35,27 @@ class SupabasePracticeUnitRepository(
             .select()
             .decodeList<PracticeUnitInstructionRow>()
 
+        val tagsById = client.loadVisibleTagsById()
+        val tagsByUnit = client.postgrest[PRACTICE_UNIT_TAGS_TABLE]
+            .select()
+            .decodeList<PracticeUnitTagRow>()
+            .groupBy(PracticeUnitTagRow::practiceUnitId)
+
         return assembleParentsWithChildren(
             parents = unitRows,
             children = instructionRows,
             parentId = PracticeUnitRow::id,
             childParentId = PracticeUnitInstructionRow::practiceUnitId,
             childOrder = PracticeUnitInstructionRow::sortOrder,
-            toModel = PracticeUnitRow::toModel,
+            toModel = { row, instructions ->
+                row.toModel(
+                    instructions = instructions,
+                    tags = resolveTags(
+                        tagsByUnit[row.id].orEmpty().map(PracticeUnitTagRow::tagId),
+                        tagsById,
+                    ),
+                )
+            },
             modelSort = PracticeUnit::updatedAt,
         )
     }
@@ -64,11 +79,21 @@ class SupabasePracticeUnitRepository(
             }
             .decodeList<PracticeUnitInstructionRow>()
 
+        val tagIds = client.postgrest[PRACTICE_UNIT_TAGS_TABLE]
+            .select {
+                filter {
+                    eq("practice_unit_id", id)
+                }
+            }
+            .decodeList<PracticeUnitTagRow>()
+            .map(PracticeUnitTagRow::tagId)
+        val tags = resolveTags(tagIds, client.loadVisibleTagsById())
+
         return assembleParentWithChildren(
             parent = unitRow,
             children = instructionRows,
             childOrder = PracticeUnitInstructionRow::sortOrder,
-            toModel = PracticeUnitRow::toModel,
+            toModel = { row, instructions -> row.toModel(instructions, tags) },
         )
     }
 
@@ -88,6 +113,7 @@ class SupabasePracticeUnitRepository(
                     ballCount = instruction.ballCount,
                 )
             },
+            tagIds = validated.tagIds,
         )
         client.postgrest.rpc(
             "save_practice_unit",
@@ -144,6 +170,7 @@ private data class SavePracticeUnitParams(
     @SerialName("p_focus") val focus: String?,
     @SerialName("p_default_club_code") val defaultClubCode: String?,
     @SerialName("p_instructions") val instructions: List<InstructionParam>,
+    @SerialName("p_tag_ids") val tagIds: List<String>,
 )
 
 @Serializable
@@ -153,23 +180,27 @@ private data class InstructionParam(
     @SerialName("ball_count") val ballCount: Int? = null,
 )
 
+internal fun resolveTags(tagIds: List<String>, tagsById: Map<String, Tag>): List<Tag> =
+    tagIds.mapNotNull(tagsById::get).sortedForDisplay()
+
 private fun PracticeUnitRow.toModel(
     instructions: List<PracticeUnitInstructionRow>,
+    tags: List<Tag>,
 ): PracticeUnit = PracticeUnit(
     id = id,
     title = title,
-    instructions = instructions
-        .map { row ->
-            PracticeInstruction(
-                id = row.id,
-                order = row.sortOrder,
-                text = row.text,
-                ballCount = row.ballCount,
-            )
-        },
+    instructions = instructions.map { row ->
+        PracticeInstruction(
+            id = row.id,
+            order = row.sortOrder,
+            text = row.text,
+            ballCount = row.ballCount,
+        )
+    },
     notes = notes,
     focus = focus,
     defaultClubCode = defaultClubCode,
+    tags = tags,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )

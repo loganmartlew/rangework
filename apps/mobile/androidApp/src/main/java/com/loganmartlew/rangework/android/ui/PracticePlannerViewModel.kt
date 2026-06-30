@@ -25,7 +25,10 @@ import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.model.EnabledClubCount
 import com.loganmartlew.rangework.shared.model.NextMoveState
 import com.loganmartlew.rangework.shared.model.RecentItem
+import com.loganmartlew.rangework.shared.model.Tag
+import com.loganmartlew.rangework.shared.model.MAX_TAGS_PER_ITEM
 import com.loganmartlew.rangework.shared.model.ValidationIssue
+import com.loganmartlew.rangework.shared.model.filteredByAnyTag
 import com.loganmartlew.rangework.shared.model.recentItems
 import com.loganmartlew.rangework.shared.model.resolveNextMoveState
 import kotlin.uuid.ExperimentalUuidApi
@@ -59,6 +62,9 @@ data class PracticePlannerUiState(
     val sessions: List<PracticeSession> = emptyList(),
     val clubCatalog: List<Club> = emptyList(),
     val enabledClubCodes: Set<String> = emptySet(),
+    val availableTags: List<Tag> = emptyList(),
+    val unitTagFilter: Set<String> = emptySet(),
+    val sessionTagFilter: Set<String> = emptySet(),
     val unitEditor: PracticeUnitEditorState = PracticeUnitEditorState(),
     val sessionEditor: PracticeSessionEditorState = PracticeSessionEditorState(),
     val unitEditorBaseline: PracticeUnitEditorState? = null,
@@ -83,6 +89,12 @@ data class PracticePlannerUiState(
 
     val enabledClubCount: EnabledClubCount
         get() = EnabledClubCount.from(clubCatalog, enabledClubCodes)
+
+    val filteredUnits: List<PracticeUnit>
+        get() = units.filteredByAnyTag(unitTagFilter) { unit -> unit.tags.map(Tag::id) }
+
+    val filteredSessions: List<PracticeSession>
+        get() = sessions.filteredByAnyTag(sessionTagFilter) { session -> session.tags.map(Tag::id) }
 
     val recentItems: List<RecentItem>
         get() = recentItems(units, sessions)
@@ -136,6 +148,9 @@ class PracticePlannerViewModel(
                         sessions = emptyList(),
                         clubCatalog = emptyList(),
                         enabledClubCodes = emptySet(),
+                        availableTags = emptyList(),
+                        unitTagFilter = emptySet(),
+                        sessionTagFilter = emptySet(),
                         unitEditor = PracticeUnitEditorState(),
                         sessionEditor = PracticeSessionEditorState(),
                         unitEditorBaseline = null,
@@ -161,6 +176,7 @@ class PracticePlannerViewModel(
                 }
                 refreshPlanning(status = refreshStatus)
                 loadClubs()
+                loadTags()
             }
 
             AuthState.Restoring -> {
@@ -185,6 +201,9 @@ class PracticePlannerViewModel(
                     sessions = emptyList(),
                     clubCatalog = emptyList(),
                     enabledClubCodes = emptySet(),
+                    availableTags = emptyList(),
+                    unitTagFilter = emptySet(),
+                    sessionTagFilter = emptySet(),
                     unitEditor = PracticeUnitEditorState(),
                     sessionEditor = PracticeSessionEditorState(),
                     unitEditorBaseline = null,
@@ -856,6 +875,7 @@ class PracticePlannerViewModel(
         notes = draft.notes,
         focus = draft.focus,
         defaultClubCode = draft.defaultClubCode,
+        tags = resolveTagsForDraft(draft.tagIds),
         createdAt = now,
         updatedAt = now,
     )
@@ -880,9 +900,15 @@ class PracticePlannerViewModel(
             )
         },
         notes = draft.notes,
+        tags = resolveTagsForDraft(draft.tagIds),
         createdAt = now,
         updatedAt = now,
     )
+
+    private fun resolveTagsForDraft(tagIds: List<String>): List<Tag> {
+        val byId = _uiState.value.availableTags.associateBy(Tag::id)
+        return tagIds.mapNotNull(byId::get)
+    }
 
     private fun markPlannerUnavailable() {
         _uiState.value = _uiState.value.copy(
@@ -973,6 +999,96 @@ class PracticePlannerViewModel(
                     },
                 ),
             )
+        }
+    }
+
+    fun loadTags() {
+        val foundation = dataFoundation ?: return
+        viewModelScope.launch {
+            try {
+                val tags = foundation.tagRepository.list()
+                _uiState.value = _uiState.value.copy(availableTags = tags)
+            } catch (e: Exception) {
+                // Non-fatal: tag picker/filter simply show no options.
+            }
+        }
+    }
+
+    fun toggleUnitTag(tagId: String) = updateUnitEditor {
+        if (tagId in tagIds) {
+            copy(tagIds = tagIds - tagId)
+        } else if (tagIds.size < MAX_TAGS_PER_ITEM) {
+            copy(tagIds = tagIds + tagId)
+        } else {
+            this
+        }
+    }
+
+    fun createUnitTag(name: String) = createTagThen(name) { tag ->
+        updateUnitEditor {
+            if (tag.id in tagIds || tagIds.size >= MAX_TAGS_PER_ITEM) this
+            else copy(tagIds = tagIds + tag.id)
+        }
+    }
+
+    fun toggleSessionTag(tagId: String) = updateSessionEditor {
+        if (tagId in tagIds) {
+            copy(tagIds = tagIds - tagId)
+        } else if (tagIds.size < MAX_TAGS_PER_ITEM) {
+            copy(tagIds = tagIds + tagId)
+        } else {
+            this
+        }
+    }
+
+    fun createSessionTag(name: String) = createTagThen(name) { tag ->
+        updateSessionEditor {
+            if (tag.id in tagIds || tagIds.size >= MAX_TAGS_PER_ITEM) this
+            else copy(tagIds = tagIds + tag.id)
+        }
+    }
+
+    fun toggleUnitTagFilter(tagId: String) {
+        val current = _uiState.value.unitTagFilter
+        _uiState.value = _uiState.value.copy(
+            unitTagFilter = if (tagId in current) current - tagId else current + tagId,
+        )
+    }
+
+    fun clearUnitTagFilter() {
+        _uiState.value = _uiState.value.copy(unitTagFilter = emptySet())
+    }
+
+    fun toggleSessionTagFilter(tagId: String) {
+        val current = _uiState.value.sessionTagFilter
+        _uiState.value = _uiState.value.copy(
+            sessionTagFilter = if (tagId in current) current - tagId else current + tagId,
+        )
+    }
+
+    fun clearSessionTagFilter() {
+        _uiState.value = _uiState.value.copy(sessionTagFilter = emptySet())
+    }
+
+    private fun createTagThen(name: String, attach: (Tag) -> Unit) {
+        val foundation = dataFoundation ?: return
+        if (activeUserId == null) {
+            markSignedOut()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val tag = foundation.tagRepository.createOrGet(name = name)
+                val tags = _uiState.value.availableTags
+                if (tags.none { it.id == tag.id }) {
+                    _uiState.value = _uiState.value.copy(availableTags = tags + tag)
+                }
+                attach(tag)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    status = plannerStatus(exception = e, fallback = "Could not add tag."),
+                )
+            }
         }
     }
 
@@ -1132,6 +1248,7 @@ private fun PracticeUnit.toEditorState(): PracticeUnitEditorState = PracticeUnit
     } else {
         instructions.map { instruction -> instruction.toEditorState() }
     },
+    tagIds = tags.map(Tag::id),
 )
 
 private fun PracticeInstruction.toEditorState(): PracticeInstructionEditorState = PracticeInstructionEditorState(
@@ -1145,6 +1262,7 @@ private fun PracticeSession.toEditorState(): PracticeSessionEditorState = Practi
     name = name,
     notes = notes.orEmpty(),
     items = items.map { item -> item.toEditorState() },
+    tagIds = tags.map(Tag::id),
 )
 
 private fun PracticeSessionItem.toEditorState(): PracticeSessionItemEditorState = PracticeSessionItemEditorState(

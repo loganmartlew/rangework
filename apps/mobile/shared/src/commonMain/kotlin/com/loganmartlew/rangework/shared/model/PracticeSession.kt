@@ -9,6 +9,7 @@ data class PracticeSession(
     val name: String,
     val items: List<PracticeSessionItem>,
     val notes: String? = null,
+    val tags: List<Tag> = emptyList(),
     val createdAt: Instant,
     val updatedAt: Instant,
 )

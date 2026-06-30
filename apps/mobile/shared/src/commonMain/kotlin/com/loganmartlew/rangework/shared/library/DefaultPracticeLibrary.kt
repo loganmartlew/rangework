@@ -6,6 +6,7 @@ import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSessionItemDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
+import com.loganmartlew.rangework.shared.model.Tag
 import com.loganmartlew.rangework.shared.model.ValidationIssue
 import com.loganmartlew.rangework.shared.model.validated
 import com.loganmartlew.rangework.shared.model.validationIssues
@@ -51,6 +52,7 @@ class DefaultPracticeLibrary(
                     ballCount = instruction.ballCount,
                 )
             },
+            tagIds = unit.tags.map(Tag::id),
         )
         return unitRepository.persist(draft.validated(), null)
     }
@@ -68,6 +70,7 @@ class DefaultPracticeLibrary(
                     ballCount = instruction.ballCount,
                 )
             },
+            tagIds = unit.tags.map(Tag::id),
         )
         return unitRepository.persist(draft.validated(), unit.id)
     }
@@ -109,6 +112,7 @@ class DefaultPracticeLibrary(
                     focusCue = item.focusCue,
                 )
             },
+            tagIds = session.tags.map(Tag::id),
         )
         return sessionRepository.persist(draft.validated(), null)
     }
@@ -127,6 +131,7 @@ class DefaultPracticeLibrary(
                     focusCue = item.focusCue,
                 )
             },
+            tagIds = session.tags.map(Tag::id),
         )
         return sessionRepository.persist(draft.validated(), session.id)
     }

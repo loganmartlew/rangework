@@ -162,6 +162,68 @@ class DraftValidationTest {
     }
 
     @Test
+    fun practiceUnitValidationDeduplicatesAttachedTags() {
+        val validated = PracticeUnitDraft(
+            title = "Gate drill",
+            instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit through gate")),
+            tagIds = listOf("tag-a", "  tag-a  ", "tag-b", "tag-a", "   "),
+        ).validated()
+
+        assertEquals(listOf("tag-a", "tag-b"), validated.tagIds)
+    }
+
+    @Test
+    fun practiceUnitValidationRejectsNinthTag() {
+        val nineTags = (1..9).map { "tag-$it" }
+        assertFailsWith<SharedValidationException> {
+            PracticeUnitDraft(
+                title = "Gate drill",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit through gate")),
+                tagIds = nineTags,
+            ).validated()
+        }
+
+        val issues = PracticeUnitDraft(
+            title = "Gate drill",
+            instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit through gate")),
+            tagIds = nineTags,
+        ).validationIssues()
+        assertEquals(true, issues.any { it.target == ValidationTarget.Tags })
+    }
+
+    @Test
+    fun practiceUnitValidationAllowsEightTags() {
+        val eightTags = (1..8).map { "tag-$it" }
+        val validated = PracticeUnitDraft(
+            title = "Gate drill",
+            instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit through gate")),
+            tagIds = eightTags,
+        ).validated()
+
+        assertEquals(eightTags, validated.tagIds)
+    }
+
+    @Test
+    fun practiceSessionValidationRejectsNinthTagAfterDeduplication() {
+        // Eight distinct ids plus duplicates must pass; a ninth distinct id must fail.
+        val eightWithDupes = (1..8).map { "tag-$it" } + listOf("tag-1", "tag-2")
+        val validated = PracticeSessionDraft(
+            name = "Short game",
+            items = listOf(PracticeSessionItemDraft(practiceUnitId = "unit-1", order = 1, repeatCount = 1)),
+            tagIds = eightWithDupes,
+        ).validated()
+        assertEquals((1..8).map { "tag-$it" }, validated.tagIds)
+
+        assertFailsWith<SharedValidationException> {
+            PracticeSessionDraft(
+                name = "Short game",
+                items = listOf(PracticeSessionItemDraft(practiceUnitId = "unit-1", order = 1, repeatCount = 1)),
+                tagIds = (1..9).map { "tag-$it" },
+            ).validated()
+        }
+    }
+
+    @Test
     fun measurementPreferencesValidationAppliesSystemDefaults() {
         assertEquals(
             MeasurementPreferences.Imperial,
