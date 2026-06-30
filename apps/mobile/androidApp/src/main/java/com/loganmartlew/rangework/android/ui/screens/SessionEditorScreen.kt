@@ -49,7 +49,6 @@ import com.loganmartlew.rangework.android.ui.components.StickyTotalBar
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.PracticeUnit
-import com.loganmartlew.rangework.shared.model.derivedBallCount
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -405,9 +404,4 @@ private fun SessionItemEditorCard(
             )
         }
     }
-}
-
-private fun PracticeSessionItemEditorState.derivedBallCount(unit: PracticeUnit?): Int? {
-    val repeats = repeatCount.trim().toIntOrNull() ?: return unit?.derivedBallCount()
-    return unit?.derivedBallCount()?.times(repeats)
 }

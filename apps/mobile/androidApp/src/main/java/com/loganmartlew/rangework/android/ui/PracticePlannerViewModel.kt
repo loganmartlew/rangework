@@ -7,15 +7,19 @@ import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.config.AppEnvironment
 import com.loganmartlew.rangework.shared.data.DataFoundation
 import com.loganmartlew.rangework.shared.library.PracticeLibraryResult
+import com.loganmartlew.rangework.shared.library.editor.DraftReview
+import com.loganmartlew.rangework.shared.library.editor.PracticeDraftEditor
+import com.loganmartlew.rangework.shared.library.editor.PracticeInstructionDraftInput
+import com.loganmartlew.rangework.shared.library.editor.PracticeSessionDraftInput
+import com.loganmartlew.rangework.shared.library.editor.PracticeSessionItemDraftInput
+import com.loganmartlew.rangework.shared.library.editor.PracticeUnitDraftInput
 import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.CompletedRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
-import com.loganmartlew.rangework.shared.model.PracticeInstructionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSessionItem
-import com.loganmartlew.rangework.shared.model.PracticeSessionItemDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.model.EnabledClubCount
@@ -35,58 +39,15 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
-data class PracticeInstructionEditorState(
-    val order: Int,
-    val text: String = "",
-    val ballCount: String = "1",
-    val textError: String? = null,
-    val ballCountError: String? = null,
-) {
-    fun withoutErrors() = copy(textError = null, ballCountError = null)
-}
-
-data class PracticeUnitEditorState(
-    val unitId: String? = null,
-    val title: String = "",
-    val notes: String = "",
-    val focus: String = "",
-    val defaultClubCode: String = "",
-    val instructions: List<PracticeInstructionEditorState> = listOf(
-        PracticeInstructionEditorState(order = 1),
-    ),
-    val titleError: String? = null,
-) {
-    fun withoutErrors() = copy(
-        titleError = null,
-        instructions = instructions.map { it.withoutErrors() },
-    )
-}
-
-data class PracticeSessionItemEditorState(
-    val order: Int,
-    val practiceUnitId: String = "",
-    val repeatCount: String = "1",
-    val clubCode: String = "",
-    val notes: String = "",
-    val focusCue: String = "",
-    val unitError: String? = null,
-    val repeatCountError: String? = null,
-) {
-    fun withoutErrors() = copy(unitError = null, repeatCountError = null)
-}
-
-data class PracticeSessionEditorState(
-    val sessionId: String? = null,
-    val name: String = "",
-    val notes: String = "",
-    val items: List<PracticeSessionItemEditorState> = emptyList(),
-    val nameError: String? = null,
-) {
-    fun withoutErrors() = copy(
-        nameError = null,
-        items = items.map { it.withoutErrors() },
-    )
-}
+/**
+ * Typealiases to match the original Android editor state names.
+ * Compose screens and ViewModel-internal operations (add/remove/reorder/reindex)
+ * are unchanged — they resolve through the alias.
+ */
+typealias PracticeInstructionEditorState = PracticeInstructionDraftInput
+typealias PracticeUnitEditorState = PracticeUnitDraftInput
+typealias PracticeSessionItemEditorState = PracticeSessionItemDraftInput
+typealias PracticeSessionEditorState = PracticeSessionDraftInput
 
 data class PracticePlannerUiState(
     val environment: AppEnvironment,
@@ -327,79 +288,82 @@ class PracticePlannerViewModel(
         }
 
         val editor = _uiState.value.unitEditor
-        val draft = editor.toDraft()
-        val library = foundation.practiceLibrary
-        val issues = library.validateUnit(draft)
+        when (val review = PracticeDraftEditor.reviewUnit(editor)) {
+            is DraftReview.Invalid -> {
+                _uiState.value = _uiState.value.copy(
+                    unitEditor = review.input,
+                    status = PlannerStatus.Notification(review.issues.joinToString(" ") { it.message }),
+                )
+                return
+            }
+            is DraftReview.Valid -> {
+                val draft = review.draft
+                val resolvedUnitId = editor.unitId ?: Uuid.random().toString()
+                val previousUnits = _uiState.value.units
+                val previousSessions = _uiState.value.sessions
+                val now = Clock.System.now()
+                val optimisticUnit = buildOptimisticUnit(resolvedUnitId, draft, now)
+                val optimisticUnits = if (editor.unitId != null) {
+                    previousUnits.map { if (it.id == resolvedUnitId) optimisticUnit else it }
+                } else {
+                    previousUnits + optimisticUnit
+                }
 
-        if (issues.isNotEmpty()) {
-            _uiState.value = _uiState.value.copy(
-                unitEditor = editor.withErrors(issues),
-                status = PlannerStatus.Notification(issues.joinToString(" ") { it.message }),
-            )
-            return
-        }
+                _uiState.value = _uiState.value.copy(
+                    units = optimisticUnits,
+                    unitEditor = optimisticUnit.toEditorState(),
+                    unitEditorBaseline = null,
+                    sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
+                    savedUnitId = resolvedUnitId,
+                    status = PlannerStatus.Notification("Saved ${draft.title}."),
+                )
 
-        val resolvedUnitId = editor.unitId ?: Uuid.random().toString()
-        val previousUnits = _uiState.value.units
-        val previousSessions = _uiState.value.sessions
-        val now = Clock.System.now()
-        val optimisticUnit = buildOptimisticUnit(resolvedUnitId, draft, now)
-        val optimisticUnits = if (editor.unitId != null) {
-            previousUnits.map { if (it.id == resolvedUnitId) optimisticUnit else it }
-        } else {
-            previousUnits + optimisticUnit
-        }
-
-        _uiState.value = _uiState.value.copy(
-            units = optimisticUnits,
-            unitEditor = optimisticUnit.toEditorState(),
-            unitEditorBaseline = null,
-            sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
-            savedUnitId = resolvedUnitId,
-            status = PlannerStatus.Notification("Saved ${draft.title}."),
-        )
-
-        val token = ++operationToken
-        viewModelScope.launch {
-            operationMutex.withLock {
-                try {
-                    when (val result = library.saveUnit(draft = draft, unitId = resolvedUnitId)) {
-                        is PracticeLibraryResult.Saved -> {
-                            val units = library.listUnits()
-                            val sessions = library.listSessions()
-                            if (token == operationToken) {
-                                _uiState.value = _uiState.value.copy(
-                                    isLoading = false,
-                                    units = units,
-                                    sessions = sessions,
-                                    unitEditor = _uiState.value.unitEditor.resolveWith(units),
-                                    sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
-                                )
+                val library = foundation.practiceLibrary
+                val token = ++operationToken
+                viewModelScope.launch {
+                    operationMutex.withLock {
+                        try {
+                            when (val result = library.saveUnit(draft = draft, unitId = resolvedUnitId)) {
+                                is PracticeLibraryResult.Saved -> {
+                                    val units = library.listUnits()
+                                    val sessions = library.listSessions()
+                                    if (token == operationToken) {
+                                        _uiState.value = _uiState.value.copy(
+                                            isLoading = false,
+                                            units = units,
+                                            sessions = sessions,
+                                            unitEditor = _uiState.value.unitEditor.resolveWith(units),
+                                            sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
+                                        )
+                                    }
+                                }
+                                is PracticeLibraryResult.Invalid -> {
+                                    if (token == operationToken) {
+                                        _uiState.value = _uiState.value.copy(
+                                            units = previousUnits,
+                                            sessions = previousSessions,
+                                            unitEditor = PracticeDraftEditor.placeUnitErrors(
+                                                _uiState.value.unitEditor, result.issues,
+                                            ),
+                                            sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
+                                            status = PlannerStatus.Notification(
+                                                result.issues.joinToString(" ") { it.message },
+                                            ),
+                                        )
+                                    }
+                                }
                             }
-                        }
-                        is PracticeLibraryResult.Invalid -> {
+                        } catch (exception: Exception) {
                             if (token == operationToken) {
                                 _uiState.value = _uiState.value.copy(
                                     units = previousUnits,
                                     sessions = previousSessions,
                                     unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
                                     sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
-                                    status = PlannerStatus.Notification(
-                                        result.issues.joinToString(" ") { it.message },
-                                    ),
+                                    status = plannerStatus(exception = exception, fallback = "Unit save failed."),
                                 )
                             }
                         }
-                    }
-                } catch (exception: Exception) {
-                    if (token == operationToken) {
-                        _uiState.value = _uiState.value.copy(
-                            units = previousUnits,
-                            sessions = previousSessions,
-                            unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
-                            sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
-                            status = plannerStatus(exception = exception, fallback = "Unit save failed."),
-                        )
                     }
                 }
             }
@@ -554,96 +518,82 @@ class PracticePlannerViewModel(
         }
 
         val editor = _uiState.value.sessionEditor
-
-        val parseIssues = editor.items.mapIndexedNotNull { index, item ->
-            if (item.repeatCount.trim().isEmpty()) {
-                ValidationIssue("items[$index].repeatCount", "Repeat count is required.")
-            } else {
-                null
+        when (val review = PracticeDraftEditor.reviewSession(editor)) {
+            is DraftReview.Invalid -> {
+                _uiState.value = _uiState.value.copy(
+                    sessionEditor = review.input,
+                    status = PlannerStatus.Notification(review.issues.joinToString(" ") { it.message }),
+                )
+                return
             }
-        }
+            is DraftReview.Valid -> {
+                val draft = review.draft
+                val resolvedSessionId = editor.sessionId ?: Uuid.random().toString()
+                val previousUnits = _uiState.value.units
+                val previousSessions = _uiState.value.sessions
+                val now = Clock.System.now()
+                val optimisticSession = buildOptimisticSession(resolvedSessionId, draft, now)
+                val optimisticSessions = if (editor.sessionId != null) {
+                    previousSessions.map { if (it.id == resolvedSessionId) optimisticSession else it }
+                } else {
+                    previousSessions + optimisticSession
+                }
 
-        if (parseIssues.isNotEmpty()) {
-            _uiState.value = _uiState.value.copy(
-                sessionEditor = editor.withErrors(parseIssues),
-                status = PlannerStatus.Notification(parseIssues.joinToString(" ") { it.message }),
-            )
-            return
-        }
+                _uiState.value = _uiState.value.copy(
+                    sessions = optimisticSessions,
+                    unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
+                    sessionEditor = optimisticSession.toEditorState(),
+                    sessionEditorBaseline = null,
+                    savedSessionId = resolvedSessionId,
+                    status = PlannerStatus.Notification("Saved ${draft.name}."),
+                )
 
-        val draft = editor.toDraft()
-        val library = foundation.practiceLibrary
-        val issues = library.validateSession(draft)
-
-        if (issues.isNotEmpty()) {
-            _uiState.value = _uiState.value.copy(
-                sessionEditor = editor.withErrors(issues),
-                status = PlannerStatus.Notification(issues.joinToString(" ") { it.message }),
-            )
-            return
-        }
-
-        val resolvedSessionId = editor.sessionId ?: Uuid.random().toString()
-        val previousUnits = _uiState.value.units
-        val previousSessions = _uiState.value.sessions
-        val now = Clock.System.now()
-        val optimisticSession = buildOptimisticSession(resolvedSessionId, draft, now)
-        val optimisticSessions = if (editor.sessionId != null) {
-            previousSessions.map { if (it.id == resolvedSessionId) optimisticSession else it }
-        } else {
-            previousSessions + optimisticSession
-        }
-
-        _uiState.value = _uiState.value.copy(
-            sessions = optimisticSessions,
-            unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
-            sessionEditor = optimisticSession.toEditorState(),
-            sessionEditorBaseline = null,
-            savedSessionId = resolvedSessionId,
-            status = PlannerStatus.Notification("Saved ${draft.name}."),
-        )
-
-        val token = ++operationToken
-        viewModelScope.launch {
-            operationMutex.withLock {
-                try {
-                    when (val result = library.saveSession(draft = draft, sessionId = resolvedSessionId)) {
-                        is PracticeLibraryResult.Saved -> {
-                            val units = library.listUnits()
-                            val sessions = library.listSessions()
-                            if (token == operationToken) {
-                                _uiState.value = _uiState.value.copy(
-                                    isLoading = false,
-                                    units = units,
-                                    sessions = sessions,
-                                    unitEditor = _uiState.value.unitEditor.resolveWith(units),
-                                    sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
-                                )
+                val library = foundation.practiceLibrary
+                val token = ++operationToken
+                viewModelScope.launch {
+                    operationMutex.withLock {
+                        try {
+                            when (val result = library.saveSession(draft = draft, sessionId = resolvedSessionId)) {
+                                is PracticeLibraryResult.Saved -> {
+                                    val units = library.listUnits()
+                                    val sessions = library.listSessions()
+                                    if (token == operationToken) {
+                                        _uiState.value = _uiState.value.copy(
+                                            isLoading = false,
+                                            units = units,
+                                            sessions = sessions,
+                                            unitEditor = _uiState.value.unitEditor.resolveWith(units),
+                                            sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
+                                        )
+                                    }
+                                }
+                                is PracticeLibraryResult.Invalid -> {
+                                    if (token == operationToken) {
+                                        _uiState.value = _uiState.value.copy(
+                                            units = previousUnits,
+                                            sessions = previousSessions,
+                                            unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
+                                            sessionEditor = PracticeDraftEditor.placeSessionErrors(
+                                                _uiState.value.sessionEditor, result.issues,
+                                            ),
+                                            status = PlannerStatus.Notification(
+                                                result.issues.joinToString(" ") { it.message },
+                                            ),
+                                        )
+                                    }
+                                }
                             }
-                        }
-                        is PracticeLibraryResult.Invalid -> {
+                        } catch (exception: Exception) {
                             if (token == operationToken) {
                                 _uiState.value = _uiState.value.copy(
                                     units = previousUnits,
                                     sessions = previousSessions,
                                     unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
                                     sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
-                                    status = PlannerStatus.Notification(
-                                        result.issues.joinToString(" ") { it.message },
-                                    ),
+                                    status = plannerStatus(exception = exception, fallback = "Session save failed."),
                                 )
                             }
                         }
-                    }
-                } catch (exception: Exception) {
-                    if (token == operationToken) {
-                        _uiState.value = _uiState.value.copy(
-                            units = previousUnits,
-                            sessions = previousSessions,
-                            unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
-                            sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
-                            status = plannerStatus(exception = exception, fallback = "Session save failed."),
-                        )
                     }
                 }
             }
@@ -1206,53 +1156,6 @@ private fun PracticeSessionItem.toEditorState(): PracticeSessionItemEditorState 
     focusCue = focusCue.orEmpty(),
 )
 
-private fun PracticeUnitEditorState.toDraft(): PracticeUnitDraft = PracticeUnitDraft(
-    title = title,
-    instructions = instructions.map { instruction ->
-        PracticeInstructionDraft(
-            order = instruction.order,
-            text = instruction.text,
-            ballCount = instruction.ballCount.parseOptionalInt("Instruction ball count"),
-        )
-    },
-    notes = notes,
-    focus = focus,
-    defaultClubCode = defaultClubCode,
-)
-
-private fun PracticeSessionEditorState.toDraft(): PracticeSessionDraft = PracticeSessionDraft(
-    name = name,
-    notes = notes,
-    items = items.map { item ->
-        PracticeSessionItemDraft(
-            practiceUnitId = item.practiceUnitId,
-            order = item.order,
-            repeatCount = item.repeatCount.parseRequiredInt("Repeat count"),
-            clubCode = item.clubCode,
-            notes = item.notes,
-            focusCue = item.focusCue,
-        )
-    },
-)
-
-private fun String.parseOptionalInt(fieldLabel: String): Int? {
-    val normalized = trim()
-    if (normalized.isEmpty()) {
-        return null
-    }
-
-    return normalized.toIntOrNull() ?: throw IllegalArgumentException("$fieldLabel must be a whole number.")
-}
-
-private fun String.parseRequiredInt(fieldLabel: String): Int {
-    val normalized = trim()
-    if (normalized.isEmpty()) {
-        throw IllegalArgumentException("$fieldLabel is required.")
-    }
-
-    return normalized.toIntOrNull() ?: throw IllegalArgumentException("$fieldLabel must be a whole number.")
-}
-
 private fun reindexedInstructions(
     items: List<PracticeInstructionEditorState>,
 ): List<PracticeInstructionEditorState> = items.mapIndexed { index, item ->
@@ -1279,45 +1182,4 @@ private fun <T> List<T>.moveItem(
     return mutable.toList()
 }
 
-private val issueIndexRegex = Regex("\\[(\\d+)]")
-
-private fun issueIndex(field: String): Int? =
-    issueIndexRegex.find(field)?.groupValues?.get(1)?.toIntOrNull()
-
-private fun PracticeUnitEditorState.withErrors(issues: List<ValidationIssue>): PracticeUnitEditorState {
-    var updated = this
-    for (issue in issues) {
-        val idx = issueIndex(issue.field)
-        when {
-            issue.field == "title" -> updated = updated.copy(titleError = issue.message)
-            idx != null && issue.field.endsWith("].text") ->
-                updated = updated.copy(instructions = updated.instructions.mapIndexed { i, instr ->
-                    if (i == idx) instr.copy(textError = issue.message) else instr
-                })
-            idx != null && issue.field.endsWith("].ballCount") ->
-                updated = updated.copy(instructions = updated.instructions.mapIndexed { i, instr ->
-                    if (i == idx) instr.copy(ballCountError = issue.message) else instr
-                })
-        }
-    }
-    return updated
-}
-
-private fun PracticeSessionEditorState.withErrors(issues: List<ValidationIssue>): PracticeSessionEditorState {
-    var updated = this
-    for (issue in issues) {
-        val idx = issueIndex(issue.field)
-        when {
-            issue.field == "name" -> updated = updated.copy(nameError = issue.message)
-            idx != null && issue.field.endsWith("].practiceUnitId") ->
-                updated = updated.copy(items = updated.items.mapIndexed { i, item ->
-                    if (i == idx) item.copy(unitError = issue.message) else item
-                })
-            idx != null && issue.field.endsWith("].repeatCount") ->
-                updated = updated.copy(items = updated.items.mapIndexed { i, item ->
-                    if (i == idx) item.copy(repeatCountError = issue.message) else item
-                })
-        }
-    }
-    return updated
-}
+// reindexedInstructions, reindexedSessionItems, and moveItem are unchanged

@@ -9,13 +9,13 @@ fun PracticeUnitDraft.validationIssues(): List<ValidationIssue> {
         .forEachIndexed { index, instruction ->
             if (instruction.text.trim().isEmpty()) {
                 issues += ValidationIssue(
-                    field = "instructions[$index].text",
+                    target = ValidationTarget.InstructionText(index),
                     message = "Instruction text cannot be blank.",
                 )
             }
             if (instruction.ballCount != null && instruction.ballCount <= 0) {
                 issues += ValidationIssue(
-                    field = "instructions[$index].ballCount",
+                    target = ValidationTarget.InstructionBallCount(index),
                     message = "Ball count must be greater than zero.",
                 )
             }
@@ -23,13 +23,13 @@ fun PracticeUnitDraft.validationIssues(): List<ValidationIssue> {
 
     if (normalizedTitle.isEmpty()) {
         issues += ValidationIssue(
-            field = "title",
+            target = ValidationTarget.UnitTitle,
             message = "Title cannot be blank.",
         )
     }
     if (instructions.isEmpty()) {
         issues += ValidationIssue(
-            field = "instructions",
+            target = ValidationTarget.UnitInstructions,
             message = "At least one instruction is required.",
         )
     }
@@ -73,13 +73,13 @@ fun PracticeSessionDraft.validationIssues(): List<ValidationIssue> {
         .forEachIndexed { index, item ->
             if (item.practiceUnitId.trim().isEmpty()) {
                 issues += ValidationIssue(
-                    field = "items[$index].practiceUnitId",
+                    target = ValidationTarget.ItemUnitReference(index),
                     message = "Every session item must reference a practice unit.",
                 )
             }
             if (item.repeatCount <= 0) {
                 issues += ValidationIssue(
-                    field = "items[$index].repeatCount",
+                    target = ValidationTarget.ItemRepeatCount(index),
                     message = "Repeat count must be greater than zero.",
                 )
             }
@@ -87,7 +87,7 @@ fun PracticeSessionDraft.validationIssues(): List<ValidationIssue> {
 
     if (normalizedName.isEmpty()) {
         issues += ValidationIssue(
-            field = "name",
+            target = ValidationTarget.SessionName,
             message = "Session name cannot be blank.",
         )
     }
