@@ -46,7 +46,7 @@ export function registerCreateUnitTool(
                 .number()
                 .optional()
                 .describe(
-                  'Optional number of balls for this step. Must be a positive integer if provided.',
+                  'Number of balls for this step. A nonnegative integer: a positive count is N balls, and 0 is a deliberate no-ball step (e.g. practice swings for feel). Omit the field entirely to leave the count uncounted (unknown) — omitting is not the same as 0.',
                 ),
             }),
           )
@@ -133,11 +133,11 @@ export function registerCreateUnitTool(
         }
         if (
           inst.ball_count !== undefined &&
-          (!Number.isInteger(inst.ball_count) || inst.ball_count < 1)
+          (!Number.isInteger(inst.ball_count) || inst.ball_count < 0)
         ) {
           return toolError(
             ErrorCodes.VALIDATION_ERROR,
-            'ball_count must be a positive integer',
+            'ball_count must not be negative',
             { field: `instructions[${idx}].ball_count` },
           );
         }

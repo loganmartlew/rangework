@@ -179,6 +179,86 @@ describe('list_units tool', () => {
     expect(parsed.units[0].has_uncounted_instructions).toBe(true);
   });
 
+  it('counts a 0 ball_count instruction and does not flag it as uncounted', async () => {
+    const mockSupabaseClient = {
+      from: (table: string) => {
+        if (table === 'practice_units') {
+          return {
+            select: () => ({
+              order: async () => ({
+                data: [
+                  {
+                    id: 'unit-1',
+                    title: 'Feel work',
+                    notes: null,
+                    focus: null,
+                    default_club_code: null,
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        if (table === 'practice_unit_instructions') {
+          return {
+            select: () => ({
+              in: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      practice_unit_id: 'unit-1',
+                      sort_order: 1,
+                      text: 'Five practice swings',
+                      ball_count: 0,
+                    },
+                    {
+                      practice_unit_id: 'unit-1',
+                      sort_order: 2,
+                      text: 'Hit 10 wedges',
+                      ball_count: 10,
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            order: async () => ({ data: [], error: null }),
+            in: async () => ({ data: [], error: null }),
+          }),
+        };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'list_units',
+      arguments: {},
+    })) as { content: Array<{ type: string; text?: string }> };
+
+    const parsed = JSON.parse(result.content[0]?.text ?? '{}');
+    expect(parsed.units[0].has_uncounted_instructions).toBe(false);
+    expect(parsed.units[0].total_ball_count).toBe(10);
+  });
+
   it('returns empty array when user has no units', async () => {
     const mockSupabaseClient = {
       from: () => ({

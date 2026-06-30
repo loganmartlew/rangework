@@ -58,6 +58,133 @@ describe('create_unit tool', () => {
     expect(typeof parsed.unit_id).toBe('string');
   });
 
+  it('accepts a 0 ball_count and persists it as 0', async () => {
+    let persistedInstructions: Array<Record<string, unknown>> = [];
+    const mockSupabaseClient = {
+      from: () => ({
+        select: () => ({ order: async () => ({ data: [], error: null }) }),
+      }),
+      rpc: async (name: string, params: Record<string, unknown>) => {
+        if (name === 'save_practice_unit') {
+          persistedInstructions = params.p_instructions as Array<
+            Record<string, unknown>
+          >;
+          return { error: null };
+        }
+        return { error: { message: 'Unknown RPC' } };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'create_unit',
+      arguments: {
+        title: 'Feel work',
+        instructions: [{ order: 1, text: 'Five practice swings', ball_count: 0 }],
+      },
+    })) as { content: Array<{ type: string; text?: string }>; isError?: boolean };
+
+    expect(result.isError).toBeFalsy();
+    expect(persistedInstructions).toHaveLength(1);
+    expect(persistedInstructions[0]?.ball_count).toBe(0);
+  });
+
+  it('rejects a negative ball_count', async () => {
+    const mockSupabaseClient = {
+      from: () => ({
+        select: () => ({ order: async () => ({ data: [], error: null }) }),
+      }),
+      rpc: async () => ({ error: null }),
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'create_unit',
+      arguments: {
+        title: 'Drill',
+        instructions: [{ order: 1, text: 'Hit balls', ball_count: -1 }],
+      },
+    })) as { content: Array<{ type: string; text?: string }>; isError?: boolean };
+
+    expect(result.isError).toBe(true);
+    const parsed = JSON.parse(result.content[0]?.text ?? '{}');
+    expect(parsed.code).toBe('VALIDATION_ERROR');
+    expect(parsed.message).toContain('ball_count');
+  });
+
+  it('preserves an omitted ball_count as uncounted (key absent)', async () => {
+    let persistedInstructions: Array<Record<string, unknown>> = [];
+    const mockSupabaseClient = {
+      from: () => ({
+        select: () => ({ order: async () => ({ data: [], error: null }) }),
+      }),
+      rpc: async (name: string, params: Record<string, unknown>) => {
+        if (name === 'save_practice_unit') {
+          persistedInstructions = params.p_instructions as Array<
+            Record<string, unknown>
+          >;
+          return { error: null };
+        }
+        return { error: { message: 'Unknown RPC' } };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'create_unit',
+      arguments: {
+        title: 'Drill',
+        instructions: [{ order: 1, text: 'Visualise the shot' }],
+      },
+    })) as { content: Array<{ type: string; text?: string }>; isError?: boolean };
+
+    expect(result.isError).toBeFalsy();
+    expect(persistedInstructions).toHaveLength(1);
+    expect('ball_count' in (persistedInstructions[0] ?? {})).toBe(false);
+  });
+
   it('rejects empty title', async () => {
     const mockSupabaseClient = {
       from: () => ({

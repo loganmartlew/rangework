@@ -213,6 +213,98 @@ describe('list_sessions tool', () => {
     expect(parsed.sessions[0].has_uncounted_items).toBe(true);
   });
 
+  it('counts a 0 ball_count instruction and does not flag the session as uncounted', async () => {
+    const mockSupabaseClient = {
+      from: (table: string) => {
+        if (table === 'practice_sessions') {
+          return {
+            select: () => ({
+              order: async () => ({
+                data: [{ id: 'session-1', name: 'Session', notes: null }],
+                error: null,
+              }),
+            }),
+          };
+        }
+        if (table === 'practice_session_items') {
+          return {
+            select: () => ({
+              in: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      practice_session_id: 'session-1',
+                      practice_unit_id: 'unit-1',
+                      sort_order: 1,
+                      repeat_count: 2,
+                      club_code: null,
+                      notes: null,
+                      focus_cue: null,
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'practice_units') {
+          return {
+            select: () => ({
+              in: async () => ({
+                data: [{ id: 'unit-1', title: 'Feel work' }],
+                error: null,
+              }),
+            }),
+          };
+        }
+        if (table === 'practice_unit_instructions') {
+          return {
+            select: () => ({
+              in: async () => ({
+                data: [
+                  { practice_unit_id: 'unit-1', ball_count: 0 },
+                  { practice_unit_id: 'unit-1', ball_count: 10 },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            order: async () => ({ data: [], error: null }),
+            in: async () => ({ data: [], error: null }),
+          }),
+        };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'list_sessions',
+      arguments: {},
+    })) as { content: Array<{ type: string; text?: string }> };
+
+    const parsed = JSON.parse(result.content[0]?.text ?? '{}');
+    expect(parsed.sessions[0].has_uncounted_items).toBe(false);
+    expect(parsed.sessions[0].total_ball_count).toBe(20); // 2 repeats * (0 + 10)
+  });
+
   it('returns empty array when user has no sessions', async () => {
     const mockSupabaseClient = {
       from: () => ({
