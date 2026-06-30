@@ -7,11 +7,11 @@ The core golf practice planning domain. Defines the three-level hierarchy (Pract
 ### Planning layer
 
 **Practice Unit**:
-A reusable, self-contained drill. Owns an ordered list of Practice Instructions, optional notes, a Focus Cue, and an optional default Club.
+A reusable, self-contained drill. Owns an ordered list of Practice Instructions, optional notes, a Focus Cue, and an optional default Club. The default Club is the fallback for any Practice Instruction that does not set its own Club.
 _Avoid_: drill, exercise, activity
 
 **Practice Instruction**:
-A single ordered directive within a Practice Unit, with descriptive text and an optional Ball Count.
+A single ordered directive within a Practice Unit, with descriptive text, an optional Ball Count, and an optional Club. The Club lets a single drill use different clubs across its instructions (e.g. a wedge ladder: GW, then SW, then LW). When an instruction carries no Club, it falls back to its Practice Unit's default Club.
 _Avoid_: step (reserved for execution Steps), task
 
 **Practice Session**:
@@ -31,8 +31,17 @@ A mental focus directive — the specific thing to concentrate on during a Pract
 _Avoid_: focus, mental note, tip
 
 **Ball Count**:
-The number of balls expected for a single Practice Instruction. Summed across all instructions to give a Practice Unit's total; multiplied by Repeat Count to give a Session Item's total.
-_Avoid_: shot count, ball total (for the per-instruction value)
+The number of balls expected for a single Practice Instruction. Three states are distinct and must not be conflated:
+- A **positive** count — N balls are hit.
+- **Zero** — a deliberate no-ball directive, such as practice swings for feel. Definite, not missing.
+- **Uncounted** (absent / `null`) — the count is unknown, not specified. Distinct from Zero: Zero means "deliberately none," Uncounted means "we don't know."
+
+Positive and zero counts are summed across all instructions to give a Practice Unit's total; multiplied by Repeat Count to give a Session Item's total. How an Uncounted instruction affects an enclosing total is context-specific (see Uncounted).
+_Avoid_: shot count, ball total (for the per-instruction value); do not treat Zero and Uncounted as the same.
+
+**Uncounted**:
+The state of a Ball Count that has not been specified (`null`). Means "we don't know how many balls," as opposed to Zero, which means "deliberately none." Treatment of Uncounted within a total is not yet uniform across contexts: the Coaching context propagates it — any Unit or Session with an Uncounted instruction reports an Uncounted (partial-estimate) total, surfaced as `has_uncounted_instructions` / `has_uncounted_items` — while the mobile Planning & Execution totals currently treat an Uncounted instruction as zero when summing.
+_Avoid_: zero, empty, unavailable
 
 ### Tagging
 
@@ -94,6 +103,10 @@ _Avoid_: club reference, club key, club id
 **Club Bag**:
 The set of Clubs a user has enabled from the catalog. Only clubs in a user's Bag appear in UI selectors and are valid targets for club assignments.
 _Avoid_: equipped clubs, my clubs
+
+**Club Resolution**:
+The precedence used to determine the Club for a single Step at Range Session start: the Session Item's Club, then the Practice Instruction's Club, then the Practice Unit's default Club (`sessionItem.club ?? instruction.club ?? unit.defaultClub`). A Session Item Club is therefore a whole-unit override that flattens every instruction's Club to one Club for that session; the Practice Unit default fills only instructions that set no Club of their own.
+_Avoid_: club fallback, club inheritance
 
 ### Derived values
 
