@@ -23,6 +23,7 @@ data class PracticeUnitDraftInput(
     val instructions: List<PracticeInstructionDraftInput> = listOf(
         PracticeInstructionDraftInput(order = 1),
     ),
+    val tagIds: List<String> = emptyList(),
     val titleError: String? = null,
 ) {
     fun withoutErrors() = copy(
@@ -48,6 +49,7 @@ data class PracticeSessionDraftInput(
     val name: String = "",
     val notes: String = "",
     val items: List<PracticeSessionItemDraftInput> = emptyList(),
+    val tagIds: List<String> = emptyList(),
     val nameError: String? = null,
 ) {
     fun withoutErrors() = copy(

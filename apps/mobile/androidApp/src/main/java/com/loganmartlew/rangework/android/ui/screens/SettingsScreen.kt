@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Cookie
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mail
+import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -67,6 +68,7 @@ internal fun SettingsScreen(
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
     onNavigateToAiSessionPlans: () -> Unit,
     onNavigateToManageClubs: () -> Unit,
+    onNavigateToManageTags: () -> Unit,
     onNavigateToDeleteAccount: () -> Unit,
     onNavigateToLegalPage: (String) -> Unit,
 ) {
@@ -266,6 +268,45 @@ internal fun SettingsScreen(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.NavigateNext,
                 contentDescription = "Manage clubs",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // Tags section
+        SettingsSubheader("Tags")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(role = Role.Button, onClick = onNavigateToManageTags)
+                .padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Sell,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Column {
+                    Text(
+                        text = "Manage tags",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "Rename or delete your custom tags",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.NavigateNext,
+                contentDescription = "Manage tags",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

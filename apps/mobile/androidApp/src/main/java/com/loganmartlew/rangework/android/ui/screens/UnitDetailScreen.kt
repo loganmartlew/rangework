@@ -30,6 +30,7 @@ import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.FocusCard
 import com.loganmartlew.rangework.android.ui.components.NumberBadge
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.TagChipRow
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.derivedBallCount
@@ -78,6 +79,9 @@ internal fun UnitDetailScreen(
                 ),
             ),
         )
+
+        // Tags
+        TagChipRow(tags = unit.tags)
 
         // Unit notes
         unit.notes?.takeIf(String::isNotBlank)?.let { notes ->

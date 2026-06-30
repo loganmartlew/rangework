@@ -1,14 +1,17 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { UserContext } from '../auth/userContext.js';
+import { z } from 'zod';
 
 /**
  * Tool: `list_sessions`
  *
  * Returns all of the user's practice sessions, including their item lineup,
- * club overrides, repeat counts, and coaching notes. Call this to understand
- * how the user's existing sessions are structured before creating a new one.
- * If `has_uncounted_items` is true, one or more units in the session have no
- * ball count on some instructions — treat the total as a partial estimate.
+ * club overrides, repeat counts, coaching notes, and tags. Call this to
+ * understand how the user's existing sessions are structured before creating a
+ * new one. Pass `tag_codes` to filter by the session's own goal (OR semantics).
+ * A session's tags express its overall intent and are independent of its units'
+ * tags. If `has_uncounted_items` is true, one or more units in the session have
+ * no ball count on some instructions — treat the total as a partial estimate.
  */
 export function registerListSessionsTool(
   server: McpServer,
@@ -18,10 +21,17 @@ export function registerListSessionsTool(
     'list_sessions',
     {
       description:
-        "Returns all of the user's practice sessions, including their item lineup, club overrides, repeat counts, and coaching notes. Call this to understand how the user's existing sessions are structured before creating a new one. If `has_uncounted_items` is true, one or more units in the session have no ball count on some instructions — treat the total as a partial estimate.",
-      inputSchema: {},
+        "Returns all of the user's practice sessions, including their item lineup, club overrides, repeat counts, coaching notes, and tags. Pass `tag_codes` to filter by the session's goal (OR semantics); a session's tags are independent of its units' tags. If `has_uncounted_items` is true, one or more units have no ball count on some instructions — treat the total as a partial estimate.",
+      inputSchema: {
+        tag_codes: z
+          .array(z.string())
+          .optional()
+          .describe(
+            'Optional tag codes to filter by, using OR semantics: a session is returned if it carries at least one of these codes. Use codes from `list_tags`.',
+          ),
+      },
     },
-    async () => {
+    async args => {
       // Fetch all practice sessions for the user, ordered by updated_at DESC
       const { data: sessions, error: sessionsError } = await ctx.supabaseClient
         .from('practice_sessions')
@@ -162,6 +172,45 @@ export function registerListSessionsTool(
         itemsBySession.set(item.practice_session_id, existing);
       }
 
+      // Fetch tags for these sessions
+      const { data: sessionTags, error: sessionTagsError } =
+        await ctx.supabaseClient
+          .from('practice_session_tags')
+          .select('practice_session_id, tags(code, display_name)')
+          .in('practice_session_id', sessionIds);
+
+      if (sessionTagsError) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                code: 'DATABASE_ERROR',
+                message: 'Failed to fetch session tags.',
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const tagsBySession = new Map<
+        string,
+        Array<{ code: string; display_name: string }>
+      >();
+      for (const row of sessionTags ?? []) {
+        const tag = row.tags as unknown as {
+          code: string;
+          display_name: string;
+        } | null;
+        if (!tag) continue;
+        const existing = tagsBySession.get(row.practice_session_id) ?? [];
+        existing.push({ code: tag.code, display_name: tag.display_name });
+        tagsBySession.set(row.practice_session_id, existing);
+      }
+
+      const filterCodes = args.tag_codes ?? [];
+
       // Build output for each session
       const sessionsOutput = sessions.map(session => {
         const sessionItems = itemsBySession.get(session.id) ?? [];
@@ -186,6 +235,7 @@ export function registerListSessionsTool(
           notes: session.notes,
           total_ball_count: hasUncountedItems ? null : totalBallCount,
           has_uncounted_items: hasUncountedItems,
+          tags: tagsBySession.get(session.id) ?? [],
           items: sessionItems.map(item => {
             const unit = unitMap.get(item.practice_unit_id);
             return {
@@ -201,11 +251,19 @@ export function registerListSessionsTool(
         };
       });
 
+      // Apply OR tag filter: keep sessions carrying at least one of the codes.
+      const filteredSessions =
+        filterCodes.length === 0
+          ? sessionsOutput
+          : sessionsOutput.filter(s =>
+              s.tags.some(t => filterCodes.includes(t.code)),
+            );
+
       return {
         content: [
           {
             type: 'text' as const,
-            text: JSON.stringify({ sessions: sessionsOutput }),
+            text: JSON.stringify({ sessions: filteredSessions }),
           },
         ],
       };

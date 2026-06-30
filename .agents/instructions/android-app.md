@@ -10,7 +10,8 @@
 - `apps/mobile/androidApp/src/main/java/com/loganmartlew/rangework/android/ui/AuthViewModel.kt` — auth/session restore and sign-in/sign-out state.
 - `apps/mobile/androidApp/src/main/java/com/loganmartlew/rangework/android/ui/PracticePlannerViewModel.kt` — planning screen loading, editing, save/delete flows, setup messaging.
 - `apps/mobile/androidApp/src/main/java/com/loganmartlew/rangework/android/ui/SettingsViewModel.kt` — theme mode, measurement preferences, and club management state.
-- `apps/mobile/androidApp/src/main/java/com/loganmartlew/rangework/android/ui/screens/` — 9 screen composables: Overview, UnitList, UnitDetail, UnitEditor, SessionList, SessionDetail, SessionEditor, ManageClubs, Settings.
+- `apps/mobile/androidApp/src/main/java/com/loganmartlew/rangework/android/ui/screens/` — screen composables: Overview, UnitList, UnitDetail, UnitEditor, SessionList, SessionDetail, SessionEditor, ManageClubs, ManageTags, Settings.
+- Tag UI lives in `ui/components/TagComponents.kt` (`TagChipRow`, `TagPicker`, `TagFilterBar`); tag editor/filter state is on `PracticePlannerViewModel`, and custom-tag rename/delete on `SettingsViewModel`.
 - `apps/mobile/androidApp/src/main/java/com/loganmartlew/rangework/android/ui/components/` — 30+ reusable UI components (cards, FABs, pickers, dialogs, steppers, bars, etc.).
 - `apps/mobile/androidApp/src/main/java/com/loganmartlew/rangework/android/ui/theme/` — Material 3 theme, color scheme, type definitions (`Type.kt`), `RangeworkMono` object.
 - `apps/mobile/androidApp/src/test/java/com/loganmartlew/rangework/android/` — ViewModel unit tests.

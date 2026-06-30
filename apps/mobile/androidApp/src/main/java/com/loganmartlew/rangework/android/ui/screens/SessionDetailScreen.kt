@@ -41,6 +41,7 @@ import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.NumberBadge
 import com.loganmartlew.rangework.android.ui.components.RangeSessionHistoryItem
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.TagChipRow
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.PracticeSessionItem
@@ -108,6 +109,9 @@ internal fun SessionDetailScreen(
                 ),
             ),
         )
+
+        // Tags
+        TagChipRow(tags = session.tags)
 
         // Start session button
         Button(

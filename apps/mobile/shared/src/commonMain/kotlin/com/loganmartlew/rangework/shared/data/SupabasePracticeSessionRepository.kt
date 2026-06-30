@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.shared.data
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSessionItem
+import com.loganmartlew.rangework.shared.model.Tag
 import com.loganmartlew.rangework.shared.repository.PracticeSessionRepository
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
@@ -34,13 +35,27 @@ class SupabasePracticeSessionRepository(
             .select()
             .decodeList<PracticeSessionItemRow>()
 
+        val tagsById = client.loadVisibleTagsById()
+        val tagsBySession = client.postgrest[PRACTICE_SESSION_TAGS_TABLE]
+            .select()
+            .decodeList<PracticeSessionTagRow>()
+            .groupBy(PracticeSessionTagRow::practiceSessionId)
+
         return assembleParentsWithChildren(
             parents = sessionRows,
             children = itemRows,
             parentId = PracticeSessionRow::id,
             childParentId = PracticeSessionItemRow::practiceSessionId,
             childOrder = PracticeSessionItemRow::sortOrder,
-            toModel = PracticeSessionRow::toModel,
+            toModel = { row, items ->
+                row.toModel(
+                    items = items,
+                    tags = resolveTags(
+                        tagsBySession[row.id].orEmpty().map(PracticeSessionTagRow::tagId),
+                        tagsById,
+                    ),
+                )
+            },
             modelSort = PracticeSession::updatedAt,
         )
     }
@@ -64,11 +79,21 @@ class SupabasePracticeSessionRepository(
             }
             .decodeList<PracticeSessionItemRow>()
 
+        val tagIds = client.postgrest[PRACTICE_SESSION_TAGS_TABLE]
+            .select {
+                filter {
+                    eq("practice_session_id", id)
+                }
+            }
+            .decodeList<PracticeSessionTagRow>()
+            .map(PracticeSessionTagRow::tagId)
+        val tags = resolveTags(tagIds, client.loadVisibleTagsById())
+
         return assembleParentWithChildren(
             parent = sessionRow,
             children = itemRows,
             childOrder = PracticeSessionItemRow::sortOrder,
-            toModel = PracticeSessionRow::toModel,
+            toModel = { row, items -> row.toModel(items, tags) },
         )
     }
 
@@ -89,6 +114,7 @@ class SupabasePracticeSessionRepository(
                     focusCue = item.focusCue,
                 )
             },
+            tagIds = validated.tagIds,
         )
         client.postgrest.rpc(
             "save_practice_session",
@@ -146,6 +172,7 @@ private data class SavePracticeSessionParams(
     @SerialName("p_name") val name: String,
     @SerialName("p_notes") val notes: String?,
     @SerialName("p_items") val items: List<SessionItemParam>,
+    @SerialName("p_tag_ids") val tagIds: List<String>,
 )
 
 @Serializable
@@ -160,22 +187,23 @@ private data class SessionItemParam(
 
 private fun PracticeSessionRow.toModel(
     items: List<PracticeSessionItemRow>,
+    tags: List<Tag>,
 ): PracticeSession = PracticeSession(
     id = id,
     name = name,
-    items = items
-        .map { row ->
-            PracticeSessionItem(
-                id = row.id,
-                practiceUnitId = row.practiceUnitId,
-                order = row.sortOrder,
-                repeatCount = row.repeatCount,
-                clubCode = row.clubCode,
-                notes = row.notes,
-                focusCue = row.focusCue,
-            )
-        },
+    items = items.map { row ->
+        PracticeSessionItem(
+            id = row.id,
+            practiceUnitId = row.practiceUnitId,
+            order = row.sortOrder,
+            repeatCount = row.repeatCount,
+            clubCode = row.clubCode,
+            notes = row.notes,
+            focusCue = row.focusCue,
+        )
+    },
     notes = notes,
+    tags = tags,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )

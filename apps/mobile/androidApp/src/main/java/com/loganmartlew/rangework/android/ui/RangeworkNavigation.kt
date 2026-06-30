@@ -34,6 +34,7 @@ internal object RangeworkRoutes {
     const val Settings = "settings"
     const val AiSessionPlans = "settings/ai-session-plans"
     const val ManageClubs = "settings/clubs"
+    const val ManageTags = "settings/tags"
     const val DeleteAccount = "settings/delete-account"
     const val LegalPage = "settings/legal/{page}"
     const val RangeSession = "range-sessions/{rangeSessionId}"

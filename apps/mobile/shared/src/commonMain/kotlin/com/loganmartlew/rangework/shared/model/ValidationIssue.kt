@@ -17,6 +17,9 @@ sealed interface ValidationTarget {
     data class ItemUnitReference(val index: Int) : ValidationTarget
     data class ItemRepeatCount(val index: Int) : ValidationTarget
 
+    // Tags
+    data object Tags : ValidationTarget
+
     fun label(): String = when (this) {
         UnitTitle -> "title"
         UnitInstructions -> "instructions"
@@ -25,6 +28,7 @@ sealed interface ValidationTarget {
         SessionName -> "name"
         is ItemUnitReference -> "items[$index].practiceUnitId"
         is ItemRepeatCount -> "items[$index].repeatCount"
+        Tags -> "tags"
     }
 }
 
