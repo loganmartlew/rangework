@@ -289,9 +289,10 @@ private fun InstructionEditorRow(
                     max = 100,
                     label = "Ball count for instruction $number",
                 )
-                if (instruction.ballCountError != null) {
+                val ballCountError = instruction.ballCountError
+                if (ballCountError != null) {
                     Text(
-                        text = instruction.ballCountError,
+                        text = ballCountError,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )

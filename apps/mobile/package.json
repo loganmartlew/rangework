@@ -2,7 +2,7 @@
   "name": "@rangework/mobile",
   "private": true,
   "devDependencies": {
-    "@rangework/ui-tokens": "workspace:*"
+    "@rangework/design": "workspace:*"
   },
   "scripts": {
     "build": "pnpm run assemble:debug",

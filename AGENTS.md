@@ -4,16 +4,16 @@ Rangework is an Android-first golf practice planning app. This monorepo uses pnp
 
 ## Modules at a glance
 
-| Directory             | Purpose                                                                          |
-| --------------------- | -------------------------------------------------------------------------------- |
-| `apps/mobile/`        | Android/KMP app — `androidApp` (Compose UI) + `shared` (KMP business logic)      |
-| `apps/mcp/`           | MCP server (Cloudflare Worker, TypeScript) — AI-assisted practice planning tools |
-| `apps/site/`          | Marketing/support website (Astro + Svelte + Tailwind)                            |
-| `packages/ui-tokens/` | Shared design tokens consumed by Android build and the site                      |
-| `supabase/`           | DB schema, migrations, RLS rules, Edge Function config                           |
-| `README.md`           | Quick build/config reference                                                     |
-| `RANGEWORK.md`        | Product overview and feature descriptions                                        |
-| `baseline-plan.md`    | Architectural intent; consult before structural product decisions                |
+| Directory          | Purpose                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `apps/mobile/`     | Android/KMP app — `androidApp` (Compose UI) + `shared` (KMP business logic)        |
+| `apps/mcp/`        | MCP server (Cloudflare Worker, TypeScript) — AI-assisted practice planning tools   |
+| `apps/site/`       | Marketing/support website (Astro + Svelte + Tailwind)                              |
+| `packages/design/` | Shared design tokens + brand-asset pipeline consumed by Android build and the site |
+| `supabase/`        | DB schema, migrations, RLS rules, Edge Function config                             |
+| `README.md`        | Quick build/config reference                                                       |
+| `RANGEWORK.md`     | Product overview and feature descriptions                                          |
+| `baseline-plan.md` | Architectural intent; consult before structural product decisions                  |
 
 ## Build and validation
 
@@ -79,11 +79,39 @@ Read the relevant file before diving into an area. These contain file maps, patt
 | `apps/site` (Astro marketing site)                      | `.agents/instructions/site.md`         |
 | Product scope, feature behaviour, domain glossary       | `RANGEWORK.md`                         |
 
-## Agent skills
+## GitHub CLI (`gh`) — issues and pull requests
 
-### Issue tracker
+All issue and PR operations go through the `gh` CLI. The repo is inferred automatically from `git remote -v` when running inside the clone.
 
-Issues live in GitHub Issues (`gh` CLI); external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+### Issues
+
+Issues are the primary work-tracking surface. External PRs are **not** a triage surface — feature requests and bug reports belong in issues.
+
+| Operation              | Command                                                                                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create                 | `gh issue create --title "..." --body "..."` (use a heredoc for multi-line bodies)                                                                                  |
+| Read (with comments)   | `gh issue view <number> --comments`                                                                                                                                 |
+| List (open, with JSON) | `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] \| {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` |
+| Filter by label        | Append `--label "label-name"` to `gh issue list`                                                                                                                    |
+| Comment                | `gh issue comment <number> --body "..."`                                                                                                                            |
+| Add label              | `gh issue edit <number> --add-label "label-name"`                                                                                                                   |
+| Remove label           | `gh issue edit <number> --remove-label "label-name"`                                                                                                                |
+| Close                  | `gh issue close <number> --comment "..."`                                                                                                                           |
+
+### Pull requests
+
+Use `gh pr` for creating, reviewing, and managing pull requests. GitHub shares one number space across issues and PRs — resolve ambiguity with `gh pr view <number>` first, falling back to `gh issue view <number>`.
+
+| Operation            | Command                                                          |
+| -------------------- | ---------------------------------------------------------------- |
+| Create               | `gh pr create --title "..." --body "..."`                        |
+| Read (with comments) | `gh pr view <number> --comments`                                 |
+| View diff            | `gh pr diff <number>`                                            |
+| List open            | `gh pr list --state open`                                        |
+| Comment              | `gh pr comment <number> --body "..."`                            |
+| Add/remove label     | `gh pr edit <number> --add-label "..."` / `--remove-label "..."` |
+| Close                | `gh pr close <number> --comment "..."`                           |
+| Checkout locally     | `gh pr checkout <number>`                                        |
 
 ### Triage labels
 

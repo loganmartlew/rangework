@@ -8,6 +8,10 @@ ALTER TABLE public.practice_session_items
   RENAME COLUMN club_reference TO club_code;
 
 -- Recreate save_practice_unit with renamed parameter and column references.
+-- Drop first: Postgres cannot rename an input parameter via CREATE OR REPLACE
+-- (p_default_club_reference -> p_default_club_code).
+drop function if exists public.save_practice_unit(uuid, text, text, text, text, jsonb);
+
 create or replace function public.save_practice_unit(
   p_unit_id uuid,
   p_title text,

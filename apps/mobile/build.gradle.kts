@@ -19,7 +19,7 @@ tasks.register<Exec>("generateUiTokens") {
     group = "build setup"
     description = "Builds shared design tokens for Android and web consumers."
     workingDir = repoRootDir
-    commandLine(pnpmExecutable, "--filter", "@rangework/ui-tokens", "build")
+    commandLine(pnpmExecutable, "--filter", "@rangework/design", "build")
 }
 
 tasks.register<Delete>("clean") {

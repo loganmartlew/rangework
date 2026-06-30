@@ -101,6 +101,7 @@ object PracticeDraftEditor {
                     notes = input.notes,
                     focus = input.focus,
                     defaultClubCode = input.defaultClubCode,
+                    tagIds = input.tagIds,
                 )
             } else null,
             issues = parseIssues,
@@ -128,6 +129,7 @@ object PracticeDraftEditor {
                     name = input.name,
                     items = items,
                     notes = input.notes,
+                    tagIds = input.tagIds,
                 )
             } else null,
             issues = parseIssues,

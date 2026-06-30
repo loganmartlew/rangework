@@ -1,0 +1,19 @@
+{
+  "name": "@rangework/design",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tailwind-theme.css": "./dist/web/tailwind-theme.css",
+    "./fonts.css": "./dist/web/fonts.css",
+    "./brand/logo.svg": "./generated/brand/logo.svg"
+  },
+  "scripts": {
+    "build": "node ./scripts/build.mjs"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "png-to-ico": "^2.1.8",
+    "style-dictionary": "^4.3.3",
+    "svgson": "^5.3.1"
+  }
+}

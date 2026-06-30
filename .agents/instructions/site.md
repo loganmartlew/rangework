@@ -7,7 +7,7 @@
 - **Astro** — static site generator (SSG) with island architecture
 - **Svelte 5** — interactive islands (OAuth consent flow)
 - **Tailwind CSS v4** — utility-first styling via Vite plugin
-- **`@rangework/ui-tokens`** — shared design tokens (colors, typography scales) from `packages/ui-tokens`
+- **`@rangework/design`** — shared design tokens (colors, typography scales) and brand assets from `packages/design`
 - **`@supabase/supabase-js`** — Supabase client for the OAuth consent page
 
 ## File map
@@ -43,4 +43,4 @@ pnpm --filter @rangework/site lint    # ESLint (astro + tailwindcss plugins)
 - Keep Supabase client usage in `src/lib/supabase-client.ts`; do not create ad-hoc client instances in components.
 - External links and app deep-links are centralized in `src/lib/links.ts`.
 - Legal pages are Markdown files rendered via `MarkdownLayout.astro` — no custom components needed.
-- Design tokens from `packages/ui-tokens` are imported in `global.css`; do not hardcode brand colors or type scales inline.
+- Design tokens from `packages/design` are imported in `global.css`; do not hardcode brand colors or type scales inline.

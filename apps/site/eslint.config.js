@@ -18,6 +18,20 @@ export default tseslint.config(
     },
   },
   {
+    // Node-run config files (astro.config.mjs, etc.) use Node globals.
+    files: ['**/*.config.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        URL: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+      },
+    },
+  },
+  {
     plugins: { tailwindcss: tailwind },
     settings: {
       tailwindcss: {

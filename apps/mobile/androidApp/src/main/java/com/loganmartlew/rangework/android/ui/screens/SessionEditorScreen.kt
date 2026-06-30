@@ -50,7 +50,6 @@ import com.loganmartlew.rangework.android.ui.components.TagPicker
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.PracticeUnit
-import com.loganmartlew.rangework.shared.model.derivedBallCount
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -363,9 +362,10 @@ private fun SessionItemEditorCard(
                         max = 50,
                         label = "Repeat count for item $number",
                     )
-                    if (item.repeatCountError != null) {
+                    val repeatCountError = item.repeatCountError
+                    if (repeatCountError != null) {
                         Text(
-                            text = item.repeatCountError,
+                            text = repeatCountError,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -416,9 +416,4 @@ private fun SessionItemEditorCard(
             )
         }
     }
-}
-
-private fun PracticeSessionItemEditorState.derivedBallCount(unit: PracticeUnit?): Int? {
-    val repeats = repeatCount.trim().toIntOrNull() ?: return unit?.derivedBallCount()
-    return unit?.derivedBallCount()?.times(repeats)
 }

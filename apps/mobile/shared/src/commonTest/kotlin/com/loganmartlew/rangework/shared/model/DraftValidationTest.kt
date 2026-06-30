@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.shared.model
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class DraftValidationTest {
     @Test
@@ -89,7 +90,7 @@ class DraftValidationTest {
         ).validationIssues()
 
         assertEquals(1, issues.size)
-        assertEquals("title", issues.first().field)
+        assertEquals(ValidationTarget.UnitTitle, issues.first().target)
     }
 
     @Test
@@ -100,7 +101,7 @@ class DraftValidationTest {
         ).validationIssues()
 
         assertEquals(1, issues.size)
-        assertEquals("instructions", issues.first().field)
+        assertEquals(ValidationTarget.UnitInstructions, issues.first().target)
     }
 
     @Test
@@ -112,9 +113,9 @@ class DraftValidationTest {
             ),
         ).validationIssues()
 
-        val fields = issues.map { it.field }
-        assert(fields.contains("instructions[0].text")) { "Expected instructions[0].text in $fields" }
-        assert(fields.contains("instructions[0].ballCount")) { "Expected instructions[0].ballCount in $fields" }
+        val targets = issues.map { it.target }
+        assertTrue("Expected InstructionText(0) in $targets") { targets.contains(ValidationTarget.InstructionText(0)) }
+        assertTrue("Expected InstructionBallCount(0) in $targets") { targets.contains(ValidationTarget.InstructionBallCount(0)) }
     }
 
     @Test
@@ -127,7 +128,7 @@ class DraftValidationTest {
         ).validationIssues()
 
         assertEquals(1, issues.size)
-        assertEquals("name", issues.first().field)
+        assertEquals(ValidationTarget.SessionName, issues.first().target)
     }
 
     @Test
@@ -139,8 +140,8 @@ class DraftValidationTest {
             ),
         ).validationIssues()
 
-        val fields = issues.map { it.field }
-        assert(fields.contains("items[0].practiceUnitId")) { "Expected items[0].practiceUnitId in $fields" }
+        val targets = issues.map { it.target }
+        assertTrue("Expected ItemUnitReference(0) in $targets") { targets.contains(ValidationTarget.ItemUnitReference(0)) }
     }
 
     @Test
@@ -156,8 +157,8 @@ class DraftValidationTest {
             ),
         ).validationIssues()
 
-        val fields = issues.map { it.field }
-        assert(fields.contains("items[0].repeatCount")) { "Expected items[0].repeatCount in $fields" }
+        val targets = issues.map { it.target }
+        assertTrue("Expected ItemRepeatCount(0) in $targets") { targets.contains(ValidationTarget.ItemRepeatCount(0)) }
     }
 
     @Test
