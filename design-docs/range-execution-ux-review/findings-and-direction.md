@@ -1,7 +1,8 @@
 # Range execution UX review — findings and direction
 
 **Date:** 2026-07-02
-**Status:** Design resolved via grilling session 2026-07-02 (see §6); ready to implement.
+**Status:** Implemented 2026-07-03 — snapshot v2 ball-granular RPC, block-first
+execution UI, and the parallel MCP change (see §6) have all shipped.
 Glossary updated (`apps/mobile/CONTEXT.md`: Step, Ball Step, Action Step, Block, Club
 Resolution, Club Override); ADR 0004 records the expansion decision.
 **Trigger:** Field report from a real range session ("Driver Slice Fix + Flag Distances",

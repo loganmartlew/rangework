@@ -10,7 +10,7 @@ The core idea is a three-level structure:
 
 **Practice Sessions** are templates that combine units into a full practice plan. You pick which units to include, set how many times each one repeats, and optionally override the club or add session-specific notes for each session item. The app tallies the total ball count for the session so you know exactly what you're signing up for before you leave the house.
 
-**Range Sessions** are live execution records created when you start a practice session at the range. The practice session is snapshotted at launch, expanding into an ordered list of individual steps (one per instruction × repetition). You work through each step one at a time, marking them complete as you go. Progress is persisted continuously so you can close the app and resume right where you left off.
+**Range Sessions** are live execution records created when you start a practice session at the range. The practice session is snapshotted at launch, expanding into an ordered list of ball-granular steps (one per ball, plus check-off steps for no-ball directives). At the range you see one screen per block — the live view of a session item — with the focus cue front and centre and a ball counter tracking repetition. Progress is persisted continuously so you can close the app and resume right where you left off.
 
 All data is saved to the cloud and tied to your account, so your plans are available whenever you open the app.
 
@@ -35,10 +35,12 @@ All data is saved to the cloud and tied to your account, so your plans are avail
 
 - Start a range session directly from any practice session
 - A snapshot of the session — units, instructions, clubs, notes, and focus cues — is captured at start time so the record is immune to later edits
-- Steps are flattened from the snapshot (unit × repetition × instruction) and presented one at a time
-- Mark each step complete with a single tap; completing the current step auto-advances to the next
-- Navigate freely with Previous / Next controls or jump to any step
-- Progress and the last viewed step index are persisted after every action — close the app and resume exactly where you left off
+- The snapshot expands ball-granularly: an instruction for N balls becomes N ball steps, so each counted ball is a discrete, timestamped record; no-ball directives become single check-off steps
+- One screen per block (session item): the focus cue is large and glanceable, the instruction list shows the structure of one pass with per-instruction tallies, and notes collapse out of the way
+- Repetition is a ball counter — "+1" counts a ball (sweeping any preceding no-ball actions), "−1" undoes the last tap, and the button becomes "Done" when only check-offs remain
+- Swap the club for an instruction mid-block; balls already hit keep the club they were hit with
+- Navigate freely by swiping between blocks or jumping from the overview, which shows per-block progress; opening a session lands on the first incomplete block
+- Finish from the overview at any time — finishing with incomplete steps asks whether to complete the remainder or finish as-is; progress is persisted after every action so you can close the app and resume where you left off
 - Time on range is recorded automatically and can be reviewed later
 - Finish a session when all work is done, or abandon it to discard the record
 - View active (in-progress) sessions and completed session history per template
