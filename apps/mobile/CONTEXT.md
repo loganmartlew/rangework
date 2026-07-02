@@ -72,8 +72,20 @@ An immutable capture of a Practice Session's content taken at the moment a Range
 _Avoid_: frozen session, copy, record
 
 **Step**:
-An atomic unit of work inside a Range Session. Derived by expanding each Practice Instruction across its Repeat Count — one Step equals one instruction × one repetition of one Session Item. The Snapshot holds the flat ordered list of all Steps.
+An atomic unit of work inside a Range Session — one ball hit, or one discrete no-ball action. Derived by expanding each Practice Instruction across its Repeat Count and its Ball Count: a positive Ball Count N yields N Ball Steps (one per ball); Zero and Uncounted each yield a single Action Step. The Snapshot holds the flat ordered list of all Steps. (Snapshots created before ball-granular expansion hold the older, coarser Steps — one per instruction × repetition — and keep that shape forever.)
 _Avoid_: rep (ambiguous), task, instruction (reserved for the planning layer)
+
+**Ball Step**:
+A Step representing exactly one ball. Completing it is the atomic record that one ball was hit against a specific Practice Instruction.
+_Avoid_: ball, shot, tick
+
+**Action Step**:
+A Step representing a discrete no-ball directive — a Zero Ball Count (deliberate no-ball work, e.g. rehearsal swings) or an Uncounted one (volume unknown; recorded as done/not-done only, so any actual balls hit against it go unrecorded).
+_Avoid_: checklist item, non-ball step
+
+**Block**:
+The execution-time view of one Session Item within a Range Session: the grouping of that item's Steps, with its own progress, rendered as one screen. Planning-side the same content is a Session Item; a Block is its live counterpart, the way a Range Session is the live counterpart of a Practice Session.
+_Avoid_: session item (planning-side), unit screen, drill block
 
 **Completed Step**:
 A record that a Step has been marked done, with a completion timestamp.
@@ -105,8 +117,12 @@ The set of Clubs a user has enabled from the catalog. Only clubs in a user's Bag
 _Avoid_: equipped clubs, my clubs
 
 **Club Resolution**:
-The precedence used to determine the Club for a single Step at Range Session start: the Session Item's Club, then the Practice Instruction's Club, then the Practice Unit's default Club (`sessionItem.club ?? instruction.club ?? unit.defaultClub`). A Session Item Club is therefore a whole-unit override that flattens every instruction's Club to one Club for that session; the Practice Unit default fills only instructions that set no Club of their own.
+The precedence used to determine the Club for a single Step, in two phases that never coexist at runtime. At Range Session start, the three planning layers collapse into the Snapshot: the Session Item's Club, then the Practice Instruction's Club, then the Practice Unit's default Club (`sessionItem.club ?? instruction.club ?? unit.defaultClub`) — the resolved Club is baked into each Step. During execution, exactly one further layer exists: a per-Step Club Override, which takes precedence over the Step's baked Club for that Step only. A Session Item Club is therefore a whole-unit override that flattens every instruction's Club to one Club for that session; the Practice Unit default fills only instructions that set no Club of their own.
 _Avoid_: club fallback, club inheritance
+
+**Club Override**:
+A per-Step, execution-time replacement of the Step's baked Club, recorded on the Range Session. Stored per Step so each ball keeps the Club it was actually hit with; the swap gesture in the UI applies one choice to an instruction's remaining incomplete Steps by writing an override for each.
+_Avoid_: runtime club, club swap (the gesture, not the record)
 
 ### Derived values
 
