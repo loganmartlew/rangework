@@ -13,10 +13,10 @@ fun PracticeUnitDraft.validationIssues(): List<ValidationIssue> {
                     message = "Instruction text cannot be blank.",
                 )
             }
-            if (instruction.ballCount != null && instruction.ballCount <= 0) {
+            if (instruction.ballCount != null && instruction.ballCount < 0) {
                 issues += ValidationIssue(
                     target = ValidationTarget.InstructionBallCount(index),
-                    message = "Ball count must be greater than zero.",
+                    message = "Ball count cannot be negative.",
                 )
             }
         }

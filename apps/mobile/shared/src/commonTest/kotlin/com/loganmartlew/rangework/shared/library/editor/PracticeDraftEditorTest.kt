@@ -99,14 +99,14 @@ class PracticeDraftEditorTest {
     }
 
     @Test
-    fun reviewUnit_zeroBallCount_failsRuleValidation() {
+    fun reviewUnit_zeroBallCount_isValidAndParsesAsZero() {
         val input = PracticeUnitDraftInput(
             title = "Valid",
-            instructions = listOf(PracticeInstructionDraftInput(order = 1, text = "Hit", ballCount = "0")),
+            instructions = listOf(PracticeInstructionDraftInput(order = 1, text = "Practice swings", ballCount = "0")),
         )
         val result = PracticeDraftEditor.reviewUnit(input)
-        val invalid = assertIs<DraftReview.Invalid<*>>(result)
-        assertTrue(invalid.issues.any { it.target == ValidationTarget.InstructionBallCount(0) })
+        val valid = assertIs<DraftReview.Valid<PracticeUnitDraft>>(result)
+        assertEquals(0, valid.draft.instructions[0].ballCount)
     }
 
     // ── reviewSession ──────────────────────────────────────────────────────

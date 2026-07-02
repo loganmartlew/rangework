@@ -285,7 +285,7 @@ private fun InstructionEditorRow(
                 CountStepper(
                     value = ballCountValue,
                     onValueChange = onUpdateBallCount,
-                    min = 1,
+                    min = 0,
                     max = 100,
                     label = "Ball count for instruction $number",
                 )

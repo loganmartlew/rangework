@@ -109,12 +109,47 @@ class DraftValidationTest {
         val issues = PracticeUnitDraft(
             title = "Wedge work",
             instructions = listOf(
-                PracticeInstructionDraft(order = 1, text = "", ballCount = 0),
+                PracticeInstructionDraft(order = 1, text = "", ballCount = -1),
             ),
         ).validationIssues()
 
         val targets = issues.map { it.target }
         assertTrue("Expected InstructionText(0) in $targets") { targets.contains(ValidationTarget.InstructionText(0)) }
+        assertTrue("Expected InstructionBallCount(0) in $targets") { targets.contains(ValidationTarget.InstructionBallCount(0)) }
+    }
+
+    @Test
+    fun practiceUnitValidationAllowsZeroBallCountAndRoundTrips() {
+        val draft = PracticeUnitDraft(
+            title = "Feel work",
+            instructions = listOf(
+                PracticeInstructionDraft(order = 1, text = "Five smooth practice swings", ballCount = 0),
+                PracticeInstructionDraft(order = 2, text = "Hit 10 stock wedges", ballCount = 10),
+                PracticeInstructionDraft(order = 3, text = "Visualise the shot"),
+            ),
+        )
+
+        // Zero produces no Validation Issue; an absent Ball Count stays null (Uncounted).
+        assertTrue("Expected no issues for a zero Ball Count: ${draft.validationIssues()}") {
+            draft.validationIssues().none { it.target is ValidationTarget.InstructionBallCount }
+        }
+
+        val validated = draft.validated()
+        assertEquals(0, validated.instructions[0].ballCount)
+        assertEquals(10, validated.instructions[1].ballCount)
+        assertEquals(null, validated.instructions[2].ballCount)
+    }
+
+    @Test
+    fun practiceUnitValidationRejectsNegativeBallCount() {
+        val issues = PracticeUnitDraft(
+            title = "Wedge work",
+            instructions = listOf(
+                PracticeInstructionDraft(order = 1, text = "Hit balls", ballCount = -1),
+            ),
+        ).validationIssues()
+
+        val targets = issues.map { it.target }
         assertTrue("Expected InstructionBallCount(0) in $targets") { targets.contains(ValidationTarget.InstructionBallCount(0)) }
     }
 
