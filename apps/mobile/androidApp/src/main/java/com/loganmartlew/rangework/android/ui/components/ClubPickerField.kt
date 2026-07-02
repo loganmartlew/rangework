@@ -25,6 +25,11 @@ internal fun ClubPickerField(
     enabledClubCodes: Set<String>,
     enabled: Boolean,
     onSelect: (String) -> Unit,
+    // When the instruction sets no Club of its own, the unit's default Club is
+    // shown as greyed placeholder text so the inheritance is legible at a glance.
+    placeholderClubCode: String? = null,
+    // Label for the "clear" menu entry; instruction rows use "Use default".
+    noneLabel: String = "None",
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedClub = selectedCode?.let { code -> clubCatalog.firstOrNull { it.code == code } }
@@ -38,6 +43,9 @@ internal fun ClubPickerField(
         selectedClub != null -> selectedClub.displayName
         else -> ""
     }
+    val placeholderClub = placeholderClubCode
+        ?.takeIf { selectedClub == null }
+        ?.let { code -> clubCatalog.firstOrNull { it.code == code } }
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { if (enabled) expanded = it },
@@ -48,6 +56,9 @@ internal fun ClubPickerField(
             value = displayValue,
             onValueChange = {},
             label = { Text(label) },
+            placeholder = placeholderClub?.let { club ->
+                { Text("${club.displayName} (default)") }
+            },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             enabled = enabled,
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
@@ -57,7 +68,7 @@ internal fun ClubPickerField(
             onDismissRequest = { expanded = false },
         ) {
             DropdownMenuItem(
-                text = { Text("None") },
+                text = { Text(noneLabel) },
                 onClick = {
                     onSelect("")
                     expanded = false

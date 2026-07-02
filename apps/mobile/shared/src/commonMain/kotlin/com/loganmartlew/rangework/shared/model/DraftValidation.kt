@@ -50,6 +50,7 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
                 order = index + 1,
                 text = instruction.text.trim(),
                 ballCount = instruction.ballCount,
+                clubCode = instruction.clubCode.normalizedOptionalText(),
             )
         }
 

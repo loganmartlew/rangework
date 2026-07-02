@@ -30,6 +30,7 @@ class InMemoryPracticeUnitRepository : PracticeUnitRepository() {
                     order = instruction.order,
                     text = instruction.text,
                     ballCount = instruction.ballCount,
+                    clubCode = instruction.clubCode,
                 )
             },
             notes = validated.notes,

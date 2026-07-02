@@ -36,6 +36,51 @@ class DraftValidationTest {
     }
 
     @Test
+    fun practiceUnitValidationNormalizesPerInstructionClubCode() {
+        val validated = PracticeUnitDraft(
+            title = "Wedge ladder",
+            instructions = listOf(
+                PracticeInstructionDraft(
+                    order = 1,
+                    text = "Gap wedges",
+                    clubCode = "  gap_wedge  ",
+                ),
+                PracticeInstructionDraft(
+                    order = 2,
+                    text = "Inherit the default",
+                    clubCode = "   ",
+                ),
+                PracticeInstructionDraft(
+                    order = 3,
+                    text = "No club at all",
+                ),
+            ),
+            defaultClubCode = "sand_wedge",
+        ).validated()
+
+        // A set per-instruction club is trimmed.
+        assertEquals("gap_wedge", validated.instructions[0].clubCode)
+        // Blank maps to null (use default).
+        assertEquals(null, validated.instructions[1].clubCode)
+        // Absent stays null.
+        assertEquals(null, validated.instructions[2].clubCode)
+        // Normalizing the club adds no validation issue.
+        assertTrue(validated.instructions.all { it.text.isNotBlank() })
+    }
+
+    @Test
+    fun practiceUnitValidationIssuesIgnoresPerInstructionClubCode() {
+        val issues = PracticeUnitDraft(
+            title = "Wedge ladder",
+            instructions = listOf(
+                PracticeInstructionDraft(order = 1, text = "Hit wedges", clubCode = "  gap_wedge  "),
+            ),
+        ).validationIssues()
+
+        assertEquals(emptyList(), issues)
+    }
+
+    @Test
     fun practiceUnitValidationRejectsMissingInstructionText() {
         assertFailsWith<SharedValidationException> {
             PracticeUnitDraft(

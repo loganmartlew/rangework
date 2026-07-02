@@ -55,6 +55,7 @@ internal fun UnitEditorScreen(
     onAddInstruction: () -> Unit,
     onUpdateInstructionText: (Int, String) -> Unit,
     onUpdateInstructionBallCount: (Int, Int) -> Unit,
+    onUpdateInstructionClubCode: (Int, String) -> Unit,
     onMoveInstructionUp: (Int) -> Unit,
     onMoveInstructionDown: (Int) -> Unit,
     onMoveInstruction: (Int, Int) -> Unit,
@@ -171,9 +172,13 @@ internal fun UnitEditorScreen(
                         instruction = instruction,
                         number = index + 1,
                         isWorking = isWorking,
+                        clubCatalog = plannerUiState.clubCatalog,
+                        enabledClubCodes = plannerUiState.enabledClubCodes,
+                        defaultClubCode = editor.defaultClubCode.ifBlank { null },
                         dragHandleModifier = Modifier.draggableHandle(),
                         onUpdateText = { onUpdateInstructionText(index, it) },
                         onUpdateBallCount = { onUpdateInstructionBallCount(index, it) },
+                        onUpdateClubCode = { onUpdateInstructionClubCode(index, it) },
                         onMoveUp = { onMoveInstructionUp(index) },
                         onMoveDown = { onMoveInstructionDown(index) },
                         onRemove = { onRemoveInstruction(index) },
@@ -228,9 +233,13 @@ private fun InstructionEditorRow(
     instruction: PracticeInstructionEditorState,
     number: Int,
     isWorking: Boolean,
+    clubCatalog: List<com.loganmartlew.rangework.shared.model.Club>,
+    enabledClubCodes: Set<String>,
+    defaultClubCode: String?,
     dragHandleModifier: Modifier = Modifier,
     onUpdateText: (String) -> Unit,
     onUpdateBallCount: (Int) -> Unit,
+    onUpdateClubCode: (String) -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onRemove: () -> Unit,
@@ -298,6 +307,16 @@ private fun InstructionEditorRow(
                     )
                 }
             }
+            ClubPickerField(
+                label = "Club",
+                selectedCode = instruction.clubCode.ifBlank { null },
+                clubCatalog = clubCatalog,
+                enabledClubCodes = enabledClubCodes,
+                enabled = !isWorking,
+                onSelect = onUpdateClubCode,
+                placeholderClubCode = defaultClubCode,
+                noneLabel = "Use default",
+            )
         }
     }
 }

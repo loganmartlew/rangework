@@ -20,6 +20,7 @@ data class UnitEditorActions(
     val onAddInstruction: () -> Unit,
     val onUpdateInstructionText: (Int, String) -> Unit,
     val onUpdateInstructionBallCount: (Int, Int) -> Unit,
+    val onUpdateInstructionClubCode: (Int, String) -> Unit,
     val onMoveInstructionUp: (Int) -> Unit,
     val onMoveInstructionDown: (Int) -> Unit,
     val onMoveInstruction: (Int, Int) -> Unit,

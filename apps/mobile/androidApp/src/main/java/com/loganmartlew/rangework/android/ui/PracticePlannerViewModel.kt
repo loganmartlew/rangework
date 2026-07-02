@@ -285,6 +285,8 @@ class PracticePlannerViewModel(
 
     fun updateInstructionBallCount(index: Int, value: Int) = updateInstructionBallCount(index, value.toString())
 
+    fun updateInstructionClubCode(index: Int, value: String) = updateInstruction(index) { copy(clubCode = value) }
+
     fun moveInstructionUp(index: Int) = moveInstruction(index, index - 1)
 
     fun moveInstructionDown(index: Int) = moveInstruction(index, index + 1)
@@ -870,6 +872,7 @@ class PracticePlannerViewModel(
                 order = instr.order,
                 text = instr.text,
                 ballCount = instr.ballCount,
+                clubCode = instr.clubCode,
             )
         },
         notes = draft.notes,
@@ -1255,6 +1258,7 @@ private fun PracticeInstruction.toEditorState(): PracticeInstructionEditorState 
     order = order,
     text = text,
     ballCount = ballCount?.toString().orEmpty(),
+    clubCode = clubCode.orEmpty(),
 )
 
 private fun PracticeSession.toEditorState(): PracticeSessionEditorState = PracticeSessionEditorState(

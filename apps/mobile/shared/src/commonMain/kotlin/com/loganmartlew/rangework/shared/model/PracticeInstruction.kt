@@ -8,4 +8,5 @@ data class PracticeInstruction(
     val order: Int,
     val text: String,
     val ballCount: Int? = null,
+    val clubCode: String? = null,
 )

@@ -16,8 +16,6 @@ data class SnapshotUnit(
     val unitFocus: String? = null,
     val itemNotes: String? = null,
     val itemFocusCue: String? = null,
-    val club: String? = null,
-    val clubDisplayName: String? = null,
     val repeatCount: Int,
     val instructions: List<SnapshotInstruction>,
 )
@@ -26,6 +24,8 @@ data class SnapshotUnit(
 data class SnapshotInstruction(
     val text: String,
     val ballCount: Int? = null,
+    val club: String? = null,
+    val clubDisplayName: String? = null,
 )
 
 @Serializable
