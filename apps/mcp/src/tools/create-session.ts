@@ -49,25 +49,25 @@ export function registerCreateSessionTool(
               repeat_count: z
                 .number()
                 .describe(
-                  'How many times to run this unit in the session (e.g. 2 = two rounds of this drill). Must be a positive integer.',
+                  "How many times to cycle this unit's full instruction list (e.g. 2 = two passes of a multi-step progression). Must be a positive integer. Use values > 1 only for multi-instruction units; a single-instruction drill's volume belongs in that instruction's `ball_count` (use `repeat_count: 1`).",
                 ),
               club_code: z
                 .string()
                 .optional()
                 .describe(
-                  "Optional club override for this item. Overrides the unit's default club. Use a `code` from `get_user_clubs`.",
+                  "Optional club override for this item. Overrides the unit's default club. Use a `code` from `get_user_clubs`. Set it only when it differs from the unit's own club — a value equal to the unit's default is dropped.",
                 ),
               focus_cue: z
                 .string()
                 .optional()
                 .describe(
-                  'Optional per-item coaching cue (e.g. "Hinge earlier").',
+                  'Optional per-item coaching cue (e.g. "Hinge earlier"). An override, not a copy: set it only when it differs from the unit\'s own focus — a value equal to the unit\'s focus is dropped.',
                 ),
               notes: z
                 .string()
                 .optional()
                 .describe(
-                  'Optional per-item reminder (e.g. "Use the 50y stake").',
+                  'Optional per-item reminder (e.g. "Use the 50y stake"). An override, not a copy: set it only when it differs from the unit\'s own notes — a value equal to the unit\'s notes is dropped.',
                 ),
             }),
           )
@@ -141,10 +141,11 @@ export function registerCreateSessionTool(
         );
       }
 
-      // Pre-fetch the user's unit ids
+      // Pre-fetch the user's units with their base values, so per-item
+      // overrides that merely copy the unit can be stripped below.
       const { data: ownedUnits, error: unitsError } = await ctx.supabaseClient
         .from('practice_units')
-        .select('id');
+        .select('id, notes, focus, default_club_code');
 
       if (unitsError) {
         return toolError(
@@ -153,7 +154,8 @@ export function registerCreateSessionTool(
         );
       }
 
-      const ownedUnitIds = new Set((ownedUnits ?? []).map(u => u.id));
+      const unitsById = new Map((ownedUnits ?? []).map(u => [u.id, u]));
+      const ownedUnitIds = new Set(unitsById.keys());
 
       // Validate all practice_unit_ids
       const invalidUnitIds = args.items
@@ -212,20 +214,37 @@ export function registerCreateSessionTool(
       // Generate session ID
       const sessionId = crypto.randomUUID();
 
-      // Build items JSONB (omit optional keys if not provided)
+      // Build items JSONB (omit optional keys if not provided). Overrides
+      // that exactly equal the unit's own base value are dropped — loss-free,
+      // and it guarantees override ≠ base in stored data (override hygiene).
+      const sameAsBase = (
+        override: string | undefined,
+        base: string | null | undefined,
+      ): boolean =>
+        override !== undefined &&
+        base != null &&
+        override.trim() === base.trim();
+
       const itemsJsonb = args.items.map(item => {
+        const unit = unitsById.get(item.practice_unit_id);
         const obj: Record<string, unknown> = {
           practice_unit_id: item.practice_unit_id,
           order: item.order,
           repeat_count: item.repeat_count,
         };
-        if (item.club_code !== undefined) {
+        if (
+          item.club_code !== undefined &&
+          !sameAsBase(item.club_code, unit?.default_club_code)
+        ) {
           obj.club_code = item.club_code;
         }
-        if (item.notes !== undefined) {
+        if (item.notes !== undefined && !sameAsBase(item.notes, unit?.notes)) {
           obj.notes = item.notes;
         }
-        if (item.focus_cue !== undefined) {
+        if (
+          item.focus_cue !== undefined &&
+          !sameAsBase(item.focus_cue, unit?.focus)
+        ) {
           obj.focus_cue = item.focus_cue;
         }
         return obj;
