@@ -345,19 +345,20 @@ fun RangeworkApp(
                     val rangeSessionUiState by rangeSessionViewModel.uiState.collectAsStateWithLifecycle()
                     RangeSessionScreen(
                         uiState = rangeSessionUiState,
-                        onNextStep = rangeSessionViewModel::nextStep,
-                        onPreviousStep = rangeSessionViewModel::previousStep,
-                        onNavigateToStep = rangeSessionViewModel::navigateToStep,
-                        onToggleStepComplete = rangeSessionViewModel::toggleStepComplete,
+                        onNavigateToBlock = rangeSessionViewModel::navigateToBlock,
+                        onIncrementBlock = rangeSessionViewModel::incrementBlock,
+                        onDecrementBlock = rangeSessionViewModel::decrementBlock,
+                        onToggleActionInstruction = rangeSessionViewModel::toggleActionInstruction,
+                        onSwapClub = rangeSessionViewModel::swapClub,
                         onConsumeNotification = rangeSessionViewModel::consumeNotification,
                         onScreenEnter = rangeSessionViewModel::onScreenEnter,
                         onScreenExit = rangeSessionViewModel::onScreenExit,
                         onBack = { rootNavController.popBackStack() },
                         enabledClubs = plannerUiState.clubCatalog.filter { it.code in plannerUiState.enabledClubCodes },
-                        onClubOverride = { stepIndex, clubCode ->
-                            rangeSessionViewModel.overrideStepClub(stepIndex, clubCode)
-                        },
-                        onFinish = rangeSessionViewModel::finishSession,
+                        onRequestFinish = rangeSessionViewModel::requestFinish,
+                        onCompleteRemainingAndFinish = rangeSessionViewModel::completeRemainingAndFinish,
+                        onFinishAsIs = rangeSessionViewModel::finishAsIs,
+                        onDismissFinishDialog = rangeSessionViewModel::dismissFinishDialog,
                         onRequestAbandon = rangeSessionViewModel::requestAbandon,
                         onDismissAbandon = rangeSessionViewModel::dismissAbandon,
                         onConfirmAbandon = {

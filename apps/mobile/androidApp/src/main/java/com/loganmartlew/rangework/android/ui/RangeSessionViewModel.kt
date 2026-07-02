@@ -4,9 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.loganmartlew.rangework.shared.model.RangeSession
+import com.loganmartlew.rangework.shared.model.clubSwapTargets
 import com.loganmartlew.rangework.shared.model.completedBalls
 import com.loganmartlew.rangework.shared.model.completedStepCount
 import com.loganmartlew.rangework.shared.model.completionPercentage
+import com.loganmartlew.rangework.shared.model.decrementTargets
+import com.loganmartlew.rangework.shared.model.executionBlocks
+import com.loganmartlew.rangework.shared.model.firstIncompleteBlockIndex
+import com.loganmartlew.rangework.shared.model.incrementTargets
 import com.loganmartlew.rangework.shared.model.totalBalls
 import com.loganmartlew.rangework.shared.model.totalStepCount
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
@@ -32,7 +37,7 @@ data class FinishSummaryData(
 
 data class RangeSessionUiState(
     val rangeSession: RangeSession? = null,
-    val currentStepIndex: Int = 0,
+    val currentBlockIndex: Int = 0,
     val isLoading: Boolean = true,
     val statusMessage: String? = null,
     val completedStepIndices: Set<Int> = emptySet(),
@@ -40,6 +45,7 @@ data class RangeSessionUiState(
     val elapsedSeconds: Long = 0,
     val isTimerRunning: Boolean = false,
     val showAbandonDialog: Boolean = false,
+    val showFinishDialog: Boolean = false,
     val finishSummary: FinishSummaryData? = null,
     val isFinishing: Boolean = false,
     val isAbandoning: Boolean = false,
@@ -71,20 +77,17 @@ class RangeSessionViewModel(
         viewModelScope.launch {
             try {
                 val session = repository.getSession(rangeSessionId)
-                val lastIndex = session?.lastViewedStepIndex
-                val startIndex = if (session != null && lastIndex != null &&
-                    lastIndex in 0 until session.snapshot.steps.size
-                ) {
-                    lastIndex
-                } else {
-                    0
-                }
+                val completedIndices =
+                    session?.completedSteps?.map { it.stepIndex }?.toSet() ?: emptySet()
+                val landingBlock = session?.let {
+                    firstIncompleteBlockIndex(it.snapshot.executionBlocks(), completedIndices)
+                } ?: 0
                 _uiState.value = RangeSessionUiState(
                     rangeSession = session,
-                    currentStepIndex = startIndex,
+                    currentBlockIndex = landingBlock,
                     isLoading = false,
                     statusMessage = if (session == null) "Session not found." else null,
-                    completedStepIndices = session?.completedSteps?.map { it.stepIndex }?.toSet() ?: emptySet(),
+                    completedStepIndices = completedIndices,
                 )
             } catch (exception: Exception) {
                 _uiState.value = RangeSessionUiState(
@@ -95,90 +98,124 @@ class RangeSessionViewModel(
         }
     }
 
-    fun nextStep() {
+    fun navigateToBlock(index: Int) {
         val state = _uiState.value
-        val totalSteps = state.rangeSession?.snapshot?.steps?.size ?: return
-        val newIndex = (state.currentStepIndex + 1).coerceAtMost(totalSteps - 1)
-        if (newIndex != state.currentStepIndex) {
-            _uiState.value = state.copy(currentStepIndex = newIndex)
-            persistLastViewedStep(newIndex)
+        val blockCount = state.rangeSession?.snapshot?.units?.size ?: return
+        if (blockCount == 0) return
+        val clamped = index.coerceIn(0, blockCount - 1)
+        if (clamped != state.currentBlockIndex) {
+            _uiState.value = state.copy(currentBlockIndex = clamped)
         }
     }
 
-    fun previousStep() {
+    /** One "+1" (or "Done") tap on the given block's counter. */
+    fun incrementBlock(blockIndex: Int) {
         val state = _uiState.value
-        val newIndex = (state.currentStepIndex - 1).coerceAtLeast(0)
-        if (newIndex != state.currentStepIndex) {
-            _uiState.value = state.copy(currentStepIndex = newIndex)
-            persistLastViewedStep(newIndex)
+        val session = state.rangeSession ?: return
+        val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
+        val targets = block.incrementTargets(session.snapshot.steps, state.completedStepIndices)
+        setStepsCompletion(targets, completed = true)
+    }
+
+    /** One "−1" tap: the exact inverse of the block's most recent counter tap. */
+    fun decrementBlock(blockIndex: Int) {
+        val state = _uiState.value
+        val session = state.rangeSession ?: return
+        val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
+        val targets = block.decrementTargets(session.snapshot.steps, state.completedStepIndices)
+        setStepsCompletion(targets, completed = false)
+    }
+
+    /**
+     * Check-off tap on an Action instruction row: completes its next
+     * incomplete step, or reopens its last completed step when all are done.
+     */
+    fun toggleActionInstruction(blockIndex: Int, instructionIndex: Int) {
+        val state = _uiState.value
+        val session = state.rangeSession ?: return
+        val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
+        val indices = block.stepIndices.filter {
+            session.snapshot.steps[it].instructionIndex == instructionIndex
+        }
+        if (indices.isEmpty()) return
+        val firstIncomplete = indices.firstOrNull { it !in state.completedStepIndices }
+        if (firstIncomplete != null) {
+            setStepsCompletion(listOf(firstIncomplete), completed = true)
+        } else {
+            setStepsCompletion(listOf(indices.last()), completed = false)
         }
     }
 
-    fun navigateToStep(index: Int) {
-        val state = _uiState.value
-        val totalSteps = state.rangeSession?.snapshot?.steps?.size ?: return
-        val clamped = index.coerceIn(0, totalSteps - 1)
-        _uiState.value = state.copy(currentStepIndex = clamped)
-        persistLastViewedStep(clamped)
-    }
-
-    fun toggleStepComplete(stepIndex: Int) {
+    /**
+     * Swaps the club for one instruction within a block: overrides fan out to
+     * that instruction's remaining incomplete steps, so completed steps keep
+     * the club they were actually hit with.
+     */
+    fun swapClub(blockIndex: Int, instructionIndex: Int, clubCode: String) {
         val state = _uiState.value
         val session = state.rangeSession ?: return
         val repository = rangeSessionRepository ?: return
-        val isCurrentlyComplete = stepIndex in state.completedStepIndices
-
-        val optimisticIndices = if (isCurrentlyComplete) {
-            state.completedStepIndices - stepIndex
-        } else {
-            state.completedStepIndices + stepIndex
-        }
-
-        val completing = !isCurrentlyComplete
-        val isCurrentStep = stepIndex == state.currentStepIndex
-        val totalSteps = session.snapshot.steps.size
-        val autoAdvanced = completing && isCurrentStep && state.currentStepIndex < totalSteps - 1
-        val newStepIndex = if (autoAdvanced) {
-            state.currentStepIndex + 1
-        } else {
-            state.currentStepIndex
-        }
-
-        _uiState.value = state.copy(
-            completedStepIndices = optimisticIndices,
-            currentStepIndex = newStepIndex,
+        val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
+        val targets = block.clubSwapTargets(
+            steps = session.snapshot.steps,
+            completedStepIndices = state.completedStepIndices,
+            instructionIndex = instructionIndex,
         )
+        if (targets.isEmpty()) return
 
-        if (newStepIndex != state.currentStepIndex) {
-            persistLastViewedStep(newStepIndex)
-        }
+        val optimisticSession = session.copy(
+            clubOverrides = session.clubOverrides + targets.map { it.toString() to clubCode },
+        )
+        _uiState.value = state.copy(rangeSession = optimisticSession)
 
         viewModelScope.launch {
             try {
-                val updatedSession = repository.toggleStepComplete(
+                val updatedSession = repository.overrideStepClubs(
                     rangeSessionId = rangeSessionId,
-                    stepIndex = stepIndex,
-                    completed = !isCurrentlyComplete,
+                    stepIndices = targets,
+                    clubCode = clubCode,
                 )
+                _uiState.value = _uiState.value.copy(rangeSession = updatedSession)
+            } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(
-                    rangeSession = updatedSession,
+                    rangeSession = session,
+                    notification = "Failed to change club. Please try again.",
                 )
+            }
+        }
+    }
+
+    private fun setStepsCompletion(stepIndices: List<Int>, completed: Boolean) {
+        if (stepIndices.isEmpty()) return
+        val state = _uiState.value
+        if (state.rangeSession == null) return
+        val repository = rangeSessionRepository ?: return
+
+        val optimisticIndices = if (completed) {
+            state.completedStepIndices + stepIndices
+        } else {
+            state.completedStepIndices - stepIndices.toSet()
+        }
+        _uiState.value = state.copy(completedStepIndices = optimisticIndices)
+
+        viewModelScope.launch {
+            try {
+                val updatedSession = repository.setStepsCompletion(
+                    rangeSessionId = rangeSessionId,
+                    stepIndices = stepIndices,
+                    completed = completed,
+                )
+                _uiState.value = _uiState.value.copy(rangeSession = updatedSession)
             } catch (_: Exception) {
                 val current = _uiState.value
-                val revertedIndices = if (isCurrentlyComplete) {
-                    current.completedStepIndices + stepIndex
+                val revertedIndices = if (completed) {
+                    current.completedStepIndices - stepIndices.toSet()
                 } else {
-                    current.completedStepIndices - stepIndex
-                }
-                val revertedStepIndex = if (autoAdvanced && current.currentStepIndex == newStepIndex) {
-                    state.currentStepIndex
-                } else {
-                    current.currentStepIndex
+                    current.completedStepIndices + stepIndices
                 }
                 _uiState.value = current.copy(
                     completedStepIndices = revertedIndices,
-                    currentStepIndex = revertedStepIndex,
-                    notification = "Failed to update step. Please try again.",
+                    notification = "Failed to update progress. Please try again.",
                 )
             }
         }
@@ -188,39 +225,41 @@ class RangeSessionViewModel(
         _uiState.value = _uiState.value.copy(notification = null)
     }
 
-    fun overrideStepClub(stepIndex: Int, clubCode: String) {
+    /**
+     * Finish entry point. Finishing never requires 100% of steps: with
+     * incomplete steps a three-way dialog asks whether to batch-complete the
+     * remainder, finish as-is, or cancel.
+     */
+    fun requestFinish() {
         val state = _uiState.value
         val session = state.rangeSession ?: return
-        val repository = rangeSessionRepository ?: return
-
-        val optimisticSession = session.copy(
-            clubOverrides = session.clubOverrides + (stepIndex.toString() to clubCode),
-        )
-        _uiState.value = state.copy(rangeSession = optimisticSession)
-
-        viewModelScope.launch {
-            try {
-                val updatedSession = repository.overrideStepClub(
-                    rangeSessionId = rangeSessionId,
-                    stepIndex = stepIndex,
-                    clubCode = clubCode,
-                )
-                _uiState.value = _uiState.value.copy(rangeSession = updatedSession)
-            } catch (_: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    rangeSession = session,
-                    notification = "Failed to override club. Please try again.",
-                )
-            }
+        if (state.isFinishing) return
+        val incomplete = session.snapshot.steps.indices.any { it !in state.completedStepIndices }
+        if (incomplete) {
+            _uiState.value = state.copy(showFinishDialog = true)
+        } else {
+            finishSession(completeRemaining = false)
         }
     }
 
-    fun finishSession() {
+    fun dismissFinishDialog() {
+        _uiState.value = _uiState.value.copy(showFinishDialog = false)
+    }
+
+    fun completeRemainingAndFinish() {
+        finishSession(completeRemaining = true)
+    }
+
+    fun finishAsIs() {
+        finishSession(completeRemaining = false)
+    }
+
+    private fun finishSession(completeRemaining: Boolean) {
         val state = _uiState.value
         val session = state.rangeSession ?: return
         if (state.isFinishing) return
 
-        _uiState.value = state.copy(isFinishing = true)
+        _uiState.value = state.copy(isFinishing = true, showFinishDialog = false)
 
         val enteredAt = currentEnteredAt
         currentEnteredAt = null
@@ -239,14 +278,32 @@ class RangeSessionViewModel(
                 } catch (_: Exception) { }
             }
             try {
+                var latestSession = session
+                if (completeRemaining) {
+                    val remaining = session.snapshot.steps.indices
+                        .filter { it !in _uiState.value.completedStepIndices }
+                    if (remaining.isNotEmpty()) {
+                        // One write, one shared timestamp — self-evidently a
+                        // finish-time batch in the data.
+                        latestSession = repository.setStepsCompletion(
+                            rangeSessionId = rangeSessionId,
+                            stepIndices = remaining,
+                            completed = true,
+                        )
+                        _uiState.value = _uiState.value.copy(
+                            completedStepIndices = latestSession.completedSteps
+                                .map { it.stepIndex }.toSet(),
+                        )
+                    }
+                }
                 repository.finishSession(rangeSessionId)
                 val summary = FinishSummaryData(
-                    sessionName = session.sessionName,
-                    totalBalls = session.totalBalls(),
-                    completedBalls = session.completedBalls(),
-                    completionPercentage = session.completionPercentage(),
-                    completedStepCount = session.completedStepCount(),
-                    totalStepCount = session.totalStepCount(),
+                    sessionName = latestSession.sessionName,
+                    totalBalls = latestSession.totalBalls(),
+                    completedBalls = latestSession.completedBalls(),
+                    completionPercentage = latestSession.completionPercentage(),
+                    completedStepCount = latestSession.completedStepCount(),
+                    totalStepCount = latestSession.totalStepCount(),
                     elapsedSeconds = finalElapsed,
                 )
                 _uiState.value = _uiState.value.copy(
@@ -365,17 +422,6 @@ class RangeSessionViewModel(
     override fun onCleared() {
         super.onCleared()
         onScreenExit()
-    }
-
-    private fun persistLastViewedStep(index: Int) {
-        val repository = rangeSessionRepository ?: return
-        viewModelScope.launch {
-            try {
-                repository.updateLastViewedStep(rangeSessionId, index)
-            } catch (_: Exception) {
-                // fire-and-forget: persistence failures don't surface to the user
-            }
-        }
     }
 
     companion object {

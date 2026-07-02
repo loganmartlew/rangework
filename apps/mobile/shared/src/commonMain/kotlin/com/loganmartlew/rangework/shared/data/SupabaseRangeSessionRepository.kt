@@ -115,23 +115,24 @@ class SupabaseRangeSessionRepository(
         }.sortedByDescending { it.completedAt }
     }
 
-    override suspend fun toggleStepComplete(
+    override suspend fun setStepsCompletion(
         rangeSessionId: String,
-        stepIndex: Int,
+        stepIndices: List<Int>,
         completed: Boolean,
     ): RangeSession {
         val session = requireNotNull(getSession(rangeSessionId)) {
             "Range session $rangeSessionId not found."
         }
         val updatedSteps = if (completed) {
-            val alreadyCompleted = session.completedSteps.any { it.stepIndex == stepIndex }
-            if (alreadyCompleted) session.completedSteps
-            else session.completedSteps + CompletedStep(
-                stepIndex = stepIndex,
-                completedAt = Clock.System.now(),
-            )
+            val alreadyCompleted = session.completedSteps.map { it.stepIndex }.toSet()
+            // One shared timestamp for the whole batch.
+            val completedAt = Clock.System.now()
+            session.completedSteps + stepIndices
+                .filter { it !in alreadyCompleted }
+                .map { CompletedStep(stepIndex = it, completedAt = completedAt) }
         } else {
-            session.completedSteps.filter { it.stepIndex != stepIndex }
+            val toRemove = stepIndices.toSet()
+            session.completedSteps.filter { it.stepIndex !in toRemove }
         }
         client.postgrest[RANGE_SESSIONS_TABLE].update(
             CompletedStepsUpdate(completedSteps = updatedSteps),
@@ -139,19 +140,20 @@ class SupabaseRangeSessionRepository(
             filter { eq("id", rangeSessionId) }
         }
         return requireNotNull(getSession(rangeSessionId)) {
-            "Range session $rangeSessionId could not be loaded after step toggle."
+            "Range session $rangeSessionId could not be loaded after step completion update."
         }
     }
 
-    override suspend fun overrideStepClub(
+    override suspend fun overrideStepClubs(
         rangeSessionId: String,
-        stepIndex: Int,
+        stepIndices: List<Int>,
         clubCode: String,
     ): RangeSession {
         val session = requireNotNull(getSession(rangeSessionId)) {
             "Range session $rangeSessionId not found."
         }
-        val updatedOverrides = session.clubOverrides + (stepIndex.toString() to clubCode)
+        val updatedOverrides = session.clubOverrides +
+            stepIndices.map { it.toString() to clubCode }
         client.postgrest[RANGE_SESSIONS_TABLE].update(
             ClubOverridesUpdate(clubOverrides = updatedOverrides),
         ) {
@@ -159,14 +161,6 @@ class SupabaseRangeSessionRepository(
         }
         return requireNotNull(getSession(rangeSessionId)) {
             "Range session $rangeSessionId could not be loaded after club override."
-        }
-    }
-
-    override suspend fun updateLastViewedStep(rangeSessionId: String, stepIndex: Int) {
-        client.postgrest[RANGE_SESSIONS_TABLE].update(
-            LastViewedStepUpdate(lastViewedStepIndex = stepIndex),
-        ) {
-            filter { eq("id", rangeSessionId) }
         }
     }
 
@@ -257,12 +251,6 @@ private data class CompletedStepsUpdate(
 private data class ClubOverridesUpdate(
     @SerialName("club_overrides")
     val clubOverrides: Map<String, String>,
-)
-
-@Serializable
-private data class LastViewedStepUpdate(
-    @SerialName("last_viewed_step_index")
-    val lastViewedStepIndex: Int,
 )
 
 @Serializable

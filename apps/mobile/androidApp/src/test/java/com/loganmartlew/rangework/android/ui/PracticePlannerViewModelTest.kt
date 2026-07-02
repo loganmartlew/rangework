@@ -862,19 +862,17 @@ private class StubRangeSessionRepository : RangeSessionRepository {
 
     override suspend fun listCompletedSessions(sessionId: String): List<CompletedRangeSessionSummary> = emptyList()
 
-    override suspend fun toggleStepComplete(
+    override suspend fun setStepsCompletion(
         rangeSessionId: String,
-        stepIndex: Int,
+        stepIndices: List<Int>,
         completed: Boolean,
     ): RangeSession = error("Not implemented in stub")
 
-    override suspend fun overrideStepClub(
+    override suspend fun overrideStepClubs(
         rangeSessionId: String,
-        stepIndex: Int,
+        stepIndices: List<Int>,
         clubCode: String,
     ): RangeSession = error("Not implemented in stub")
-
-    override suspend fun updateLastViewedStep(rangeSessionId: String, stepIndex: Int) = Unit
 
     override suspend fun finishSession(rangeSessionId: String): RangeSession =
         error("Not implemented in stub")

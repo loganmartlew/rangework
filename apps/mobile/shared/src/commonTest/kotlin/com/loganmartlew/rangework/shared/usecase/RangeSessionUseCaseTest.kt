@@ -89,75 +89,65 @@ class RangeSessionRepositoryTest {
         assertTrue(active.isEmpty())
     }
 
-    // ── toggleStepComplete ───────────────────────────────────────────────────
+    // ── setStepsCompletion ───────────────────────────────────────────────────
 
     @Test
-    fun toggleStepCompleteMarksStepAsCompleted() = runTest {
+    fun setStepsCompletionMarksStepsAsCompleted() = runTest {
         val repo = FakeRangeSessionRepository()
         val session = repo.start("session-1")
 
-        val updated = repo.toggleStepComplete(session.id, 0, true)
+        val updated = repo.setStepsCompletion(session.id, listOf(0, 1), true)
 
         assertTrue(updated.completedSteps.any { it.stepIndex == 0 })
+        assertTrue(updated.completedSteps.any { it.stepIndex == 1 })
     }
 
     @Test
-    fun toggleStepCompleteUncompleteRemovesStep() = runTest {
+    fun setStepsCompletionUncompleteRemovesSteps() = runTest {
         val repo = FakeRangeSessionRepository()
         val session = repo.start("session-1")
-        repo.toggleStepComplete(session.id, 0, true)
+        repo.setStepsCompletion(session.id, listOf(0, 1), true)
 
-        val uncompleted = repo.toggleStepComplete(session.id, 0, false)
+        val uncompleted = repo.setStepsCompletion(session.id, listOf(0), false)
 
         assertFalse(uncompleted.completedSteps.any { it.stepIndex == 0 })
+        assertTrue(uncompleted.completedSteps.any { it.stepIndex == 1 })
     }
 
     @Test
-    fun toggleStepCompleteIsIdempotentForDuplicateCompletion() = runTest {
+    fun setStepsCompletionIsIdempotentForDuplicateCompletion() = runTest {
         val repo = FakeRangeSessionRepository()
         val session = repo.start("session-1")
-        repo.toggleStepComplete(session.id, 0, true)
+        repo.setStepsCompletion(session.id, listOf(0), true)
 
-        val updated = repo.toggleStepComplete(session.id, 0, true)
+        val updated = repo.setStepsCompletion(session.id, listOf(0), true)
 
         assertEquals(1, updated.completedSteps.count { it.stepIndex == 0 })
     }
 
-    // ── overrideStepClub ─────────────────────────────────────────────────────
+    // ── overrideStepClubs ────────────────────────────────────────────────────
 
     @Test
-    fun overrideStepClubSetsClubForStep() = runTest {
+    fun overrideStepClubsSetsClubForEachStep() = runTest {
         val repo = FakeRangeSessionRepository()
         val session = repo.start("session-1")
 
-        val updated = repo.overrideStepClub(session.id, 2, "seven_iron")
+        val updated = repo.overrideStepClubs(session.id, listOf(1, 2), "seven_iron")
 
+        assertEquals("seven_iron", updated.clubOverrides["1"])
         assertEquals("seven_iron", updated.clubOverrides["2"])
     }
 
     @Test
-    fun overrideStepClubPreservesExistingOverrides() = runTest {
+    fun overrideStepClubsPreservesExistingOverrides() = runTest {
         val repo = FakeRangeSessionRepository()
         val session = repo.start("session-1")
-        repo.overrideStepClub(session.id, 0, "driver")
+        repo.overrideStepClubs(session.id, listOf(0), "driver")
 
-        val updated = repo.overrideStepClub(session.id, 1, "putter")
+        val updated = repo.overrideStepClubs(session.id, listOf(1), "putter")
 
         assertEquals("driver", updated.clubOverrides["0"])
         assertEquals("putter", updated.clubOverrides["1"])
-    }
-
-    // ── updateLastViewedStep ─────────────────────────────────────────────────
-
-    @Test
-    fun updateLastViewedStepPersistsIndex() = runTest {
-        val repo = FakeRangeSessionRepository()
-        val session = repo.start("session-1")
-
-        repo.updateLastViewedStep(session.id, 3)
-
-        val fetched = repo.getSession(session.id)
-        assertEquals(3, fetched?.lastViewedStepIndex)
     }
 
     // ── finishSession ────────────────────────────────────────────────────────
@@ -336,40 +326,37 @@ private class FakeRangeSessionRepository : RangeSessionRepository {
                 )
             }
 
-    override suspend fun toggleStepComplete(
+    override suspend fun setStepsCompletion(
         rangeSessionId: String,
-        stepIndex: Int,
+        stepIndices: List<Int>,
         completed: Boolean,
     ): RangeSession {
         val session = requireNotNull(sessions[rangeSessionId])
         val updatedSteps = if (completed) {
-            val already = session.completedSteps.any { it.stepIndex == stepIndex }
-            if (already) session.completedSteps
-            else session.completedSteps + CompletedStep(stepIndex, BASE_INSTANT)
+            val already = session.completedSteps.map { it.stepIndex }.toSet()
+            session.completedSteps + stepIndices
+                .filter { it !in already }
+                .map { CompletedStep(it, BASE_INSTANT) }
         } else {
-            session.completedSteps.filter { it.stepIndex != stepIndex }
+            val toRemove = stepIndices.toSet()
+            session.completedSteps.filter { it.stepIndex !in toRemove }
         }
         val updated = session.copy(completedSteps = updatedSteps)
         sessions[rangeSessionId] = updated
         return updated
     }
 
-    override suspend fun overrideStepClub(
+    override suspend fun overrideStepClubs(
         rangeSessionId: String,
-        stepIndex: Int,
+        stepIndices: List<Int>,
         clubCode: String,
     ): RangeSession {
         val session = requireNotNull(sessions[rangeSessionId])
         val updated = session.copy(
-            clubOverrides = session.clubOverrides + (stepIndex.toString() to clubCode),
+            clubOverrides = session.clubOverrides + stepIndices.map { it.toString() to clubCode },
         )
         sessions[rangeSessionId] = updated
         return updated
-    }
-
-    override suspend fun updateLastViewedStep(rangeSessionId: String, stepIndex: Int) {
-        val session = requireNotNull(sessions[rangeSessionId])
-        sessions[rangeSessionId] = session.copy(lastViewedStepIndex = stepIndex)
     }
 
     override suspend fun finishSession(rangeSessionId: String): RangeSession {
