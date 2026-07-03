@@ -46,7 +46,11 @@ internal fun ClubOverridePickerDialog(
                 )
 
                 LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
+                    // fill = false keeps the Cancel button on screen when the
+                    // club list is taller than the dialog; the list scrolls.
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     items(availableClubs, key = { it.code }) { club ->

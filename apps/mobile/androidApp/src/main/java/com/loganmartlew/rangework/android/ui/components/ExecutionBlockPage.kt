@@ -15,9 +15,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.GolfCourse
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.ExecutionBlock
+import com.loganmartlew.rangework.shared.model.clubShortLabel
 import com.loganmartlew.rangework.shared.model.SnapshotStep
 import com.loganmartlew.rangework.shared.model.decrementTargets
 import com.loganmartlew.rangework.shared.model.hasIncompleteBallSteps
@@ -55,8 +56,6 @@ import com.loganmartlew.rangework.shared.model.progress
 @Composable
 internal fun ExecutionBlockPage(
     block: ExecutionBlock,
-    blockNumber: Int,
-    totalBlocks: Int,
     steps: List<SnapshotStep>,
     completedStepIndices: Set<Int>,
     clubOverrides: Map<String, String>,
@@ -79,24 +78,15 @@ internal fun ExecutionBlockPage(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Block header
+        // Block header. Block position lives in the pager nav bar below the
+        // pages, so only the pass position renders here.
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            if (progress.totalPasses > 1) {
                 Text(
-                    text = "Block $blockNumber of $totalBlocks",
+                    text = "Pass ${progress.currentPass} of ${progress.totalPasses}",
                     style = RangeworkMono.small,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (progress.totalPasses > 1) {
-                    Text(
-                        text = "· Pass ${progress.currentPass} of ${progress.totalPasses}",
-                        style = RangeworkMono.small,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
             Text(
                 text = block.unit.unitTitle,
@@ -441,6 +431,8 @@ private fun InstructionRow(
             )
         }
 
+        // Compact club chip: short label ("7I", "PW"), full name in semantics.
+        // The swap glyph only renders when the club can actually be changed.
         row.clubDisplayName?.takeIf(String::isNotBlank)?.let { name ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -450,21 +442,11 @@ private fun InstructionRow(
                         .clickable { showClubPicker = true }
                         .semantics { contentDescription = "Club: $name, tap to change" }
                 } else {
-                    Modifier
+                    Modifier.semantics { contentDescription = "Club: $name" }
                 },
             ) {
-                Icon(
-                    imageVector = Icons.Default.GolfCourse,
-                    contentDescription = null,
-                    tint = if (row.canSwapClub) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    modifier = Modifier.size(18.dp),
-                )
                 Text(
-                    text = name,
+                    text = clubShortLabel(name),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (row.canSwapClub) {
                         MaterialTheme.colorScheme.primary
@@ -472,6 +454,14 @@ private fun InstructionRow(
                         MaterialTheme.colorScheme.onSurface
                     },
                 )
+                if (row.canSwapClub) {
+                    Icon(
+                        imageVector = Icons.Default.SwapHoriz,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
             }
         }
     }

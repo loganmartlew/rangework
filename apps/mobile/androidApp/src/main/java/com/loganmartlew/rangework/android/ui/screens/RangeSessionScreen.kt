@@ -20,6 +20,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.NavigateBefore
+import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
@@ -52,7 +54,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.android.ui.RangeSessionUiState
 import com.loganmartlew.rangework.android.ui.components.AbandonConfirmDialog
 import com.loganmartlew.rangework.android.ui.components.BlockOverviewContent
@@ -502,6 +506,7 @@ private fun RangeSessionBody(
             val pagerState = rememberPagerState(
                 initialPage = uiState.currentBlockIndex.coerceIn(0, blocks.lastIndex),
             ) { blocks.size }
+            val scope = rememberCoroutineScope()
 
             // Keep pager and view-model block index in sync in both directions.
             LaunchedEffect(pagerState.settledPage) {
@@ -523,7 +528,9 @@ private fun RangeSessionBody(
                 )
                 HorizontalPager(
                     state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     verticalAlignment = Alignment.Top,
                 ) { pageIndex ->
                     val block = blocks[pageIndex]
@@ -535,8 +542,6 @@ private fun RangeSessionBody(
                     ) {
                         ExecutionBlockPage(
                             block = block,
-                            blockNumber = pageIndex + 1,
-                            totalBlocks = blocks.size,
                             steps = steps,
                             completedStepIndices = uiState.completedStepIndices,
                             clubOverrides = uiState.rangeSession.clubOverrides,
@@ -555,7 +560,69 @@ private fun RangeSessionBody(
                         )
                     }
                 }
+                BlockNavBar(
+                    currentBlock = pagerState.currentPage,
+                    totalBlocks = blocks.size,
+                    onPrevious = {
+                        scope.launch {
+                            pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                        }
+                    },
+                    onNext = {
+                        scope.launch {
+                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                        }
+                    },
+                )
             }
+        }
+    }
+}
+
+/**
+ * Explicit previous/next block navigation under the pager, so moving between
+ * blocks never depends on discovering the swipe gesture.
+ */
+@Composable
+private fun BlockNavBar(
+    currentBlock: Int,
+    totalBlocks: Int,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(
+            onClick = onPrevious,
+            enabled = currentBlock > 0,
+            modifier = Modifier.semantics { contentDescription = "Previous block" },
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.NavigateBefore,
+                contentDescription = null,
+            )
+        }
+        Text(
+            text = "Block ${currentBlock + 1} of $totalBlocks",
+            style = RangeworkMono.small,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(
+            onClick = onNext,
+            enabled = currentBlock < totalBlocks - 1,
+            modifier = Modifier.semantics { contentDescription = "Next block" },
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.NavigateNext,
+                contentDescription = null,
+            )
         }
     }
 }
