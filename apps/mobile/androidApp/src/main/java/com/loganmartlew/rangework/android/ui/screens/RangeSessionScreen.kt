@@ -6,23 +6,21 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
@@ -34,7 +32,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -58,30 +55,40 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.RangeSessionUiState
 import com.loganmartlew.rangework.android.ui.components.AbandonConfirmDialog
+import com.loganmartlew.rangework.android.ui.components.BlockOverviewContent
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
-import com.loganmartlew.rangework.android.ui.components.ExecutionStepCard
+import com.loganmartlew.rangework.android.ui.components.ExecutionBlockPage
+import com.loganmartlew.rangework.android.ui.components.FinishSessionDialog
 import com.loganmartlew.rangework.android.ui.components.FinishSummaryContent
 import com.loganmartlew.rangework.android.ui.components.RangeSessionProgressHeader
-import com.loganmartlew.rangework.android.ui.components.StepListDrawerContent
-import com.loganmartlew.rangework.android.ui.components.StepNavigationBar
 import com.loganmartlew.rangework.shared.model.Club
+import com.loganmartlew.rangework.shared.model.ExecutionBlock
+import com.loganmartlew.rangework.shared.model.executionBlocks
 import kotlinx.coroutines.launch
 
+/**
+ * Block-first execution: one screen per Block (Session Item), a ball counter
+ * instead of screen-per-step, free navigation via horizontal pager plus an
+ * overview for jumping. See design-docs/range-execution-ux-review.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RangeSessionScreen(
     uiState: RangeSessionUiState,
-    onNextStep: () -> Unit,
-    onPreviousStep: () -> Unit,
-    onNavigateToStep: (Int) -> Unit,
-    onToggleStepComplete: (Int) -> Unit,
+    onNavigateToBlock: (Int) -> Unit,
+    onIncrementBlock: (Int) -> Unit,
+    onDecrementBlock: (Int) -> Unit,
+    onToggleActionInstruction: (blockIndex: Int, instructionIndex: Int) -> Unit,
+    onSwapClub: (blockIndex: Int, instructionIndex: Int, clubCode: String) -> Unit,
     onConsumeNotification: () -> Unit,
     onScreenEnter: () -> Unit,
     onScreenExit: () -> Unit,
     onBack: () -> Unit,
     enabledClubs: List<Club> = emptyList(),
-    onClubOverride: (Int, String) -> Unit = { _, _ -> },
-    onFinish: () -> Unit = {},
+    onRequestFinish: () -> Unit = {},
+    onCompleteRemainingAndFinish: () -> Unit = {},
+    onFinishAsIs: () -> Unit = {},
+    onDismissFinishDialog: () -> Unit = {},
     onRequestAbandon: () -> Unit = {},
     onDismissAbandon: () -> Unit = {},
     onConfirmAbandon: () -> Unit = {},
@@ -110,6 +117,21 @@ internal fun RangeSessionScreen(
         AbandonConfirmDialog(
             onConfirm = onConfirmAbandon,
             onDismiss = onDismissAbandon,
+        )
+    }
+
+    val snapshot = uiState.rangeSession?.snapshot
+    val blocks = remember(snapshot) { snapshot?.executionBlocks() ?: emptyList() }
+    val steps = snapshot?.steps ?: emptyList()
+
+    if (uiState.showFinishDialog) {
+        FinishSessionDialog(
+            blocks = blocks,
+            steps = steps,
+            completedStepIndices = uiState.completedStepIndices,
+            onCompleteRemaining = onCompleteRemainingAndFinish,
+            onFinishAsIs = onFinishAsIs,
+            onDismiss = onDismissFinishDialog,
         )
     }
 
@@ -157,28 +179,28 @@ internal fun RangeSessionScreen(
         TabletRangeSessionLayout(
             uiState = uiState,
             snackbarHostState = snackbarHostState,
-            onNextStep = onNextStep,
-            onPreviousStep = onPreviousStep,
-            onNavigateToStep = onNavigateToStep,
-            onToggleStepComplete = onToggleStepComplete,
+            onNavigateToBlock = onNavigateToBlock,
+            onIncrementBlock = onIncrementBlock,
+            onDecrementBlock = onDecrementBlock,
+            onToggleActionInstruction = onToggleActionInstruction,
+            onSwapClub = onSwapClub,
             onBack = onBack,
             enabledClubs = enabledClubs,
-            onClubOverride = onClubOverride,
-            onFinish = onFinish,
+            onRequestFinish = onRequestFinish,
             onRequestAbandon = onRequestAbandon,
         )
     } else {
         PhoneRangeSessionLayout(
             uiState = uiState,
             snackbarHostState = snackbarHostState,
-            onNextStep = onNextStep,
-            onPreviousStep = onPreviousStep,
-            onNavigateToStep = onNavigateToStep,
-            onToggleStepComplete = onToggleStepComplete,
+            onNavigateToBlock = onNavigateToBlock,
+            onIncrementBlock = onIncrementBlock,
+            onDecrementBlock = onDecrementBlock,
+            onToggleActionInstruction = onToggleActionInstruction,
+            onSwapClub = onSwapClub,
             onBack = onBack,
             enabledClubs = enabledClubs,
-            onClubOverride = onClubOverride,
-            onFinish = onFinish,
+            onRequestFinish = onRequestFinish,
             onRequestAbandon = onRequestAbandon,
         )
     }
@@ -189,47 +211,39 @@ internal fun RangeSessionScreen(
 private fun PhoneRangeSessionLayout(
     uiState: RangeSessionUiState,
     snackbarHostState: SnackbarHostState,
-    onNextStep: () -> Unit,
-    onPreviousStep: () -> Unit,
-    onNavigateToStep: (Int) -> Unit,
-    onToggleStepComplete: (Int) -> Unit,
+    onNavigateToBlock: (Int) -> Unit,
+    onIncrementBlock: (Int) -> Unit,
+    onDecrementBlock: (Int) -> Unit,
+    onToggleActionInstruction: (Int, Int) -> Unit,
+    onSwapClub: (Int, Int, String) -> Unit,
     onBack: () -> Unit,
-    enabledClubs: List<Club> = emptyList(),
-    onClubOverride: (Int, String) -> Unit = { _, _ -> },
-    onFinish: () -> Unit = {},
-    onRequestAbandon: () -> Unit = {},
+    enabledClubs: List<Club>,
+    onRequestFinish: () -> Unit,
+    onRequestAbandon: () -> Unit,
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val drawerListState = rememberLazyListState()
 
-    val steps = uiState.rangeSession?.snapshot?.steps ?: emptyList()
-    val totalSteps = steps.size
+    val snapshot = uiState.rangeSession?.snapshot
+    val blocks = remember(snapshot) { snapshot?.executionBlocks() ?: emptyList() }
+    val steps = snapshot?.steps ?: emptyList()
     val sessionName = uiState.rangeSession?.sessionName ?: "Session"
-
-    // Scroll the step list to the current step when the drawer finishes opening.
-    // Formula: lazyIndex = currentStepIndex + unitIndex + 1 accounts for unit header rows.
-    LaunchedEffect(drawerState.currentValue) {
-        if (drawerState.currentValue == DrawerValue.Open && steps.isNotEmpty()) {
-            val step = steps.getOrNull(uiState.currentStepIndex) ?: return@LaunchedEffect
-            val lazyIndex = (uiState.currentStepIndex + step.unitIndex + 1).coerceAtLeast(0)
-            drawerListState.animateScrollToItem(lazyIndex)
-        }
-    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
-                StepListDrawerContent(
+                BlockOverviewContent(
+                    blocks = blocks,
                     steps = steps,
                     completedStepIndices = uiState.completedStepIndices,
-                    currentStepIndex = uiState.currentStepIndex,
-                    lazyListState = drawerListState,
-                    onStepSelected = { index ->
-                        onNavigateToStep(index)
+                    currentBlockIndex = uiState.currentBlockIndex,
+                    onBlockSelected = { index ->
+                        onNavigateToBlock(index)
                         scope.launch { drawerState.close() }
                     },
+                    onFinish = onRequestFinish,
+                    isFinishing = uiState.isFinishing,
                 )
             }
         },
@@ -254,169 +268,34 @@ private fun PhoneRangeSessionLayout(
                         }
                     },
                     actions = {
-                        if (!uiState.isLoading && totalSteps > 0) {
+                        if (!uiState.isLoading && blocks.isNotEmpty()) {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(
-                                    imageVector = Icons.Default.Menu,
-                                    contentDescription = "Open step list",
+                                    imageVector = Icons.AutoMirrored.Filled.List,
+                                    contentDescription = "Open session overview",
                                 )
                             }
-                            var overflowExpanded by remember { mutableStateOf(false) }
-                            Box {
-                                IconButton(onClick = { overflowExpanded = true }) {
-                                    Icon(
-                                        imageVector = Icons.Default.MoreVert,
-                                        contentDescription = "More options",
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = overflowExpanded,
-                                    onDismissRequest = { overflowExpanded = false },
-                                ) {
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                text = "Abandon session",
-                                                color = MaterialTheme.colorScheme.error,
-                                            )
-                                        },
-                                        onClick = {
-                                            overflowExpanded = false
-                                            onRequestAbandon()
-                                        },
-                                        modifier = Modifier.semantics {
-                                            contentDescription = "Abandon session"
-                                        },
-                                    )
-                                }
-                            }
+                            SessionOverflowMenu(onRequestAbandon = onRequestAbandon)
                         }
                     },
                 )
             },
-            bottomBar = {
-                if (!uiState.isLoading && uiState.rangeSession != null && totalSteps > 0) {
-                    StepNavigationBar(
-                        currentStepIndex = uiState.currentStepIndex,
-                        totalSteps = totalSteps,
-                        onPrevious = onPreviousStep,
-                        onNext = onNextStep,
-                    )
-                }
-            },
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         ) { innerPadding ->
-            Box(
+            RangeSessionBody(
+                uiState = uiState,
+                blocks = blocks,
+                enabledClubs = enabledClubs,
+                onNavigateToBlock = onNavigateToBlock,
+                onIncrementBlock = onIncrementBlock,
+                onDecrementBlock = onDecrementBlock,
+                onToggleActionInstruction = onToggleActionInstruction,
+                onSwapClub = onSwapClub,
+                onRequestFinish = onRequestFinish,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                when {
-                    uiState.isLoading -> {
-                        CircularProgressIndicator()
-                    }
-
-                    uiState.rangeSession == null -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            EntryHighlightCard(
-                                title = "Session not found",
-                                body = uiState.statusMessage
-                                    ?: "This session could not be loaded.",
-                            )
-                        }
-                    }
-
-                    totalSteps == 0 -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            EntryHighlightCard(
-                                title = "No steps",
-                                body = "This session has no steps to execute.",
-                            )
-                        }
-                    }
-
-                    else -> {
-                        val currentStepRaw = steps.getOrNull(uiState.currentStepIndex)
-                        val currentStep = currentStepRaw?.let { step ->
-                            val overrideCode = uiState.rangeSession?.clubOverrides?.get(uiState.currentStepIndex.toString())
-                            if (overrideCode != null) {
-                                val overrideClub = enabledClubs.find { it.code == overrideCode }
-                                step.copy(
-                                    club = overrideCode,
-                                    clubDisplayName = overrideClub?.displayName ?: step.clubDisplayName,
-                                )
-                            } else step
-                        }
-                        if (currentStep != null) {
-                            val isFullyComplete = uiState.completedStepIndices.size == totalSteps
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                RangeSessionProgressHeader(
-                                    rangeSession = uiState.rangeSession,
-                                    completedStepIndices = uiState.completedStepIndices,
-                                    elapsedSeconds = uiState.elapsedSeconds,
-                                )
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .verticalScroll(rememberScrollState())
-                                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                                ) {
-                                    ExecutionStepCard(
-                                        step = currentStep,
-                                        stepNumber = uiState.currentStepIndex + 1,
-                                        totalSteps = totalSteps,
-                                        isCompleted = uiState.currentStepIndex in uiState.completedStepIndices,
-                                        onToggleComplete = { onToggleStepComplete(uiState.currentStepIndex) },
-                                        enabledClubs = enabledClubs,
-                                        onClubOverride = { clubCode ->
-                                            onClubOverride(uiState.currentStepIndex, clubCode)
-                                        },
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    if (isFullyComplete) {
-                                        Button(
-                                            onClick = onFinish,
-                                            enabled = !uiState.isFinishing,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .semantics { contentDescription = "Finish session" },
-                                        ) {
-                                            Text(
-                                                text = "Finish Session",
-                                                style = MaterialTheme.typography.labelLarge,
-                                            )
-                                        }
-                                    } else {
-                                        OutlinedButton(
-                                            onClick = onFinish,
-                                            enabled = !uiState.isFinishing,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .semantics { contentDescription = "Finish session" },
-                                        ) {
-                                            Text(
-                                                text = "Finish Session",
-                                                style = MaterialTheme.typography.labelLarge,
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            )
         }
     }
 }
@@ -426,21 +305,21 @@ private fun PhoneRangeSessionLayout(
 private fun TabletRangeSessionLayout(
     uiState: RangeSessionUiState,
     snackbarHostState: SnackbarHostState,
-    onNextStep: () -> Unit,
-    onPreviousStep: () -> Unit,
-    onNavigateToStep: (Int) -> Unit,
-    onToggleStepComplete: (Int) -> Unit,
+    onNavigateToBlock: (Int) -> Unit,
+    onIncrementBlock: (Int) -> Unit,
+    onDecrementBlock: (Int) -> Unit,
+    onToggleActionInstruction: (Int, Int) -> Unit,
+    onSwapClub: (Int, Int, String) -> Unit,
     onBack: () -> Unit,
-    enabledClubs: List<Club> = emptyList(),
-    onClubOverride: (Int, String) -> Unit = { _, _ -> },
-    onFinish: () -> Unit = {},
-    onRequestAbandon: () -> Unit = {},
+    enabledClubs: List<Club>,
+    onRequestFinish: () -> Unit,
+    onRequestAbandon: () -> Unit,
 ) {
-    val steps = uiState.rangeSession?.snapshot?.steps ?: emptyList()
-    val totalSteps = steps.size
+    val snapshot = uiState.rangeSession?.snapshot
+    val blocks = remember(snapshot) { snapshot?.executionBlocks() ?: emptyList() }
+    val steps = snapshot?.steps ?: emptyList()
     val sessionName = uiState.rangeSession?.sessionName ?: "Session"
-    val drawerListState = rememberLazyListState()
-    val showPanel = !uiState.isLoading && uiState.rangeSession != null && totalSteps > 0
+    val showPanel = !uiState.isLoading && uiState.rangeSession != null && blocks.isNotEmpty()
 
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -463,186 +342,217 @@ private fun TabletRangeSessionLayout(
                 },
                 actions = {
                     if (showPanel) {
-                        var overflowExpanded by remember { mutableStateOf(false) }
-                        Box {
-                            IconButton(onClick = { overflowExpanded = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "More options",
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = overflowExpanded,
-                                onDismissRequest = { overflowExpanded = false },
-                            ) {
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = "Abandon session",
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    },
-                                    onClick = {
-                                        overflowExpanded = false
-                                        onRequestAbandon()
-                                    },
-                                    modifier = Modifier.semantics {
-                                        contentDescription = "Abandon session"
-                                    },
-                                )
-                            }
-                        }
+                        SessionOverflowMenu(onRequestAbandon = onRequestAbandon)
                     }
                 },
             )
         },
-        bottomBar = {
-            if (showPanel) {
-                StepNavigationBar(
-                    currentStepIndex = uiState.currentStepIndex,
-                    totalSteps = totalSteps,
-                    onPrevious = onPreviousStep,
-                    onNext = onNextStep,
-                )
-            }
-        },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { innerPadding ->
         if (showPanel) {
-            val currentStepRaw = steps.getOrNull(uiState.currentStepIndex)
-            val currentStep = currentStepRaw?.let { step ->
-                val overrideCode = uiState.rangeSession?.clubOverrides?.get(uiState.currentStepIndex.toString())
-                if (overrideCode != null) {
-                    val overrideClub = enabledClubs.find { it.code == overrideCode }
-                    step.copy(
-                        club = overrideCode,
-                        clubDisplayName = overrideClub?.displayName ?: step.clubDisplayName,
-                    )
-                } else step
-            }
-            if (currentStep != null) {
-                val isFullyComplete = uiState.completedStepIndices.size == totalSteps
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .weight(0.35f),
-                    ) {
-                        StepListDrawerContent(
-                            steps = steps,
-                            completedStepIndices = uiState.completedStepIndices,
-                            currentStepIndex = uiState.currentStepIndex,
-                            lazyListState = drawerListState,
-                            onStepSelected = onNavigateToStep,
-                        )
-                    }
-                    HorizontalDivider(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(1.dp),
-                    )
-                    Column(
-                        modifier = Modifier
-                            .weight(0.65f)
-                            .fillMaxHeight(),
-                    ) {
-                        RangeSessionProgressHeader(
-                            rangeSession = uiState.rangeSession,
-                            completedStepIndices = uiState.completedStepIndices,
-                            elapsedSeconds = uiState.elapsedSeconds,
-                        )
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                        ) {
-                            ExecutionStepCard(
-                                step = currentStep,
-                                stepNumber = uiState.currentStepIndex + 1,
-                                totalSteps = totalSteps,
-                                isCompleted = uiState.currentStepIndex in uiState.completedStepIndices,
-                                onToggleComplete = { onToggleStepComplete(uiState.currentStepIndex) },
-                                enabledClubs = enabledClubs,
-                                onClubOverride = { clubCode ->
-                                    onClubOverride(uiState.currentStepIndex, clubCode)
-                                },
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            if (isFullyComplete) {
-                                Button(
-                                    onClick = onFinish,
-                                    enabled = !uiState.isFinishing,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .semantics { contentDescription = "Finish session" },
-                                ) {
-                                    Text(
-                                        text = "Finish Session",
-                                        style = MaterialTheme.typography.labelLarge,
-                                    )
-                                }
-                            } else {
-                                OutlinedButton(
-                                    onClick = onFinish,
-                                    enabled = !uiState.isFinishing,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .semantics { contentDescription = "Finish session" },
-                                ) {
-                                    Text(
-                                        text = "Finish Session",
-                                        style = MaterialTheme.typography.labelLarge,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentAlignment = Alignment.Center,
             ) {
-                when {
-                    uiState.isLoading -> {
-                        CircularProgressIndicator()
-                    }
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(0.35f),
+                ) {
+                    BlockOverviewContent(
+                        blocks = blocks,
+                        steps = steps,
+                        completedStepIndices = uiState.completedStepIndices,
+                        currentBlockIndex = uiState.currentBlockIndex,
+                        onBlockSelected = onNavigateToBlock,
+                        onFinish = onRequestFinish,
+                        isFinishing = uiState.isFinishing,
+                    )
+                }
+                HorizontalDivider(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(1.dp),
+                )
+                RangeSessionBody(
+                    uiState = uiState,
+                    blocks = blocks,
+                    enabledClubs = enabledClubs,
+                    onNavigateToBlock = onNavigateToBlock,
+                    onIncrementBlock = onIncrementBlock,
+                    onDecrementBlock = onDecrementBlock,
+                    onToggleActionInstruction = onToggleActionInstruction,
+                    onSwapClub = onSwapClub,
+                    onRequestFinish = onRequestFinish,
+                    modifier = Modifier
+                        .weight(0.65f)
+                        .fillMaxHeight(),
+                )
+            }
+        } else {
+            RangeSessionBody(
+                uiState = uiState,
+                blocks = blocks,
+                enabledClubs = enabledClubs,
+                onNavigateToBlock = onNavigateToBlock,
+                onIncrementBlock = onIncrementBlock,
+                onDecrementBlock = onDecrementBlock,
+                onToggleActionInstruction = onToggleActionInstruction,
+                onSwapClub = onSwapClub,
+                onRequestFinish = onRequestFinish,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            )
+        }
+    }
+}
 
-                    uiState.rangeSession == null -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            EntryHighlightCard(
-                                title = "Session not found",
-                                body = uiState.statusMessage
-                                    ?: "This session could not be loaded.",
-                            )
-                        }
-                    }
+@Composable
+private fun SessionOverflowMenu(onRequestAbandon: () -> Unit) {
+    var overflowExpanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { overflowExpanded = true }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = "More options",
+            )
+        }
+        DropdownMenu(
+            expanded = overflowExpanded,
+            onDismissRequest = { overflowExpanded = false },
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = "Abandon session",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                },
+                onClick = {
+                    overflowExpanded = false
+                    onRequestAbandon()
+                },
+                modifier = Modifier.semantics {
+                    contentDescription = "Abandon session"
+                },
+            )
+        }
+    }
+}
 
-                    else -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            EntryHighlightCard(
-                                title = "No steps",
-                                body = "This session has no steps to execute.",
-                            )
-                        }
+@Composable
+private fun RangeSessionBody(
+    uiState: RangeSessionUiState,
+    blocks: List<ExecutionBlock>,
+    enabledClubs: List<Club>,
+    onNavigateToBlock: (Int) -> Unit,
+    onIncrementBlock: (Int) -> Unit,
+    onDecrementBlock: (Int) -> Unit,
+    onToggleActionInstruction: (Int, Int) -> Unit,
+    onSwapClub: (Int, Int, String) -> Unit,
+    onRequestFinish: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val steps = uiState.rangeSession?.snapshot?.steps ?: emptyList()
+
+    when {
+        uiState.isLoading -> {
+            Box(modifier = modifier, contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+
+        uiState.rangeSession == null -> {
+            Box(modifier = modifier, contentAlignment = Alignment.Center) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    EntryHighlightCard(
+                        title = "Session not found",
+                        body = uiState.statusMessage
+                            ?: "This session could not be loaded.",
+                    )
+                }
+            }
+        }
+
+        blocks.isEmpty() || steps.isEmpty() -> {
+            Box(modifier = modifier, contentAlignment = Alignment.Center) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    EntryHighlightCard(
+                        title = "No steps",
+                        body = "This session has no steps to execute.",
+                    )
+                }
+            }
+        }
+
+        else -> {
+            val isSessionComplete = uiState.completedStepIndices.size == steps.size
+            val pagerState = rememberPagerState(
+                initialPage = uiState.currentBlockIndex.coerceIn(0, blocks.lastIndex),
+            ) { blocks.size }
+
+            // Keep pager and view-model block index in sync in both directions.
+            LaunchedEffect(pagerState.settledPage) {
+                onNavigateToBlock(pagerState.settledPage)
+            }
+            LaunchedEffect(uiState.currentBlockIndex) {
+                if (pagerState.currentPage != uiState.currentBlockIndex &&
+                    !pagerState.isScrollInProgress
+                ) {
+                    pagerState.animateScrollToPage(uiState.currentBlockIndex)
+                }
+            }
+
+            Column(modifier = modifier) {
+                RangeSessionProgressHeader(
+                    rangeSession = uiState.rangeSession,
+                    completedStepIndices = uiState.completedStepIndices,
+                    elapsedSeconds = uiState.elapsedSeconds,
+                )
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.Top,
+                ) { pageIndex ->
+                    val block = blocks[pageIndex]
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                    ) {
+                        ExecutionBlockPage(
+                            block = block,
+                            blockNumber = pageIndex + 1,
+                            totalBlocks = blocks.size,
+                            steps = steps,
+                            completedStepIndices = uiState.completedStepIndices,
+                            clubOverrides = uiState.rangeSession.clubOverrides,
+                            enabledClubs = enabledClubs,
+                            onIncrement = { onIncrementBlock(pageIndex) },
+                            onDecrement = { onDecrementBlock(pageIndex) },
+                            onToggleActionInstruction = { instructionIndex ->
+                                onToggleActionInstruction(pageIndex, instructionIndex)
+                            },
+                            onSwapClub = { instructionIndex, clubCode ->
+                                onSwapClub(pageIndex, instructionIndex, clubCode)
+                            },
+                            isSessionComplete = isSessionComplete,
+                            isFinishing = uiState.isFinishing,
+                            onFinish = onRequestFinish,
+                        )
                     }
                 }
             }

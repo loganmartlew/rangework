@@ -47,7 +47,7 @@ export function registerCreateUnitTool(
                 .number()
                 .optional()
                 .describe(
-                  'Number of balls for this step. A nonnegative integer: a positive count is N balls, and 0 is a deliberate no-ball step (e.g. practice swings for feel). Omit the field entirely to leave the count uncounted (unknown) — omitting is not the same as 0.',
+                  "Number of balls for this step. A nonnegative integer: a positive count is N balls, and 0 is a deliberate no-ball step (e.g. practice swings for feel). Omit the field entirely to leave the count uncounted (unknown) — omitting is not the same as 0. For a single-instruction drill, put the drill's full volume here (e.g. 15 balls → `ball_count: 15`) instead of relying on the session's `repeat_count`.",
                 ),
               club_code: z
                 .string()
