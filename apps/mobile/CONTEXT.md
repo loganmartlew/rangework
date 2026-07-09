@@ -30,6 +30,10 @@ _Avoid_: reps, repetitions
 A mental focus directive — the specific thing to concentrate on during a Practice Unit. Defined on the Practice Unit (stored as `focus`) and optionally overridden per Session Item (stored as `focus_cue`). The Session Item's value takes precedence during execution.
 _Avoid_: focus, mental note, tip
 
+**Success Criterion**:
+An optional, unit-defined statement of what counts as a successful ball for that drill (e.g. "inside 5m of the 60m flag"), expressed as text. Lives on the Practice Unit only — deliberately not overridable per Session Item — so success counts stay comparable across every Range Session of that unit. Editing a unit's Success Criterion starts a new measurement baseline; it never reinterprets history, because each Snapshot keeps the criterion that was in force when the Range Session started.
+_Avoid_: goal, target, success metric, KPI
+
 **Ball Count**:
 The number of balls expected for a single Practice Instruction. Three states are distinct and must not be conflated:
 - A **positive** count — N balls are hit.
@@ -90,6 +94,32 @@ _Avoid_: session item (planning-side), unit screen, drill block
 **Completed Step**:
 A record that a Step has been marked done, with a completion timestamp.
 
+**Observation Type**:
+A named, app-defined kind of thing a player can watch for on each ball — e.g. shot shape, strike location, a quality rating, or success against the unit's Success Criterion. Each Observation Type has a fixed, app-defined set of values; how a value is entered (chip row, face-zone grid) is presentation, not part of the type. Observation Types are enabled per Session Item when building a Practice Session — zero, one, or several at once — and the enabled set is baked into the Snapshot at Range Session start. Where Focus Cue says what to think about, enabled Observation Types say what to watch for. Observations record what happened, never whether it was good — with one deliberate exception: the Success type, a binary Hit/Miss judged by the player against the unit's Success Criterion text. It is the only type that records goodness, and no multi-value type ever feeds a success count.
+
+The v1 catalog:
+- **Success** — Hit / Miss against the unit's Success Criterion; only offerable when the unit defines one.
+- **Strike Location** — where on the clubface the ball was struck; nine zones (heel/center/toe × high/middle/low).
+- **Contact** — how the strike found the turf; ordered scale: Very Fat / Fat / Flush / Thin / Very Thin.
+- **Shape** — the nine-flight ball-flight matrix (start line × curvature).
+- **Distance** — finish relative to target depth; ordered scale: Way Short / Short / On / Long / Way Long.
+- **Direction** — finish relative to target line; ordered scale: Way Left / Left / On Line / Right / Way Right. Dispersion is not an Observation Type — a single ball has a miss direction; dispersion is the emergent spread of a block's Direction Observations.
+
+Shape and Direction values (and Strike Location rendering) are handedness-sensitive: stored canonically, presented per the user's handedness preference.
+_Avoid_: dimension, metric, measure, measurement (reserved for possible future instrument-captured data), tracker, criterion (as the type name — the type is Success; the unit-level rubric is the Success Criterion), dispersion (as a per-ball value)
+
+**Observation**:
+One recorded value for one Observation Type on one completed Ball Step (e.g. Shape = fade). Observations attach to the Completed Step; a ball may carry an Observation for every enabled type, some, or none — an absent Observation means that ball was not observed for that type, never a default value. Recording an Observation must never be a precondition for completing a Step. While the Range Session is Active, any completed ball's Observations may be corrected; once the session leaves Active they freeze. Correcting an Observation never un-completes the Step or alters its completion timestamp — what happened and what was observed about it are separate records.
+_Avoid_: reading, data point, ball record
+
+**Block Result**:
+An optional, player-entered record attached to one Block: a free-text note, plus — only when the unit defines a Success Criterion — a success count against that criterion. The note is always available on every Block, entered through a passive affordance, never prompted or required. The count has exactly one source: entered manually (X of the block's Y balls) when the item did not enable the Success Observation Type, or derived read-only from Hit/Miss Observations (X of Z observed balls, denominated in observed balls and labeled as such) when it did. A Block whose unit has no Success Criterion takes a note only; a bare count with no criterion is disallowed because the number would be meaningless across sessions. The note remains editable after the session is Completed; the manual count freezes at completion, like Observations — prose is reflection, counts are data.
+_Avoid_: block score, block note (the note is only one part), result prompt
+
+**Session Note**:
+A single optional free-text reflection recorded against a Range Session as a whole (e.g. at finish), capturing overall impressions rather than any one Block's outcome. Remains editable after the session is Completed — reflection legitimately happens later. An Abandoned session keeps whatever was recorded before abandonment but takes no further edits of any kind.
+_Avoid_: session summary, journal entry
+
 **Time Entry**:
 A span of time during which the user was actively at the range within a single Range Session. Multiple Time Entries per Range Session accumulate to compute total time on range.
 _Avoid_: session timer, time block, time segment
@@ -132,7 +162,7 @@ A derived estimate of how long a Practice Session will take, computed from sessi
 ### User
 
 **User Preferences**:
-A user's measurement settings: unit system (Imperial / Metric / Custom), distance unit (Yards / Meters), and speed unit (mph / km/h / m/s).
+A user's measurement and presentation settings: unit system (Imperial / Metric / Custom), distance unit (Yards / Meters), speed unit (mph / km/h / m/s), and handedness (right-/left-handed — orients perspective-dependent input surfaces such as a strike-location grid).
 _Avoid_: settings (too broad)
 
 ### In-progress editing
