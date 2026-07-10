@@ -33,6 +33,7 @@ class InMemoryPracticeSessionRepository : PracticeSessionRepository() {
                     clubCode = item.clubCode,
                     notes = item.notes,
                     focusCue = item.focusCue,
+                    observationTypes = item.observationTypes,
                 )
             },
             notes = validated.notes,

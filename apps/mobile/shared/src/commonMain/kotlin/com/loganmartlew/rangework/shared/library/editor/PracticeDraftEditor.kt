@@ -209,6 +209,7 @@ object PracticeDraftEditor {
                 is ValidationTarget.SessionName,
                 is ValidationTarget.ItemUnitReference,
                 is ValidationTarget.ItemRepeatCount,
+                is ValidationTarget.ItemObservationTypes,
                 is ValidationTarget.Tags -> updated // not applicable for units
             }
         }
@@ -231,6 +232,13 @@ object PracticeDraftEditor {
                 is ValidationTarget.ItemRepeatCount -> updated.copy(
                     items = updated.items.mapIndexed { i, item ->
                         if (i == target.index) item.copy(repeatCountError = issue.message) else item
+                    },
+                )
+                // No dedicated observation-type slot yet (Stage 3 UI); surface on
+                // the item's unit error as the nearest fit so it isn't dropped.
+                is ValidationTarget.ItemObservationTypes -> updated.copy(
+                    items = updated.items.mapIndexed { i, item ->
+                        if (i == target.index) item.copy(unitError = issue.message) else item
                     },
                 )
                 is ValidationTarget.UnitTitle,

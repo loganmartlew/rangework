@@ -64,6 +64,7 @@ fun PracticeUnitDraft.validated(): PracticeUnitDraft {
         notes = notes.normalizedOptionalText(),
         focus = focus.normalizedOptionalText(),
         defaultClubCode = defaultClubCode.normalizedOptionalText(),
+        successCriterion = successCriterion.normalizedOptionalText(),
         tagIds = tagIds.normalizedTagIds(),
     )
 }
@@ -115,6 +116,7 @@ fun PracticeSessionDraft.validated(): PracticeSessionDraft {
                 clubCode = item.clubCode.normalizedOptionalText(),
                 notes = item.notes.normalizedOptionalText(),
                 focusCue = item.focusCue.normalizedOptionalText(),
+                observationTypes = item.observationTypes.normalizedObservationTypes(),
             )
         }
 
@@ -130,15 +132,34 @@ fun PracticeSessionDraft.validated(): PracticeSessionDraft {
     )
 }
 
+/**
+ * Normalizes the presentation-derived unit fields for the IMPERIAL/METRIC
+ * presets while preserving every other field (notably [MeasurementPreferences.handedness],
+ * which is orthogonal to the unit system). `copy(...)` — not the static presets —
+ * so a non-unit-system field is never clobbered.
+ */
 fun MeasurementPreferences.validated(): MeasurementPreferences = when (unitSystem) {
-    UnitSystem.IMPERIAL -> MeasurementPreferences.Imperial
-    UnitSystem.METRIC -> MeasurementPreferences.Metric
+    UnitSystem.IMPERIAL -> copy(
+        unitSystem = UnitSystem.IMPERIAL,
+        distanceUnit = DistanceUnit.YARDS,
+        speedUnit = SpeedUnit.MILES_PER_HOUR,
+    )
+    UnitSystem.METRIC -> copy(
+        unitSystem = UnitSystem.METRIC,
+        distanceUnit = DistanceUnit.METERS,
+        speedUnit = SpeedUnit.KILOMETRES_PER_HOUR,
+    )
     UnitSystem.CUSTOM -> copy()
 }
 
-private fun String?.normalizedOptionalText(): String? = this
+/** Blank/whitespace-only text normalizes to null; otherwise trimmed. */
+internal fun String?.normalizedOptionalText(): String? = this
     ?.trim()
     ?.takeIf(String::isNotEmpty)
+
+/** De-duplicated Observation Types in catalog (enum declaration) order. */
+private fun List<ObservationType>.normalizedObservationTypes(): List<ObservationType> =
+    distinct().sortedBy(ObservationType::ordinal)
 
 /** De-duplicated, order-preserving tag ids with blanks removed. */
 private fun List<String>.normalizedTagIds(): List<String> = this

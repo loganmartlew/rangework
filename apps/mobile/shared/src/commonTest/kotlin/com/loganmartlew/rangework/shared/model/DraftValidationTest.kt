@@ -327,4 +327,64 @@ class DraftValidationTest {
             ).validated(),
         )
     }
+
+    @Test
+    fun measurementPreferencesValidationPreservesHandedness() {
+        // The IMPERIAL/METRIC preset branches must not clobber handedness.
+        assertEquals(
+            Handedness.LEFT,
+            MeasurementPreferences(
+                unitSystem = UnitSystem.IMPERIAL,
+                handedness = Handedness.LEFT,
+            ).validated().handedness,
+        )
+        assertEquals(
+            Handedness.LEFT,
+            MeasurementPreferences(
+                unitSystem = UnitSystem.METRIC,
+                handedness = Handedness.LEFT,
+            ).validated().handedness,
+        )
+    }
+
+    @Test
+    fun practiceUnitValidationNormalizesBlankCriterionToNull() {
+        val validated = PracticeUnitDraft(
+            title = "Wedge ladder",
+            instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit")),
+            successCriterion = "   ",
+        ).validated()
+        assertEquals(null, validated.successCriterion)
+
+        val kept = PracticeUnitDraft(
+            title = "Wedge ladder",
+            instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit")),
+            successCriterion = "  inside 5m of the flag  ",
+        ).validated()
+        assertEquals("inside 5m of the flag", kept.successCriterion)
+    }
+
+    @Test
+    fun practiceSessionValidationDedupesObservationTypesInCatalogOrder() {
+        val validated = PracticeSessionDraft(
+            name = "Session",
+            items = listOf(
+                PracticeSessionItemDraft(
+                    practiceUnitId = "unit-1",
+                    order = 1,
+                    repeatCount = 1,
+                    observationTypes = listOf(
+                        ObservationType.SHAPE,
+                        ObservationType.SUCCESS,
+                        ObservationType.SHAPE,
+                    ),
+                ),
+            ),
+        ).validated()
+
+        assertEquals(
+            listOf(ObservationType.SUCCESS, ObservationType.SHAPE),
+            validated.items.first().observationTypes,
+        )
+    }
 }

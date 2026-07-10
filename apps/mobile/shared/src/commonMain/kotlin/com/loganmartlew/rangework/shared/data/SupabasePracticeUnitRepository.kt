@@ -115,6 +115,7 @@ class SupabasePracticeUnitRepository(
                 )
             },
             tagIds = validated.tagIds,
+            successCriterion = validated.successCriterion,
         )
         client.postgrest.rpc(
             "save_practice_unit",
@@ -145,6 +146,8 @@ private data class PracticeUnitRow(
     val focus: String? = null,
     @SerialName("default_club_code")
     val defaultClubCode: String? = null,
+    @SerialName("success_criterion")
+    val successCriterion: String? = null,
     @SerialName("created_at")
     val createdAt: Instant,
     @SerialName("updated_at")
@@ -174,6 +177,7 @@ private data class SavePracticeUnitParams(
     @SerialName("p_default_club_code") val defaultClubCode: String?,
     @SerialName("p_instructions") val instructions: List<InstructionParam>,
     @SerialName("p_tag_ids") val tagIds: List<String>,
+    @SerialName("p_success_criterion") val successCriterion: String?,
 )
 
 @Serializable
@@ -205,6 +209,7 @@ private fun PracticeUnitRow.toModel(
     notes = notes,
     focus = focus,
     defaultClubCode = defaultClubCode,
+    successCriterion = successCriterion,
     tags = tags,
     createdAt = createdAt,
     updatedAt = updatedAt,

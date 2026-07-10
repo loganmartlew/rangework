@@ -11,6 +11,8 @@ data class PracticeUnit(
     val notes: String? = null,
     val focus: String? = null,
     val defaultClubCode: String? = null,
+    /** Optional rubric read by the player and coaching model; never machine-parsed. */
+    val successCriterion: String? = null,
     val tags: List<Tag> = emptyList(),
     val createdAt: Instant,
     val updatedAt: Instant,

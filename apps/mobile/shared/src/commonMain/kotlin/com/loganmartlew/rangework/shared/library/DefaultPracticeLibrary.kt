@@ -1,5 +1,6 @@
 package com.loganmartlew.rangework.shared.library
 
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.PracticeInstructionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
@@ -8,6 +9,7 @@ import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.model.Tag
 import com.loganmartlew.rangework.shared.model.ValidationIssue
+import com.loganmartlew.rangework.shared.model.ValidationTarget
 import com.loganmartlew.rangework.shared.model.validated
 import com.loganmartlew.rangework.shared.model.validationIssues
 import com.loganmartlew.rangework.shared.repository.PracticeSessionRepository
@@ -45,6 +47,7 @@ class DefaultPracticeLibrary(
             notes = unit.notes,
             focus = unit.focus,
             defaultClubCode = unit.defaultClubCode,
+            successCriterion = unit.successCriterion,
             instructions = unit.instructions.map { instruction ->
                 PracticeInstructionDraft(
                     order = instruction.order,
@@ -64,6 +67,7 @@ class DefaultPracticeLibrary(
             notes = unit.notes,
             focus = unit.focus,
             defaultClubCode = unit.defaultClubCode,
+            successCriterion = unit.successCriterion,
             instructions = unit.instructions.map { instruction ->
                 PracticeInstructionDraft(
                     order = instruction.order,
@@ -85,11 +89,11 @@ class DefaultPracticeLibrary(
 
     override suspend fun getSession(id: String): PracticeSession? = sessionRepository.get(id)
 
-    override fun validateSession(draft: PracticeSessionDraft): List<ValidationIssue> =
-        draft.validationIssues()
+    override suspend fun validateSession(draft: PracticeSessionDraft): List<ValidationIssue> =
+        draft.validationIssues() + successCriterionIssues(draft)
 
     override suspend fun saveSession(draft: PracticeSessionDraft, sessionId: String?): PracticeLibraryResult<PracticeSession> {
-        val issues = draft.validationIssues()
+        val issues = validateSession(draft)
         if (issues.isNotEmpty()) {
             return PracticeLibraryResult.Invalid(issues)
         }
@@ -97,6 +101,39 @@ class DefaultPracticeLibrary(
         val resolvedId = sessionId?.trim()?.takeIf(String::isNotEmpty)
         val saved = sessionRepository.persist(normalized, resolvedId)
         return PracticeLibraryResult.Saved(saved)
+    }
+
+    /**
+     * A friendly mirror of the RPC's success-requires-criterion exception: any
+     * item enabling the Success Observation Type whose referenced unit has no
+     * Success Criterion is a validation issue. The RPC stays as the backstop.
+     */
+    private suspend fun successCriterionIssues(draft: PracticeSessionDraft): List<ValidationIssue> {
+        // Cache the criterion verdict per unit id so a session referencing the
+        // same unit twice only loads it once.
+        val missingCriterionByUnit = mutableMapOf<String, Boolean>()
+        return draft.items
+            .sortedBy(PracticeSessionItemDraft::order)
+            .mapIndexedNotNull { index, item ->
+                if (ObservationType.SUCCESS !in item.observationTypes) return@mapIndexedNotNull null
+                val unitId = item.practiceUnitId.trim().takeIf(String::isNotEmpty)
+                    ?: return@mapIndexedNotNull null
+                // A unit that can't be loaded (e.g. deleted) is not a criterion
+                // problem — leave it to reference validation / the RPC backstop
+                // rather than mislabel it as a missing success criterion.
+                val missingCriterion = missingCriterionByUnit.getOrPut(unitId) {
+                    val unit = unitRepository.get(unitId)
+                    unit != null && unit.successCriterion == null
+                }
+                if (missingCriterion) {
+                    ValidationIssue(
+                        target = ValidationTarget.ItemObservationTypes(index),
+                        message = "Success can only be observed when the practice unit has a success criterion.",
+                    )
+                } else {
+                    null
+                }
+            }
     }
 
     override suspend fun duplicateSession(id: String): PracticeSession {
@@ -112,6 +149,7 @@ class DefaultPracticeLibrary(
                     clubCode = item.clubCode,
                     notes = item.notes,
                     focusCue = item.focusCue,
+                    observationTypes = item.observationTypes,
                 )
             },
             tagIds = session.tags.map(Tag::id),
@@ -131,6 +169,7 @@ class DefaultPracticeLibrary(
                     clubCode = item.clubCode,
                     notes = item.notes,
                     focusCue = item.focusCue,
+                    observationTypes = item.observationTypes,
                 )
             },
             tagIds = session.tags.map(Tag::id),

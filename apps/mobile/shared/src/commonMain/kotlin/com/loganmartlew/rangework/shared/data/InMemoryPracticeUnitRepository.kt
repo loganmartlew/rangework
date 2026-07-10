@@ -36,6 +36,7 @@ class InMemoryPracticeUnitRepository : PracticeUnitRepository() {
             notes = validated.notes,
             focus = validated.focus,
             defaultClubCode = validated.defaultClubCode,
+            successCriterion = validated.successCriterion,
             createdAt = store[resolvedId]?.createdAt ?: now,
             updatedAt = now,
         )

@@ -10,4 +10,5 @@ data class PracticeSessionItemDraft(
     val clubCode: String? = null,
     val notes: String? = null,
     val focusCue: String? = null,
+    val observationTypes: List<ObservationType> = emptyList(),
 )

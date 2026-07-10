@@ -46,6 +46,10 @@ fun RangeSessionSnapshot.executionBlocks(): List<ExecutionBlock> {
     }
 }
 
+/** Total balls addressable by this block: every Ball Step's count, completed or not. */
+fun ExecutionBlock.totalBalls(steps: List<SnapshotStep>): Int =
+    stepIndices.sumOf { steps[it].ballCount ?: 0 }
+
 data class BlockProgress(
     val completedSteps: Int,
     val totalSteps: Int,
@@ -69,7 +73,7 @@ fun ExecutionBlock.progress(
         completedSteps = completed.size,
         totalSteps = stepIndices.size,
         completedBalls = completed.sumOf { steps[it].ballCount ?: 0 },
-        totalBalls = stepIndices.sumOf { steps[it].ballCount ?: 0 },
+        totalBalls = totalBalls(steps),
         currentPass = firstIncomplete?.let { steps[it].repNumber } ?: unit.repeatCount,
         totalPasses = unit.repeatCount,
     )

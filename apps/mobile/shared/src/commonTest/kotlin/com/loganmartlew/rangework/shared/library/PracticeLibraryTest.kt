@@ -2,10 +2,12 @@ package com.loganmartlew.rangework.shared.library
 
 import com.loganmartlew.rangework.shared.data.InMemoryPracticeSessionRepository
 import com.loganmartlew.rangework.shared.data.InMemoryPracticeUnitRepository
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.PracticeInstructionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSessionItemDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
+import com.loganmartlew.rangework.shared.model.ValidationTarget
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -434,6 +436,125 @@ class PracticeLibraryTest {
         val restored = library.restoreSession(saved)
         assertEquals(saved.id, restored.id)
         assertEquals("Evening session", restored.name)
+    }
+
+    // ── Success-requires-criterion (Observation Types) ────────────────
+
+    @Test
+    fun saveSessionRejectsSuccessOnCriterionlessUnit() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+
+        val unit = (library.saveUnit(
+            PracticeUnitDraft(
+                title = "No criterion drill",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit")),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+
+        val result = library.saveSession(
+            PracticeSessionDraft(
+                name = "Session",
+                items = listOf(
+                    PracticeSessionItemDraft(
+                        practiceUnitId = unit.id,
+                        order = 1,
+                        repeatCount = 1,
+                        observationTypes = listOf(ObservationType.SUCCESS),
+                    ),
+                ),
+            ),
+        )
+
+        assertIs<PracticeLibraryResult.Invalid>(result)
+        val invalid = result as PracticeLibraryResult.Invalid
+        assertTrue(invalid.issues.any { it.target == ValidationTarget.ItemObservationTypes(0) })
+    }
+
+    @Test
+    fun saveSessionAllowsSuccessWhenUnitHasCriterion() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+
+        val unit = (library.saveUnit(
+            PracticeUnitDraft(
+                title = "Criterion drill",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit")),
+                successCriterion = "inside 5m of the flag",
+            ),
+        ) as PracticeLibraryResult.Saved).value
+
+        val result = library.saveSession(
+            PracticeSessionDraft(
+                name = "Session",
+                items = listOf(
+                    PracticeSessionItemDraft(
+                        practiceUnitId = unit.id,
+                        order = 1,
+                        repeatCount = 1,
+                        observationTypes = listOf(ObservationType.SUCCESS, ObservationType.SHAPE),
+                    ),
+                ),
+            ),
+        )
+
+        assertIs<PracticeLibraryResult.Saved<*>>(result)
+        val saved = (result as PracticeLibraryResult.Saved).value
+        assertEquals(
+            listOf(ObservationType.SUCCESS, ObservationType.SHAPE),
+            saved.items.first().observationTypes,
+        )
+    }
+
+    @Test
+    fun validateSessionSurfacesSuccessRequiresCriterion() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+
+        val unit = (library.saveUnit(
+            PracticeUnitDraft(
+                title = "No criterion drill",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit")),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+
+        // The sync validation surface must agree with saveSession, so the planner
+        // can show the issue inline before the user hits Save.
+        val issues = library.validateSession(
+            PracticeSessionDraft(
+                name = "Session",
+                items = listOf(
+                    PracticeSessionItemDraft(
+                        practiceUnitId = unit.id,
+                        order = 1,
+                        repeatCount = 1,
+                        observationTypes = listOf(ObservationType.SUCCESS),
+                    ),
+                ),
+            ),
+        )
+
+        assertTrue(issues.any { it.target == ValidationTarget.ItemObservationTypes(0) })
+    }
+
+    @Test
+    fun successValidationIgnoresMissingUnit() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+
+        // A unit id that was never saved (e.g. deleted between selection and save)
+        // is not a criterion problem — it must not be mislabeled as one.
+        val issues = library.validateSession(
+            PracticeSessionDraft(
+                name = "Session",
+                items = listOf(
+                    PracticeSessionItemDraft(
+                        practiceUnitId = "missing-unit-id",
+                        order = 1,
+                        repeatCount = 1,
+                        observationTypes = listOf(ObservationType.SUCCESS),
+                    ),
+                ),
+            ),
+        )
+
+        assertTrue(issues.none { it.target == ValidationTarget.ItemObservationTypes(0) })
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.loganmartlew.rangework.shared.data
 
 import com.loganmartlew.rangework.shared.model.DistanceUnit
+import com.loganmartlew.rangework.shared.model.Handedness
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.SpeedUnit
 import com.loganmartlew.rangework.shared.model.UnitSystem
@@ -28,6 +29,7 @@ class SupabaseMeasurementPreferencesRepository(
                 unitSystem = validated.unitSystem,
                 distanceUnit = validated.distanceUnit,
                 speedUnit = validated.speedUnit,
+                handedness = validated.handedness,
             ),
         ) {
             onConflict = "user_id"
@@ -46,6 +48,10 @@ private data class UserPreferencesRow(
     val distanceUnit: DistanceUnit,
     @SerialName("speed_unit")
     val speedUnit: SpeedUnit,
+    // Read as a raw string and mapped with a RIGHT fallback so a value this app
+    // version doesn't recognise degrades rather than crashing the whole
+    // preferences load — the wire-tolerance rule applied to new wire values.
+    val handedness: String? = null,
 )
 
 @Serializable
@@ -57,10 +63,12 @@ private data class UserPreferencesInsertRow(
     val distanceUnit: DistanceUnit,
     @SerialName("speed_unit")
     val speedUnit: SpeedUnit,
+    val handedness: Handedness,
 )
 
 private fun UserPreferencesRow.toModel(): MeasurementPreferences = MeasurementPreferences(
     unitSystem = unitSystem,
     distanceUnit = distanceUnit,
     speedUnit = speedUnit,
+    handedness = handedness?.let(Handedness::fromId) ?: Handedness.RIGHT,
 )
