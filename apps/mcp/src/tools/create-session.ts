@@ -8,6 +8,7 @@ import {
   validateClubCode,
 } from '../validation/club-codes.js';
 import { resolveTagCodes } from '../validation/tags.js';
+import { validateObservationTypes } from '../validation/observation-types.js';
 
 /**
  * Tool: `create_session`
@@ -26,7 +27,7 @@ export function registerCreateSessionTool(
     'create_session',
     {
       description:
-        "Creates a new practice session in the user's account. A session is an ordered list of practice units with optional per-item club overrides, coaching cues, and repeat counts. Call `list_units` or `create_unit` first to get unit ids. Returns the new session's id. Each item's `practice_unit_id` must be a unit that belongs to this user.",
+        "Creates a new practice session in the user's account. A session is an ordered list of practice units with optional per-item club overrides, coaching cues, repeat counts, and optional per-item `observation_types` (what to record per ball). Call `list_units` or `create_unit` first to get unit ids. Returns the new session's id. Each item's `practice_unit_id` must be a unit that belongs to this user.",
       inputSchema: {
         name: z
           .string()
@@ -68,6 +69,12 @@ export function registerCreateSessionTool(
                 .optional()
                 .describe(
                   'Optional per-item reminder (e.g. "Use the 50y stake"). An override, not a copy: set it only when it differs from the unit\'s own notes — a value equal to the unit\'s notes is dropped.',
+                ),
+              observation_types: z
+                .array(z.string())
+                .optional()
+                .describe(
+                  'Optional per-ball observations to record for this item, drawn from: `success`, `strike_location`, `contact`, `shape`, `distance`, `direction`. `success` (whether a ball met the target) is valid only when the item\'s unit has a `success_criterion`. Omit for no per-ball capture (the default). Restraint: enable observations on at most 1–2 blocks per session — the ones tied to the player\'s stated focus — and tell the player what you enabled and why. Don\'t enable types on no-ball (action-only) drills.',
                 ),
             }),
           )
@@ -145,7 +152,7 @@ export function registerCreateSessionTool(
       // overrides that merely copy the unit can be stripped below.
       const { data: ownedUnits, error: unitsError } = await ctx.supabaseClient
         .from('practice_units')
-        .select('id, notes, focus, default_club_code');
+        .select('id, notes, focus, default_club_code, success_criterion');
 
       if (unitsError) {
         return toolError(
@@ -168,6 +175,33 @@ export function registerCreateSessionTool(
           `unit ${invalidUnitIds[0]} not found or does not belong to you`,
           { invalid_unit_ids: invalidUnitIds },
         );
+      }
+
+      // Validate per-item observation_types against the fixed vocabulary and
+      // pre-enforce the success-requires-criterion rule (the friendly,
+      // field-scoped half of the two-layer rule; the RPC is the backstop).
+      const observationTypesByIndex: string[][] = [];
+      for (let idx = 0; idx < args.items.length; idx++) {
+        const item = args.items[idx]!;
+        const validated = validateObservationTypes(
+          item.observation_types,
+          `items[${idx}].observation_types`,
+        );
+        if ('error' in validated) return validated.error;
+
+        if (validated.types.includes('success')) {
+          const unit = unitsById.get(item.practice_unit_id);
+          const criterion = unit?.success_criterion;
+          if (criterion == null || criterion.trim() === '') {
+            return toolError(
+              ErrorCodes.VALIDATION_ERROR,
+              "the 'success' observation requires the unit to have a success_criterion; set one with create_unit first",
+              { field: `items[${idx}].observation_types` },
+            );
+          }
+        }
+
+        observationTypesByIndex.push(validated.types);
       }
 
       // Validate club codes if any are provided
@@ -225,13 +259,19 @@ export function registerCreateSessionTool(
         base != null &&
         override.trim() === base.trim();
 
-      const itemsJsonb = args.items.map(item => {
+      const itemsJsonb = args.items.map((item, idx) => {
         const unit = unitsById.get(item.practice_unit_id);
         const obj: Record<string, unknown> = {
           practice_unit_id: item.practice_unit_id,
           order: item.order,
           repeat_count: item.repeat_count,
         };
+        // Omit the key entirely when no types are enabled — the RPC coalesces a
+        // missing key to an empty array (same as "no per-ball capture").
+        const observationTypes = observationTypesByIndex[idx] ?? [];
+        if (observationTypes.length > 0) {
+          obj.observation_types = observationTypes;
+        }
         if (
           item.club_code !== undefined &&
           !sameAsBase(item.club_code, unit?.default_club_code)
@@ -260,6 +300,17 @@ export function registerCreateSessionTool(
       });
 
       if (error) {
+        // Backstop for the success-requires-criterion rule: if the criterion
+        // was removed between our pre-fetch and the save, the RPC raises. Map
+        // it to the same friendly validation error (item attribution is lost
+        // at this layer, so it is field-scoped to the array).
+        if (error.message?.includes('success criterion')) {
+          return toolError(
+            ErrorCodes.VALIDATION_ERROR,
+            "the 'success' observation requires the unit to have a success_criterion; set one with create_unit first",
+            { field: 'items' },
+          );
+        }
         return toolError(
           ErrorCodes.DATABASE_ERROR,
           'Failed to create session. Please try again.',

@@ -391,4 +391,256 @@ describe('create_session tool', () => {
     expect(parsed.code).toBe('UNKNOWN_CLUB_CODE');
     expect(parsed.data.valid_codes).toBeDefined();
   });
+
+  it('forwards observation_types (deduped) when the unit has a criterion', async () => {
+    let capturedItems: Array<Record<string, unknown>> = [];
+    const mockSupabaseClient = {
+      from: (table: string) => {
+        if (table === 'practice_units') {
+          return {
+            select: () =>
+              Promise.resolve({
+                data: [
+                  {
+                    id: 'unit-1',
+                    notes: null,
+                    focus: null,
+                    default_club_code: null,
+                    success_criterion: 'inside 5m of the flag',
+                  },
+                ],
+                error: null,
+              }),
+          };
+        }
+        return {
+          select: () => ({ order: async () => ({ data: [], error: null }) }),
+        };
+      },
+      rpc: async (name: string, params: Record<string, unknown>) => {
+        if (name === 'save_practice_session') {
+          capturedItems = params.p_items as Array<Record<string, unknown>>;
+          return { error: null };
+        }
+        return { error: { message: 'Unknown RPC' } };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'create_session',
+      arguments: {
+        name: 'Session',
+        items: [
+          {
+            practice_unit_id: 'unit-1',
+            order: 1,
+            repeat_count: 1,
+            observation_types: ['success', 'shape', 'shape'],
+          },
+        ],
+      },
+    })) as { content: Array<{ type: string; text?: string }>; isError?: boolean };
+
+    expect(result.isError).toBeFalsy();
+    expect(capturedItems[0]?.observation_types).toEqual(['success', 'shape']);
+  });
+
+  it('omits observation_types entirely when the array is empty', async () => {
+    let capturedItems: Array<Record<string, unknown>> = [];
+    const mockSupabaseClient = {
+      from: (table: string) => {
+        if (table === 'practice_units') {
+          return {
+            select: () =>
+              Promise.resolve({
+                data: [
+                  { id: 'unit-1', notes: null, focus: null, default_club_code: null },
+                ],
+                error: null,
+              }),
+          };
+        }
+        return {
+          select: () => ({ order: async () => ({ data: [], error: null }) }),
+        };
+      },
+      rpc: async (name: string, params: Record<string, unknown>) => {
+        if (name === 'save_practice_session') {
+          capturedItems = params.p_items as Array<Record<string, unknown>>;
+          return { error: null };
+        }
+        return { error: { message: 'Unknown RPC' } };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'create_session',
+      arguments: {
+        name: 'Session',
+        items: [
+          {
+            practice_unit_id: 'unit-1',
+            order: 1,
+            repeat_count: 1,
+            observation_types: [],
+          },
+        ],
+      },
+    })) as { content: Array<{ type: string; text?: string }>; isError?: boolean };
+
+    expect(result.isError).toBeFalsy();
+    expect('observation_types' in (capturedItems[0] ?? {})).toBe(false);
+  });
+
+  it("rejects enabling 'success' on a unit without a success_criterion", async () => {
+    const mockSupabaseClient = {
+      from: (table: string) => {
+        if (table === 'practice_units') {
+          return {
+            select: () =>
+              Promise.resolve({
+                data: [
+                  {
+                    id: 'unit-1',
+                    notes: null,
+                    focus: null,
+                    default_club_code: null,
+                    success_criterion: null,
+                  },
+                ],
+                error: null,
+              }),
+          };
+        }
+        return {
+          select: () => ({ order: async () => ({ data: [], error: null }) }),
+        };
+      },
+      rpc: async () => ({ error: null }),
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'create_session',
+      arguments: {
+        name: 'Session',
+        items: [
+          {
+            practice_unit_id: 'unit-1',
+            order: 1,
+            repeat_count: 1,
+            observation_types: ['success'],
+          },
+        ],
+      },
+    })) as { content: Array<{ type: string; text?: string }>; isError?: boolean };
+
+    expect(result.isError).toBe(true);
+    const parsed = JSON.parse(result.content[0]?.text ?? '{}');
+    expect(parsed.code).toBe('VALIDATION_ERROR');
+    expect(parsed.message).toContain('success_criterion');
+    expect(parsed.data.field).toBe('items[0].observation_types');
+  });
+
+  it('rejects an unknown observation type', async () => {
+    const mockSupabaseClient = {
+      from: (table: string) => {
+        if (table === 'practice_units') {
+          return {
+            select: () =>
+              Promise.resolve({
+                data: [
+                  { id: 'unit-1', notes: null, focus: null, default_club_code: null },
+                ],
+                error: null,
+              }),
+          };
+        }
+        return {
+          select: () => ({ order: async () => ({ data: [], error: null }) }),
+        };
+      },
+      rpc: async () => ({ error: null }),
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'create_session',
+      arguments: {
+        name: 'Session',
+        items: [
+          {
+            practice_unit_id: 'unit-1',
+            order: 1,
+            repeat_count: 1,
+            observation_types: ['spin'],
+          },
+        ],
+      },
+    })) as { content: Array<{ type: string; text?: string }>; isError?: boolean };
+
+    expect(result.isError).toBe(true);
+    const parsed = JSON.parse(result.content[0]?.text ?? '{}');
+    expect(parsed.code).toBe('VALIDATION_ERROR');
+    expect(parsed.message).toContain('spin');
+    expect(parsed.data.field).toBe('items[0].observation_types');
+  });
 });

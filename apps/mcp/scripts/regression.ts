@@ -199,6 +199,8 @@ async function main(): Promise<void> {
     'get_user_clubs',
     'list_units',
     'list_sessions',
+    'list_range_sessions',
+    'get_range_session',
     'create_unit',
     'create_session',
     'get_coaching_guide',
@@ -293,6 +295,7 @@ async function main(): Promise<void> {
     title: `[TEST] Regression unit ${timestamp}`,
     notes: 'Created by RWK-34 regression script',
     focus: 'Testing',
+    success_criterion: 'inside 5m of the target (regression check)',
     instructions: [
       { order: 1, text: 'Test instruction 1', ball_count: 10 },
       { order: 2, text: 'Test instruction 2', ball_count: 15 },
@@ -325,11 +328,17 @@ async function main(): Promise<void> {
           practice_unit_id: createdUnitId,
           order: 1,
           repeat_count: 3,
+          // `success` is valid because the unit was created with a criterion.
+          observation_types: ['success', 'shape'],
         },
       ],
     });
     assert(newSession.status === 200, 'create_session returns 200');
     assert(!newSession.body?.error, 'create_session has no JSON-RPC error');
+    assert(
+      !newSession.body?.result?.isError,
+      'create_session accepts observation_types on a unit with a criterion',
+    );
 
     const sessionData = parseContent(newSession.body);
     if (
@@ -340,6 +349,34 @@ async function main(): Promise<void> {
       pass(`create_session returned session_id: ${sessionData.session_id}`);
     } else {
       fail('create_session response contains a non-empty "session_id" string');
+    }
+
+    // `success` on a unit with no criterion must be rejected (friendly error).
+    const noCriterionUnit = await callTool('create_unit', {
+      title: `[TEST] Regression no-criterion unit ${timestamp}`,
+      instructions: [{ order: 1, text: 'Hit balls', ball_count: 5 }],
+    });
+    const noCriterionUnitId = parseContent(noCriterionUnit.body)?.unit_id as
+      | string
+      | undefined;
+    if (noCriterionUnitId) {
+      const badSession = await callTool('create_session', {
+        name: `[TEST] Regression bad-success session ${timestamp}`,
+        items: [
+          {
+            practice_unit_id: noCriterionUnitId,
+            order: 1,
+            repeat_count: 1,
+            observation_types: ['success'],
+          },
+        ],
+      });
+      const badData = parseContent(badSession.body);
+      assert(
+        badSession.body?.result?.isError === true &&
+          badData?.code === 'VALIDATION_ERROR',
+        "create_session rejects 'success' on a unit without a success_criterion",
+      );
     }
   } else {
     console.log(
@@ -360,6 +397,66 @@ async function main(): Promise<void> {
     );
   } else {
     fail('get_coaching_guide response contains a non-empty "guide" string');
+  }
+
+  // ---- list_range_sessions ----
+  console.log('\n📊 list_range_sessions');
+  const rangeSessions = await callTool('list_range_sessions');
+  assert(rangeSessions.status === 200, 'list_range_sessions returns 200');
+  const rangeSessionsData = parseContent(rangeSessions.body);
+  let firstCompletedRangeSessionId: string | undefined;
+  if (
+    rangeSessionsData?.sessions &&
+    Array.isArray(rangeSessionsData.sessions)
+  ) {
+    pass('list_range_sessions returns a "sessions" array');
+    if (rangeSessionsData.sessions.length > 0) {
+      const first = rangeSessionsData.sessions[0] as Record<string, unknown>;
+      assert(
+        typeof first?.id === 'string',
+        'range session entry has an "id" string field',
+      );
+      assert(
+        'balls_hit' in first &&
+          'blocks_with_results' in first &&
+          'has_observations' in first,
+        'range session summary carries capture fields',
+      );
+      firstCompletedRangeSessionId = first.id as string;
+    } else {
+      console.log(
+        '  ⏭️  No completed range sessions yet (empty-but-valid interim state)',
+      );
+    }
+  } else {
+    fail('list_range_sessions response contains a "sessions" array');
+  }
+
+  // ---- get_range_session ----
+  console.log('\n🔎 get_range_session');
+  // A well-formed but nonexistent id must return RANGE_SESSION_NOT_FOUND.
+  const missing = await callTool('get_range_session', {
+    range_session_id: '00000000-0000-0000-0000-000000000000',
+  });
+  assert(missing.status === 200, 'get_range_session returns 200 (transport)');
+  const missingData = parseContent(missing.body);
+  assert(
+    missing.body?.result?.isError === true &&
+      missingData?.code === 'RANGE_SESSION_NOT_FOUND',
+    'get_range_session returns RANGE_SESSION_NOT_FOUND for a nonexistent id',
+  );
+  if (firstCompletedRangeSessionId) {
+    const detail = await callTool('get_range_session', {
+      range_session_id: firstCompletedRangeSessionId,
+    });
+    assert(detail.status === 200, 'get_range_session returns 200');
+    const detailData = parseContent(detail.body);
+    assert(
+      Array.isArray(detailData?.blocks),
+      'get_range_session returns a "blocks" array',
+    );
+  } else {
+    console.log('  ⏭️  Skipping detail check (no completed range session)');
   }
 
   // ---- Auth isolation check (S6) ----

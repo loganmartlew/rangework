@@ -3,6 +3,8 @@ import { registerPingTool } from './tools/ping.js';
 import { registerGetUserClubsTool } from './tools/get-user-clubs.js';
 import { registerListUnitsTool } from './tools/list-units.js';
 import { registerListSessionsTool } from './tools/list-sessions.js';
+import { registerListRangeSessionsTool } from './tools/list-range-sessions.js';
+import { registerGetRangeSessionTool } from './tools/get-range-session.js';
 import { registerCreateUnitTool } from './tools/create-unit.js';
 import { registerCreateSessionTool } from './tools/create-session.js';
 import { registerListTagsTool } from './tools/list-tags.js';
@@ -44,6 +46,8 @@ export function createServer(
   registerGetUserClubsTool(server, userContext);
   registerListUnitsTool(server, userContext);
   registerListSessionsTool(server, userContext);
+  registerListRangeSessionsTool(server, userContext);
+  registerGetRangeSessionTool(server, userContext);
   registerCreateUnitTool(server, userContext);
   registerCreateSessionTool(server, userContext);
   registerListTagsTool(server, userContext);

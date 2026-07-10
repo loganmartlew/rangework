@@ -27,7 +27,7 @@ export function registerCreateUnitTool(
     'create_unit',
     {
       description:
-        "Creates a new practice unit (a single drill) in the user's account. A unit has a title, one to ten step-by-step instructions (each with optional ball count), optional coaching focus, and an optional default club. Returns the new unit's id — save this to use in `create_session`. Club references must use the `code` field from `get_user_clubs`, not the display name.",
+        "Creates a new practice unit (a single drill) in the user's account. A unit has a title, one to ten step-by-step instructions (each with optional ball count), optional coaching focus, an optional default club, and an optional `success_criterion` (a player-judged success rubric that lets a session enable the `success` observation on this drill). Returns the new unit's id — save this to use in `create_session`. Club references must use the `code` field from `get_user_clubs`, not the display name.",
       inputSchema: {
         title: z
           .string()
@@ -71,6 +71,12 @@ export function registerCreateUnitTool(
           .optional()
           .describe(
             'Optional context or reminders for the user (e.g. "Use an alignment stick").',
+          ),
+        success_criterion: z
+          .string()
+          .optional()
+          .describe(
+            'Optional short, player-judged success rubric for this drill (e.g. "inside 5m of the 60m flag"). Never parsed by code — the player judges each ball against it. Set one whenever the drill has a checkable target: it is what makes an X-of-Y success count meaningful, and it is required before the `success` observation can be enabled on this unit in a session. Omit for drills with no checkable target.',
           ),
         default_club_code: z
           .string()
@@ -238,6 +244,7 @@ export function registerCreateUnitTool(
         p_default_club_code: args.default_club_code ?? null,
         p_instructions: instructionsJsonb,
         p_tag_ids: tagIds,
+        p_success_criterion: args.success_criterion ?? null,
       });
 
       if (error) {

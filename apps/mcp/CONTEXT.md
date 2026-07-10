@@ -24,6 +24,10 @@ _Avoid_: ball limit, ball allowance, ball count (reserved for per-instruction co
 The physical practice location and the areas available to the player (driving range, short-game area, putting green, or combinations thereof). Gathered via conversation; never stored. Determines which types of drills are possible.
 _Avoid_: course, location, venue
 
+**Range Session (coaching view)**:
+A completed execution of a Practice Session on the range, surfaced to the coach read-only via `list_range_sessions` / `get_range_session`. Only **Completed** sessions are visible — Active and Abandoned ones never appear (invisibility, not filtering). Observation counts are always reported against their own denominator ("11 of 18 observed"): an observed-ball count is never phrased as a rate of all balls hit. Values are stored from a canonical (right-handed) perspective and passed through opaquely.
+_Avoid_: range session log, practice history, results (for the count itself)
+
 **User Context**:
 The authenticated user identity and Supabase client passed to every MCP tool handler at request time. Established by JWT validation before any tool executes.
 _Avoid_: session context, request context, auth context

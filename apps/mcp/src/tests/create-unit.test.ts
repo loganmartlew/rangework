@@ -540,4 +540,89 @@ describe('create_unit tool', () => {
     expect(parsed.code).toBe('UNKNOWN_CLUB_CODE');
     expect(parsed.data.valid_codes).toBeDefined();
   });
+
+  it('forwards success_criterion to the RPC', async () => {
+    let captured: Record<string, unknown> = {};
+    const mockSupabaseClient = {
+      from: () => ({
+        select: () => ({ order: async () => ({ data: [], error: null }) }),
+      }),
+      rpc: async (name: string, params: Record<string, unknown>) => {
+        if (name === 'save_practice_unit') {
+          captured = params;
+          return { error: null };
+        }
+        return { error: { message: 'Unknown RPC' } };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'create_unit',
+      arguments: {
+        title: 'Wedge ladder',
+        instructions: [{ order: 1, text: 'Hit to the 60m flag', ball_count: 20 }],
+        success_criterion: 'inside 5m of the 60m flag',
+      },
+    })) as { content: Array<{ type: string; text?: string }>; isError?: boolean };
+
+    expect(result.isError).toBeFalsy();
+    expect(captured.p_success_criterion).toBe('inside 5m of the 60m flag');
+  });
+
+  it('passes null success_criterion when omitted', async () => {
+    let captured: Record<string, unknown> = {};
+    const mockSupabaseClient = {
+      from: () => ({
+        select: () => ({ order: async () => ({ data: [], error: null }) }),
+      }),
+      rpc: async (name: string, params: Record<string, unknown>) => {
+        if (name === 'save_practice_unit') {
+          captured = params;
+          return { error: null };
+        }
+        return { error: { message: 'Unknown RPC' } };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'create_unit',
+      arguments: {
+        title: 'Plain drill',
+        instructions: [{ order: 1, text: 'Hit balls', ball_count: 10 }],
+      },
+    })) as { content: Array<{ type: string; text?: string }>; isError?: boolean };
+
+    expect(result.isError).toBeFalsy();
+    expect(captured.p_success_criterion).toBeNull();
+  });
 });
