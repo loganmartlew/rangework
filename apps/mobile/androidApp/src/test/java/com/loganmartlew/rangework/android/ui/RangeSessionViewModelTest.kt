@@ -1,8 +1,10 @@
 package com.loganmartlew.rangework.android.ui
 
 import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
+import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.CompletedRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.CompletedStep
+import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.RangeSession
 import com.loganmartlew.rangework.shared.model.RangeSessionSnapshot
 import com.loganmartlew.rangework.shared.model.SnapshotInstruction
@@ -632,6 +634,20 @@ private open class FakeRangeSessionRepo(
         return updated
     }
     override suspend fun abandonSession(rangeSessionId: String) = Unit
+    override suspend fun saveSessionNote(rangeSessionId: String, note: String?): RangeSession =
+        error("Not called in these tests")
+    override suspend fun saveBlockResult(
+        rangeSessionId: String,
+        unitIndex: Int,
+        result: BlockResult,
+    ): RangeSession = error("Not called in these tests")
+    override suspend fun listObservations(rangeSessionId: String): List<Observation> = emptyList()
+    override suspend fun upsertObservation(
+        rangeSessionId: String,
+        stepIndex: Int,
+        values: Map<String, String>,
+    ): Observation = error("Not called in these tests")
+    override suspend fun deleteObservations(rangeSessionId: String, stepIndices: List<Int>) = Unit
     override suspend fun recordTimeEntry(rangeSessionId: String, enteredAt: Instant) {
         recordedTimeEntries.add(Pair(rangeSessionId, enteredAt))
     }

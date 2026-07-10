@@ -1,8 +1,10 @@
 package com.loganmartlew.rangework.shared.usecase
 
 import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
+import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.CompletedRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.CompletedStep
+import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.RangeSession
 import com.loganmartlew.rangework.shared.model.RangeSessionSnapshot
 import com.loganmartlew.rangework.shared.model.SnapshotStep
@@ -369,6 +371,50 @@ private class FakeRangeSessionRepository : RangeSessionRepository {
     override suspend fun abandonSession(rangeSessionId: String) {
         val session = requireNotNull(sessions[rangeSessionId])
         sessions[rangeSessionId] = session.copy(abandonedAt = BASE_INSTANT)
+    }
+
+    private val observations = mutableMapOf<String, MutableMap<Int, Observation>>()
+
+    override suspend fun saveSessionNote(rangeSessionId: String, note: String?): RangeSession {
+        val session = requireNotNull(sessions[rangeSessionId])
+        val updated = session.copy(sessionNote = note)
+        sessions[rangeSessionId] = updated
+        return updated
+    }
+
+    override suspend fun saveBlockResult(
+        rangeSessionId: String,
+        unitIndex: Int,
+        result: BlockResult,
+    ): RangeSession {
+        val session = requireNotNull(sessions[rangeSessionId])
+        val key = unitIndex.toString()
+        val updatedResults = if (result.isEmpty) {
+            session.blockResults - key
+        } else {
+            session.blockResults + (key to result)
+        }
+        val updated = session.copy(blockResults = updatedResults)
+        sessions[rangeSessionId] = updated
+        return updated
+    }
+
+    override suspend fun listObservations(rangeSessionId: String): List<Observation> =
+        observations[rangeSessionId].orEmpty().values.sortedBy(Observation::stepIndex)
+
+    override suspend fun upsertObservation(
+        rangeSessionId: String,
+        stepIndex: Int,
+        values: Map<String, String>,
+    ): Observation {
+        val observation = Observation(stepIndex = stepIndex, values = values)
+        observations.getOrPut(rangeSessionId) { mutableMapOf() }[stepIndex] = observation
+        return observation
+    }
+
+    override suspend fun deleteObservations(rangeSessionId: String, stepIndices: List<Int>) {
+        val forSession = observations[rangeSessionId] ?: return
+        stepIndices.forEach(forSession::remove)
     }
 
     override suspend fun recordTimeEntry(rangeSessionId: String, enteredAt: Instant) {

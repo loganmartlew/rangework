@@ -1,8 +1,10 @@
 package com.loganmartlew.rangework.shared.data
 
 import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
+import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.CompletedRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.CompletedStep
+import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.RangeSession
 import com.loganmartlew.rangework.shared.model.completedBalls
 import com.loganmartlew.rangework.shared.model.totalBalls
@@ -22,6 +24,7 @@ import kotlin.uuid.Uuid
 
 private const val RANGE_SESSIONS_TABLE = "range_sessions"
 private const val RANGE_SESSION_TIME_ENTRIES_TABLE = "range_session_time_entries"
+private const val RANGE_SESSION_OBSERVATIONS_TABLE = "range_session_observations"
 
 class SupabaseRangeSessionRepository(
     private val client: SupabaseClient,
@@ -183,6 +186,81 @@ class SupabaseRangeSessionRepository(
         }
     }
 
+    override suspend fun saveSessionNote(rangeSessionId: String, note: String?): RangeSession {
+        client.postgrest[RANGE_SESSIONS_TABLE].update(
+            SessionNoteUpdate(sessionNote = note),
+        ) {
+            filter { eq("id", rangeSessionId) }
+        }
+        return requireNotNull(getSession(rangeSessionId)) {
+            "Range session $rangeSessionId could not be loaded after session note update."
+        }
+    }
+
+    override suspend fun saveBlockResult(
+        rangeSessionId: String,
+        unitIndex: Int,
+        result: BlockResult,
+    ): RangeSession {
+        val session = requireNotNull(getSession(rangeSessionId)) {
+            "Range session $rangeSessionId not found."
+        }
+        // Read-merge-write the whole map so sibling keys survive; an all-null
+        // result removes just this key. Not atomic against a concurrent write to
+        // a different block (last writer wins the whole column) — accepted as a
+        // single-user app, mirroring the club_overrides precedent above.
+        val key = unitIndex.toString()
+        val updatedResults = if (result.isEmpty) {
+            session.blockResults - key
+        } else {
+            session.blockResults + (key to result)
+        }
+        client.postgrest[RANGE_SESSIONS_TABLE].update(
+            BlockResultsUpdate(blockResults = updatedResults),
+        ) {
+            filter { eq("id", rangeSessionId) }
+        }
+        return requireNotNull(getSession(rangeSessionId)) {
+            "Range session $rangeSessionId could not be loaded after block result update."
+        }
+    }
+
+    override suspend fun listObservations(rangeSessionId: String): List<Observation> =
+        client.postgrest[RANGE_SESSION_OBSERVATIONS_TABLE]
+            .select {
+                filter { eq("range_session_id", rangeSessionId) }
+            }
+            .decodeList<ObservationRow>()
+            .map { it.toModel() }
+            .sortedBy(Observation::stepIndex)
+
+    override suspend fun upsertObservation(
+        rangeSessionId: String,
+        stepIndex: Int,
+        values: Map<String, String>,
+    ): Observation {
+        client.postgrest[RANGE_SESSION_OBSERVATIONS_TABLE].upsert(
+            ObservationUpsertRow(
+                rangeSessionId = rangeSessionId,
+                stepIndex = stepIndex,
+                observedValues = values,
+            ),
+        ) {
+            onConflict = "range_session_id,step_index"
+        }
+        return Observation(stepIndex = stepIndex, values = values)
+    }
+
+    override suspend fun deleteObservations(rangeSessionId: String, stepIndices: List<Int>) {
+        if (stepIndices.isEmpty()) return
+        client.postgrest[RANGE_SESSION_OBSERVATIONS_TABLE].delete {
+            filter {
+                eq("range_session_id", rangeSessionId)
+                isIn("step_index", stepIndices)
+            }
+        }
+    }
+
     override suspend fun recordTimeEntry(rangeSessionId: String, enteredAt: Instant) {
         client.postgrest[RANGE_SESSION_TIME_ENTRIES_TABLE].insert(
             TimeEntryInsertRow(
@@ -263,6 +341,40 @@ private data class CompletedAtUpdate(
 private data class AbandonedAtUpdate(
     @SerialName("abandoned_at")
     val abandonedAt: Instant,
+)
+
+@Serializable
+private data class SessionNoteUpdate(
+    @SerialName("session_note")
+    val sessionNote: String?,
+)
+
+@Serializable
+private data class BlockResultsUpdate(
+    @SerialName("block_results")
+    val blockResults: Map<String, BlockResult>,
+)
+
+// ── Observation DTOs ──────────────────────────────────────────────────────────
+
+@Serializable
+private data class ObservationRow(
+    @SerialName("step_index")
+    val stepIndex: Int,
+    @SerialName("observed_values")
+    val observedValues: Map<String, String> = emptyMap(),
+) {
+    fun toModel(): Observation = Observation(stepIndex = stepIndex, values = observedValues)
+}
+
+@Serializable
+private data class ObservationUpsertRow(
+    @SerialName("range_session_id")
+    val rangeSessionId: String,
+    @SerialName("step_index")
+    val stepIndex: Int,
+    @SerialName("observed_values")
+    val observedValues: Map<String, String>,
 )
 
 // ── Time entry DTOs ───────────────────────────────────────────────────────────

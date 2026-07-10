@@ -20,10 +20,21 @@ data class RangeSession(
     val clubOverrides: Map<String, String>,
     @SerialName("last_viewed_step_index")
     val lastViewedStepIndex: Int? = null,
+    @SerialName("session_note")
+    val sessionNote: String? = null,
+    @SerialName("block_results")
+    val blockResults: Map<String, BlockResult> = emptyMap(),
     @SerialName("started_at")
     val startedAt: Instant,
     @SerialName("completed_at")
     val completedAt: Instant? = null,
     @SerialName("abandoned_at")
     val abandonedAt: Instant? = null,
-)
+) {
+    /**
+     * Whether this session's snapshot supports data capture. Feature detection is
+     * by version: v3 baked in criterion + enabled Observation Types, v1/v2 did
+     * not. Every capture affordance keys off this one predicate.
+     */
+    val supportsDataCapture: Boolean get() = snapshotVersion >= 3
+}

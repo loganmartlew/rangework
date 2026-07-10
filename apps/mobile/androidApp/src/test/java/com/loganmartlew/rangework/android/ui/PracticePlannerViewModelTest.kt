@@ -4,7 +4,10 @@ import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.config.baselineEnvironment
 import com.loganmartlew.rangework.shared.data.DataFoundation
 import com.loganmartlew.rangework.shared.library.DefaultPracticeLibrary
+import com.loganmartlew.rangework.shared.recording.DefaultRangeSessionRecorder
+import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
+import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
@@ -839,12 +842,14 @@ private class FakePlannerRepositories(
             override suspend fun get() = MeasurementPreferences.Imperial
             override suspend fun persist(validated: MeasurementPreferences) = validated
         }
+        val stubRangeSessionRepository = StubRangeSessionRepository()
         return DataFoundation(
             practiceLibrary = practiceLibrary,
             measurementPreferencesRepository = stubMeasurementPreferencesRepository,
             clubRepository = clubRepository,
             tagRepository = tagRepository,
-            rangeSessionRepository = StubRangeSessionRepository(),
+            rangeSessionRepository = stubRangeSessionRepository,
+            rangeSessionRecorder = DefaultRangeSessionRecorder(stubRangeSessionRepository),
             accountDeletionRepository = object : AccountDeletionRepository {
                 override suspend fun deleteAccount() = Unit
             },
@@ -878,6 +883,25 @@ private class StubRangeSessionRepository : RangeSessionRepository {
         error("Not implemented in stub")
 
     override suspend fun abandonSession(rangeSessionId: String) = Unit
+
+    override suspend fun saveSessionNote(rangeSessionId: String, note: String?): RangeSession =
+        error("Not implemented in stub")
+
+    override suspend fun saveBlockResult(
+        rangeSessionId: String,
+        unitIndex: Int,
+        result: BlockResult,
+    ): RangeSession = error("Not implemented in stub")
+
+    override suspend fun listObservations(rangeSessionId: String): List<Observation> = emptyList()
+
+    override suspend fun upsertObservation(
+        rangeSessionId: String,
+        stepIndex: Int,
+        values: Map<String, String>,
+    ): Observation = error("Not implemented in stub")
+
+    override suspend fun deleteObservations(rangeSessionId: String, stepIndices: List<Int>) = Unit
 
     override suspend fun recordTimeEntry(rangeSessionId: String, enteredAt: kotlinx.datetime.Instant) = Unit
 

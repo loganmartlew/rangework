@@ -1,5 +1,6 @@
 package com.loganmartlew.rangework.shared.data
 
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSessionItem
@@ -112,6 +113,7 @@ class SupabasePracticeSessionRepository(
                     clubCode = item.clubCode,
                     notes = item.notes,
                     focusCue = item.focusCue,
+                    observationTypes = item.observationTypes.map(ObservationType::id),
                 )
             },
             tagIds = validated.tagIds,
@@ -164,6 +166,8 @@ private data class PracticeSessionItemRow(
     val notes: String? = null,
     @SerialName("focus_cue")
     val focusCue: String? = null,
+    @SerialName("observation_types")
+    val observationTypes: List<String> = emptyList(),
 )
 
 @Serializable
@@ -183,6 +187,7 @@ private data class SessionItemParam(
     @SerialName("club_code") val clubCode: String?,
     @SerialName("notes") val notes: String?,
     @SerialName("focus_cue") val focusCue: String?,
+    @SerialName("observation_types") val observationTypes: List<String>,
 )
 
 private fun PracticeSessionRow.toModel(
@@ -200,6 +205,7 @@ private fun PracticeSessionRow.toModel(
             clubCode = row.clubCode,
             notes = row.notes,
             focusCue = row.focusCue,
+            observationTypes = row.observationTypes.mapNotNull(ObservationType::fromId),
         )
     },
     notes = notes,

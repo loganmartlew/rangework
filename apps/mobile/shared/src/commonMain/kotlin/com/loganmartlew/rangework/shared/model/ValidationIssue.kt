@@ -16,6 +16,7 @@ sealed interface ValidationTarget {
     data object SessionName : ValidationTarget
     data class ItemUnitReference(val index: Int) : ValidationTarget
     data class ItemRepeatCount(val index: Int) : ValidationTarget
+    data class ItemObservationTypes(val index: Int) : ValidationTarget
 
     // Tags
     data object Tags : ValidationTarget
@@ -28,6 +29,7 @@ sealed interface ValidationTarget {
         SessionName -> "name"
         is ItemUnitReference -> "items[$index].practiceUnitId"
         is ItemRepeatCount -> "items[$index].repeatCount"
+        is ItemObservationTypes -> "items[$index].observationTypes"
         Tags -> "tags"
     }
 }

@@ -11,4 +11,6 @@ data class PracticeSessionItem(
     val clubCode: String? = null,
     val notes: String? = null,
     val focusCue: String? = null,
+    /** Observation Types this item enables (Success valid only with a unit criterion). */
+    val observationTypes: List<ObservationType> = emptyList(),
 )

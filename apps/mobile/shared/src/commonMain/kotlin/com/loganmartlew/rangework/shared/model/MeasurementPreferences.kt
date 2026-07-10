@@ -27,6 +27,8 @@ data class MeasurementPreferences(
     val unitSystem: UnitSystem = UnitSystem.IMPERIAL,
     val distanceUnit: DistanceUnit = DistanceUnit.YARDS,
     val speedUnit: SpeedUnit = SpeedUnit.MILES_PER_HOUR,
+    /** Orients the perspective-dependent Observation rendering surfaces. */
+    val handedness: Handedness = Handedness.RIGHT,
 ) {
     companion object {
         val Imperial = MeasurementPreferences(
