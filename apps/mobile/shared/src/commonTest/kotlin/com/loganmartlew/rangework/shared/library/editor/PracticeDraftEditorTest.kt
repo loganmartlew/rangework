@@ -1,7 +1,9 @@
 package com.loganmartlew.rangework.shared.library.editor
 
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
+import com.loganmartlew.rangework.shared.model.ValidationIssue
 import com.loganmartlew.rangework.shared.model.ValidationTarget
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -213,5 +215,56 @@ class PracticeDraftEditorTest {
         assertNull(editor.items[0].unitError)
         assertTrue(editor.items[1].unitError != null)
         assertNull(editor.items[2].unitError)
+    }
+
+    // ── Stage 3 authored fields ────────────────────────────────────────────
+
+    @Test
+    fun reviewUnit_successCriterion_carriedIntoDraft() {
+        val input = PracticeUnitDraftInput(
+            title = "Wedge ladder",
+            instructions = listOf(PracticeInstructionDraftInput(order = 1, text = "Hit", ballCount = "5")),
+            successCriterion = "Lands inside 3 paces",
+        )
+        val valid = assertIs<DraftReview.Valid<PracticeUnitDraft>>(PracticeDraftEditor.reviewUnit(input))
+        assertEquals("Lands inside 3 paces", valid.draft.successCriterion)
+    }
+
+    @Test
+    fun reviewSession_observationTypes_carriedIntoDraft() {
+        val input = PracticeSessionDraftInput(
+            name = "Plan",
+            items = listOf(
+                PracticeSessionItemDraftInput(
+                    order = 1,
+                    practiceUnitId = "unit-1",
+                    repeatCount = "2",
+                    observationTypes = listOf(ObservationType.SHAPE, ObservationType.CONTACT),
+                ),
+            ),
+        )
+        val valid = assertIs<DraftReview.Valid<PracticeSessionDraft>>(PracticeDraftEditor.reviewSession(input))
+        assertEquals(listOf(ObservationType.SHAPE, ObservationType.CONTACT), valid.draft.items[0].observationTypes)
+    }
+
+    @Test
+    fun placeSessionErrors_observationTypeIssue_landsOnObservationTypesErrorNotUnitError() {
+        val input = PracticeSessionDraftInput(
+            name = "Plan",
+            items = listOf(
+                PracticeSessionItemDraftInput(order = 1, practiceUnitId = "unit-1", repeatCount = "1"),
+            ),
+        )
+        val placed = PracticeDraftEditor.placeSessionErrors(
+            input,
+            listOf(
+                ValidationIssue(
+                    target = ValidationTarget.ItemObservationTypes(0),
+                    message = "Needs a criterion.",
+                ),
+            ),
+        )
+        assertEquals("Needs a criterion.", placed.items[0].observationTypesError)
+        assertNull(placed.items[0].unitError)
     }
 }

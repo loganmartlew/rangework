@@ -236,6 +236,7 @@ fun RangeworkApp(
             onUpdateTitle = plannerViewModel::updateUnitTitle,
             onUpdateNotes = plannerViewModel::updateUnitNotes,
             onUpdateFocus = plannerViewModel::updateUnitFocus,
+            onUpdateSuccessCriterion = plannerViewModel::updateUnitSuccessCriterion,
             onUpdateDefaultClubCode = plannerViewModel::updateUnitDefaultClubCode,
             onAddInstruction = plannerViewModel::addInstruction,
             onUpdateInstructionText = plannerViewModel::updateInstructionText,
@@ -267,6 +268,7 @@ fun RangeworkApp(
             onUpdateItemClubCode = plannerViewModel::updateSessionItemClubCode,
             onUpdateItemNotes = plannerViewModel::updateSessionItemNotes,
             onUpdateItemFocusCue = plannerViewModel::updateSessionItemFocusCue,
+            onToggleItemObservationType = plannerViewModel::toggleSessionItemObservationType,
             onMoveItem = plannerViewModel::moveSessionItem,
             onRemoveItem = plannerViewModel::removeSessionItem,
             onToggleTag = plannerViewModel::toggleSessionTag,
@@ -281,6 +283,7 @@ fun RangeworkApp(
             onSetThemeMode = settingsViewModel::setThemeMode,
             onSelectDistanceUnit = settingsViewModel::selectDistanceUnit,
             onSelectSpeedUnit = settingsViewModel::selectSpeedUnit,
+            onSelectHandedness = settingsViewModel::selectHandedness,
             onSetClubEnabled = settingsViewModel::setClubEnabled,
             onEnableCommonBag = settingsViewModel::enableCommonBag,
             onDisableAllClubs = settingsViewModel::disableAllClubs,
@@ -1013,6 +1016,7 @@ private fun AuthenticatedAppShell(
                             onUpdateTitle = unitActions.onUpdateTitle,
                             onUpdateNotes = unitActions.onUpdateNotes,
                             onUpdateFocus = unitActions.onUpdateFocus,
+                            onUpdateSuccessCriterion = unitActions.onUpdateSuccessCriterion,
                             onUpdateDefaultClubCode = unitActions.onUpdateDefaultClubCode,
                             onAddInstruction = unitActions.onAddInstruction,
                             onUpdateInstructionText = unitActions.onUpdateInstructionText,
@@ -1064,6 +1068,7 @@ private fun AuthenticatedAppShell(
                             onUpdateTitle = unitActions.onUpdateTitle,
                             onUpdateNotes = unitActions.onUpdateNotes,
                             onUpdateFocus = unitActions.onUpdateFocus,
+                            onUpdateSuccessCriterion = unitActions.onUpdateSuccessCriterion,
                             onUpdateDefaultClubCode = unitActions.onUpdateDefaultClubCode,
                             onAddInstruction = unitActions.onAddInstruction,
                             onUpdateInstructionText = unitActions.onUpdateInstructionText,
@@ -1131,6 +1136,7 @@ private fun AuthenticatedAppShell(
                             onUpdateSessionItemClubCode = sessionActions.onUpdateItemClubCode,
                             onUpdateSessionItemNotes = sessionActions.onUpdateItemNotes,
                             onUpdateSessionItemFocusCue = sessionActions.onUpdateItemFocusCue,
+                            onToggleSessionItemObservationType = sessionActions.onToggleItemObservationType,
                             onMoveSessionItem = sessionActions.onMoveItem,
                             onRemoveSessionItem = sessionActions.onRemoveItem,
                             onNavigateToCreateUnit = {
@@ -1185,6 +1191,7 @@ private fun AuthenticatedAppShell(
                             onUpdateSessionItemClubCode = sessionActions.onUpdateItemClubCode,
                             onUpdateSessionItemNotes = sessionActions.onUpdateItemNotes,
                             onUpdateSessionItemFocusCue = sessionActions.onUpdateItemFocusCue,
+                            onToggleSessionItemObservationType = sessionActions.onToggleItemObservationType,
                             onMoveSessionItem = sessionActions.onMoveItem,
                             onRemoveSessionItem = sessionActions.onRemoveItem,
                             onNavigateToCreateUnit = {
@@ -1203,6 +1210,7 @@ private fun AuthenticatedAppShell(
                             onSetThemeMode = settingsActions.onSetThemeMode,
                             onSelectDistanceUnit = settingsActions.onSelectDistanceUnit,
                             onSelectSpeedUnit = settingsActions.onSelectSpeedUnit,
+                            onSelectHandedness = settingsActions.onSelectHandedness,
                             onNavigateToAiSessionPlans = {
                                 shellNavController.navigate(RangeworkRoutes.AiSessionPlans)
                             },

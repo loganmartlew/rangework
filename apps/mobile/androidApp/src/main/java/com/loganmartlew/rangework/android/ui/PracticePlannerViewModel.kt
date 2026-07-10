@@ -24,6 +24,8 @@ import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
 import com.loganmartlew.rangework.shared.model.EnabledClubCount
 import com.loganmartlew.rangework.shared.model.NextMoveState
+import com.loganmartlew.rangework.shared.model.ObservationType
+import com.loganmartlew.rangework.shared.model.derivedBallCount
 import com.loganmartlew.rangework.shared.model.RecentItem
 import com.loganmartlew.rangework.shared.model.Tag
 import com.loganmartlew.rangework.shared.model.MAX_TAGS_PER_ITEM
@@ -269,6 +271,8 @@ class PracticePlannerViewModel(
 
     fun updateUnitDefaultClubCode(value: String) = updateUnitEditor { copy(defaultClubCode = value) }
 
+    fun updateUnitSuccessCriterion(value: String) = updateUnitEditor { copy(successCriterion = value) }
+
     fun addInstruction() = updateUnitEditor {
         copy(
             instructions = reindexedInstructions(
@@ -493,8 +497,37 @@ class PracticePlannerViewModel(
         )
     }
 
-    fun updateSessionItemUnit(index: Int, practiceUnitId: String) = updateSessionItem(index) {
-        copy(practiceUnitId = practiceUnitId, unitError = null)
+    fun updateSessionItemUnit(index: Int, practiceUnitId: String) {
+        // Eligibility reads from the saved units list (blank-normalized), not from
+        // any editor draft. Action-only units (0 balls) never offer observations,
+        // so switching to one clears all types — otherwise they'd persist invisibly
+        // (the picker is hidden for action-only units). A ball-bearing unit without
+        // a criterion keeps its other types but drops SUCCESS.
+        val newUnit = _uiState.value.units.firstOrNull { it.id == practiceUnitId }
+        val newUnitHasBalls = (newUnit?.derivedBallCount() ?: 0) > 0
+        val newUnitHasCriterion = newUnit?.successCriterion?.isNotBlank() == true
+        updateSessionItem(index) {
+            val nextTypes = when {
+                !newUnitHasBalls -> emptyList()
+                newUnitHasCriterion -> observationTypes
+                else -> observationTypes - ObservationType.SUCCESS
+            }
+            copy(
+                practiceUnitId = practiceUnitId,
+                unitError = null,
+                observationTypes = nextTypes,
+                observationTypesError = null,
+            )
+        }
+    }
+
+    fun toggleSessionItemObservationType(index: Int, type: ObservationType) = updateSessionItem(index) {
+        val nextTypes = if (type in observationTypes) {
+            observationTypes - type
+        } else {
+            observationTypes + type
+        }
+        copy(observationTypes = nextTypes, observationTypesError = null)
     }
 
     fun updateSessionItemRepeatCount(index: Int, value: String) = updateSessionItem(index) {
@@ -878,6 +911,7 @@ class PracticePlannerViewModel(
         notes = draft.notes,
         focus = draft.focus,
         defaultClubCode = draft.defaultClubCode,
+        successCriterion = draft.successCriterion,
         tags = resolveTagsForDraft(draft.tagIds),
         createdAt = now,
         updatedAt = now,
@@ -900,6 +934,7 @@ class PracticePlannerViewModel(
                 clubCode = item.clubCode,
                 notes = item.notes,
                 focusCue = item.focusCue,
+                observationTypes = item.observationTypes,
             )
         },
         notes = draft.notes,
@@ -1251,6 +1286,7 @@ private fun PracticeUnit.toEditorState(): PracticeUnitEditorState = PracticeUnit
     } else {
         instructions.map { instruction -> instruction.toEditorState() }
     },
+    successCriterion = successCriterion.orEmpty(),
     tagIds = tags.map(Tag::id),
 )
 
@@ -1276,6 +1312,7 @@ private fun PracticeSessionItem.toEditorState(): PracticeSessionItemEditorState 
     clubCode = clubCode.orEmpty(),
     notes = notes.orEmpty(),
     focusCue = focusCue.orEmpty(),
+    observationTypes = observationTypes,
 )
 
 private fun reindexedInstructions(

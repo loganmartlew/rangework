@@ -2,6 +2,8 @@ package com.loganmartlew.rangework.android.ui
 
 import com.loganmartlew.rangework.android.ui.theme.ThemeMode
 import com.loganmartlew.rangework.shared.model.DistanceUnit
+import com.loganmartlew.rangework.shared.model.Handedness
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.SpeedUnit
 import com.loganmartlew.rangework.shared.model.TagAttachmentCounts
 
@@ -16,6 +18,7 @@ data class UnitEditorActions(
     val onUpdateTitle: (String) -> Unit,
     val onUpdateNotes: (String) -> Unit,
     val onUpdateFocus: (String) -> Unit,
+    val onUpdateSuccessCriterion: (String) -> Unit,
     val onUpdateDefaultClubCode: (String) -> Unit,
     val onAddInstruction: () -> Unit,
     val onUpdateInstructionText: (Int, String) -> Unit,
@@ -45,6 +48,7 @@ data class SessionEditorActions(
     val onUpdateItemClubCode: (Int, String) -> Unit,
     val onUpdateItemNotes: (Int, String) -> Unit,
     val onUpdateItemFocusCue: (Int, String) -> Unit,
+    val onToggleItemObservationType: (Int, ObservationType) -> Unit,
     val onMoveItem: (Int, Int) -> Unit,
     val onRemoveItem: (Int) -> Unit,
     val onToggleTag: (String) -> Unit,
@@ -57,6 +61,7 @@ data class SettingsActions(
     val onSetThemeMode: (ThemeMode) -> Unit,
     val onSelectDistanceUnit: (DistanceUnit) -> Unit,
     val onSelectSpeedUnit: (SpeedUnit) -> Unit,
+    val onSelectHandedness: (Handedness) -> Unit,
     val onSetClubEnabled: (String, Boolean) -> Unit,
     val onEnableCommonBag: () -> Unit,
     val onDisableAllClubs: () -> Unit,

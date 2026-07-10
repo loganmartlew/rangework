@@ -44,12 +44,15 @@ import com.loganmartlew.rangework.android.ui.components.CountStepper
 import com.loganmartlew.rangework.android.ui.components.DockedSaveBar
 import com.loganmartlew.rangework.android.ui.components.MoreOptionsExpander
 import com.loganmartlew.rangework.android.ui.components.NumberBadge
+import com.loganmartlew.rangework.android.ui.components.ObservationTypePicker
 import com.loganmartlew.rangework.android.ui.components.ReorderableItemRow
 import com.loganmartlew.rangework.android.ui.components.StickyTotalBar
 import com.loganmartlew.rangework.android.ui.components.TagPicker
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.PracticeUnit
+import com.loganmartlew.rangework.shared.model.derivedBallCount
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -67,6 +70,7 @@ internal fun SessionEditorScreen(
     onUpdateSessionItemClubCode: (Int, String) -> Unit,
     onUpdateSessionItemNotes: (Int, String) -> Unit,
     onUpdateSessionItemFocusCue: (Int, String) -> Unit,
+    onToggleSessionItemObservationType: (Int, ObservationType) -> Unit,
     onMoveSessionItem: (Int, Int) -> Unit,
     onRemoveSessionItem: (Int) -> Unit,
     onNavigateToCreateUnit: () -> Unit,
@@ -208,6 +212,7 @@ internal fun SessionEditorScreen(
                         onSelectClub = { onUpdateSessionItemClubCode(index, it) },
                         onUpdateNotes = { onUpdateSessionItemNotes(index, it) },
                         onUpdateFocusCue = { onUpdateSessionItemFocusCue(index, it) },
+                        onToggleObservationType = { onToggleSessionItemObservationType(index, it) },
                         onMoveUp = { onMoveSessionItem(index, index - 1) },
                         onMoveDown = { onMoveSessionItem(index, index + 1) },
                         onRemove = { onRemoveSessionItem(index) },
@@ -261,6 +266,7 @@ private fun SessionItemEditorCard(
     onSelectClub: (String) -> Unit,
     onUpdateNotes: (String) -> Unit,
     onUpdateFocusCue: (String) -> Unit,
+    onToggleObservationType: (ObservationType) -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onRemove: () -> Unit,
@@ -273,9 +279,15 @@ private fun SessionItemEditorCard(
     }
     val repeatCountValue = item.repeatCount.trim().toIntOrNull() ?: 1
     val subtotal = if (hasUnit) item.derivedBallCount(selectedUnit) else null
+    // The Observation Type picker only makes sense for ball-bearing units; action-only
+    // units (0 balls) never offer observations. Eligibility reads the saved unit.
+    val unitHasBalls = (selectedUnit?.derivedBallCount() ?: 0) > 0
+    val showObservationPicker = hasUnit && unitHasBalls
+    val successEnabled = !selectedUnit?.successCriterion.isNullOrBlank()
     val hasMoreOptions = item.clubCode.isNotBlank() ||
         item.notes.isNotBlank() ||
-        item.focusCue.isNotBlank()
+        item.focusCue.isNotBlank() ||
+        item.observationTypes.isNotEmpty()
 
     Surface(
         modifier = modifier,
@@ -402,6 +414,15 @@ private fun SessionItemEditorCard(
                         enabled = !isWorking,
                         singleLine = true,
                     )
+                    if (showObservationPicker) {
+                        ObservationTypePicker(
+                            selectedTypes = item.observationTypes,
+                            successEnabled = successEnabled,
+                            enabled = !isWorking,
+                            onToggle = onToggleObservationType,
+                            errorMessage = item.observationTypesError,
+                        )
+                    }
                 }
             },
         ) {

@@ -1,5 +1,6 @@
 package com.loganmartlew.rangework.shared.library.editor
 
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.derivedBallCount
 
@@ -23,6 +24,7 @@ data class PracticeUnitDraftInput(
     val instructions: List<PracticeInstructionDraftInput> = listOf(
         PracticeInstructionDraftInput(order = 1),
     ),
+    val successCriterion: String = "",
     val tagIds: List<String> = emptyList(),
     val titleError: String? = null,
 ) {
@@ -66,10 +68,16 @@ data class PracticeSessionItemDraftInput(
     val clubCode: String = "",
     val notes: String = "",
     val focusCue: String = "",
+    val observationTypes: List<ObservationType> = emptyList(),
     val unitError: String? = null,
     val repeatCountError: String? = null,
+    val observationTypesError: String? = null,
 ) {
-    fun withoutErrors() = copy(unitError = null, repeatCountError = null)
+    fun withoutErrors() = copy(
+        unitError = null,
+        repeatCountError = null,
+        observationTypesError = null,
+    )
 
     /**
      * Derives the ball count for this session item from the given [unit].

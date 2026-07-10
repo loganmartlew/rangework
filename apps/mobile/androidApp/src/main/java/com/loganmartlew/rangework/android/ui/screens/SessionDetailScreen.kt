@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
+import com.loganmartlew.rangework.android.ui.observationTypeLabel
 import com.loganmartlew.rangework.android.ui.components.BallCountPill
 import com.loganmartlew.rangework.android.ui.components.BriefingStat
 import com.loganmartlew.rangework.android.ui.components.BriefingRow
@@ -44,6 +45,7 @@ import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
 import com.loganmartlew.rangework.android.ui.components.TagChipRow
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.Club
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.PracticeSessionItem
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.derivedBallCount
@@ -334,6 +336,19 @@ private fun SessionItemDetailRow(
         item.notes?.takeIf(String::isNotBlank)?.let { notes ->
             Text(
                 text = notes,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 40.dp),
+            )
+        }
+
+        // Authoring echo of the enabled Observation Types, in catalog order.
+        if (item.observationTypes.isNotEmpty()) {
+            val observing = ObservationType.entries
+                .filter { it in item.observationTypes }
+                .joinToString(", ", transform = ::observationTypeLabel)
+            Text(
+                text = "Observing: $observing",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 40.dp),

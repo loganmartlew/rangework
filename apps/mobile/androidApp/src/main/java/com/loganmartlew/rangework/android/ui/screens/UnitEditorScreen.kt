@@ -51,6 +51,7 @@ internal fun UnitEditorScreen(
     onUpdateTitle: (String) -> Unit,
     onUpdateNotes: (String) -> Unit,
     onUpdateFocus: (String) -> Unit,
+    onUpdateSuccessCriterion: (String) -> Unit,
     onUpdateDefaultClubCode: (String) -> Unit,
     onAddInstruction: () -> Unit,
     onUpdateInstructionText: (Int, String) -> Unit,
@@ -66,7 +67,9 @@ internal fun UnitEditorScreen(
     val editor = plannerUiState.unitEditor
     val isWorking = plannerUiState.isWorking
     val isCreateMode = editor.unitId == null
-    val hasNotesOrFocus = editor.notes.isNotBlank() || editor.focus.isNotBlank()
+    val hasNotesOrFocus = editor.notes.isNotBlank() ||
+        editor.focus.isNotBlank() ||
+        editor.successCriterion.isNotBlank()
     val totalBalls = editor.instructions.sumOf { it.ballCount.toIntOrNull() ?: 0 }
 
     val lazyListState = rememberLazyListState()
@@ -129,6 +132,17 @@ internal fun UnitEditorScreen(
                         supportingText = { Text("One mental cue to hold while practising") },
                         enabled = !isWorking,
                         singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = editor.successCriterion,
+                        onValueChange = onUpdateSuccessCriterion,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Success criterion") },
+                        supportingText = {
+                            Text("What counts as a successful ball. Changing it later starts a new baseline for counts.")
+                        },
+                        enabled = !isWorking,
+                        minLines = 2,
                     )
                 }
             }

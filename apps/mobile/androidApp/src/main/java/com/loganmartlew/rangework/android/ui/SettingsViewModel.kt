@@ -9,6 +9,7 @@ import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.EnabledClubCount
 import com.loganmartlew.rangework.shared.model.DistanceUnit
+import com.loganmartlew.rangework.shared.model.Handedness
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.SpeedUnit
 import com.loganmartlew.rangework.shared.model.Tag
@@ -124,6 +125,13 @@ class SettingsViewModel(
                 speedUnit = speedUnit,
             ),
         )
+    }
+
+    fun selectHandedness(handedness: Handedness) {
+        // Copy the CURRENT preferences (never a preset) so distance/speed units
+        // are preserved — the same no-preset rule as distance/speed selection.
+        val current = _uiState.value.measurementPreferences
+        saveMeasurementPreferences(current.copy(handedness = handedness))
     }
 
     fun setClubEnabled(code: String, enabled: Boolean) {

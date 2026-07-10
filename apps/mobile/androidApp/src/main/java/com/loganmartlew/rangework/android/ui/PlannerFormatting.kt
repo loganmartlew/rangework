@@ -1,6 +1,21 @@
 package com.loganmartlew.rangework.android.ui
 
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.SECONDS_PER_BALL
+
+/**
+ * Presentation labels for the Observation Type vocabulary. Storage/ids live in
+ * shared [ObservationType]; these strings are androidApp-side copy only and are
+ * rendered in catalog order regardless of toggle order.
+ */
+internal fun observationTypeLabel(type: ObservationType): String = when (type) {
+    ObservationType.SUCCESS -> "Success"
+    ObservationType.STRIKE_LOCATION -> "Strike location"
+    ObservationType.CONTACT -> "Contact"
+    ObservationType.SHAPE -> "Shape"
+    ObservationType.DISTANCE -> "Distance"
+    ObservationType.DIRECTION -> "Direction"
+}
 
 internal fun ballSummary(ballCount: Int?): String = when (ballCount) {
     null -> "Uncounted"

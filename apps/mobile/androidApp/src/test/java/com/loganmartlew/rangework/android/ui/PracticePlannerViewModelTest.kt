@@ -8,6 +8,7 @@ import com.loganmartlew.rangework.shared.recording.DefaultRangeSessionRecorder
 import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.Observation
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.PracticeInstruction
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
@@ -716,6 +717,146 @@ class PracticePlannerViewModelTest {
                 viewModel.uiState.value.sessions.isEmpty(),
         )
     }
+
+    // ── Stage 3: authoring inputs ──────────────────────────────────────
+
+    @Test
+    fun successCriterionEditSavesAndRoundTripsThroughEditor() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.updateUnitTitle("Wedge accuracy")
+        viewModel.updateInstructionText(0, "Hit 10 wedges")
+        viewModel.updateInstructionBallCount(0, "10")
+        viewModel.updateUnitSuccessCriterion("Lands inside 3 paces")
+        viewModel.saveUnit()
+        advanceUntilIdle()
+
+        assertEquals("Lands inside 3 paces", repositories.savedUnitDrafts.single().successCriterion)
+        assertEquals("Lands inside 3 paces", viewModel.uiState.value.unitEditor.successCriterion)
+    }
+
+    @Test
+    fun toggleSessionItemObservationTypeAddsThenRemoves() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.beginNewSession()
+        viewModel.addSessionItem()
+        viewModel.updateSessionItemUnit(0, "unit-1")
+
+        viewModel.toggleSessionItemObservationType(0, ObservationType.SHAPE)
+        assertEquals(
+            listOf(ObservationType.SHAPE),
+            viewModel.uiState.value.sessionEditor.items[0].observationTypes,
+        )
+
+        viewModel.toggleSessionItemObservationType(0, ObservationType.SHAPE)
+        assertTrue(viewModel.uiState.value.sessionEditor.items[0].observationTypes.isEmpty())
+    }
+
+    @Test
+    fun switchingUnitStripsOnlySuccessWhenNewUnitLacksCriterion() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit().copy(id = "unit-crit", successCriterion = "Green in regulation")
+        repositories.units += sampleUnit().copy(id = "unit-plain", title = "No criterion")
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.beginNewSession()
+        viewModel.addSessionItem()
+        viewModel.updateSessionItemUnit(0, "unit-crit")
+        viewModel.toggleSessionItemObservationType(0, ObservationType.SUCCESS)
+        viewModel.toggleSessionItemObservationType(0, ObservationType.SHAPE)
+
+        viewModel.updateSessionItemUnit(0, "unit-plain")
+
+        val types = viewModel.uiState.value.sessionEditor.items[0].observationTypes
+        assertFalse("SUCCESS must be stripped on a criterion-less unit", types.contains(ObservationType.SUCCESS))
+        assertTrue("Other types survive the switch", types.contains(ObservationType.SHAPE))
+    }
+
+    @Test
+    fun switchingToActionOnlyUnitClearsAllObservationTypes() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        // Action-only unit: a single 0-ball instruction → derivedBallCount == 0.
+        repositories.units += sampleUnit().copy(
+            id = "unit-action",
+            title = "Setup routine",
+            instructions = listOf(
+                PracticeInstruction(
+                    id = "instruction-action",
+                    order = 1,
+                    text = "Rehearse the takeaway",
+                    ballCount = 0,
+                ),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.beginNewSession()
+        viewModel.addSessionItem()
+        viewModel.updateSessionItemUnit(0, "unit-1")
+        viewModel.toggleSessionItemObservationType(0, ObservationType.SHAPE)
+
+        // The action-only unit never offers observations, so switching to it must
+        // not leave types stranded invisibly (the picker is hidden for it).
+        viewModel.updateSessionItemUnit(0, "unit-action")
+
+        assertTrue(
+            "All types cleared when switching to an action-only unit",
+            viewModel.uiState.value.sessionEditor.items[0].observationTypes.isEmpty(),
+        )
+    }
+
+    @Test
+    fun staleSuccessSaveLandsErrorOnObservationTypesSlotAndClearsWithoutErrors() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit() // no criterion
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.beginNewSession()
+        viewModel.updateSessionName("Scoring block")
+        viewModel.addSessionItem()
+        viewModel.updateSessionItemUnit(0, "unit-1")
+        // Toggle SUCCESS on after selecting the unit so the unit-switch strip
+        // doesn't remove it — mimicking a stale selection reaching save.
+        viewModel.toggleSessionItemObservationType(0, ObservationType.SUCCESS)
+        viewModel.saveSession()
+        advanceUntilIdle()
+
+        assertTrue("Success-without-criterion must not persist", repositories.savedSessionDrafts.isEmpty())
+        val item = viewModel.uiState.value.sessionEditor.items[0]
+        assertTrue("Error lands on the observation-type slot", item.observationTypesError != null)
+        assertEquals(null, item.unitError)
+        assertEquals(null, item.withoutErrors().observationTypesError)
+    }
 }
 
 private class FakePlannerRepositories(
@@ -759,6 +900,7 @@ private class FakePlannerRepositories(
                 notes = validated.notes,
                 focus = validated.focus,
                 defaultClubCode = validated.defaultClubCode,
+                successCriterion = validated.successCriterion,
                 createdAt = Instant.parse("2026-06-15T00:00:00Z"),
                 updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
             )
@@ -796,6 +938,7 @@ private class FakePlannerRepositories(
                         clubCode = item.clubCode,
                         notes = item.notes,
                         focusCue = item.focusCue,
+                        observationTypes = item.observationTypes,
                     )
                 },
                 notes = validated.notes,

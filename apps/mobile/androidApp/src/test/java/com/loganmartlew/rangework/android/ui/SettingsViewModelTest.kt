@@ -6,6 +6,7 @@ import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.ClubCategory
 import com.loganmartlew.rangework.shared.model.DistanceUnit
+import com.loganmartlew.rangework.shared.model.Handedness
 import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.SpeedUnit
 import com.loganmartlew.rangework.shared.model.UnitSystem
@@ -69,6 +70,46 @@ class SettingsViewModelTest {
 
         assertEquals(UnitSystem.CUSTOM, viewModel.uiState.value.measurementPreferences.unitSystem)
         assertEquals(SpeedUnit.KILOMETRES_PER_HOUR, viewModel.uiState.value.measurementPreferences.speedUnit)
+    }
+
+    @Test
+    fun selectHandednessSavesAndPreservesDistanceAndSpeed() = runTest {
+        val repo = FakeMeasurementPreferencesRepository(
+            storedPreferences = MeasurementPreferences.Metric,
+        )
+        val viewModel = createViewModel(repo)
+
+        viewModel.onAuthStateChanged(signedIn())
+        advanceUntilIdle()
+
+        viewModel.selectHandedness(Handedness.LEFT)
+        advanceUntilIdle()
+
+        val prefs = viewModel.uiState.value.measurementPreferences
+        assertEquals(Handedness.LEFT, prefs.handedness)
+        // The no-preset rule: distance/speed units survive a handedness change.
+        assertEquals(DistanceUnit.METERS, prefs.distanceUnit)
+        assertEquals(SpeedUnit.KILOMETRES_PER_HOUR, prefs.speedUnit)
+        assertEquals(Handedness.LEFT, repo.storedPreferences.handedness)
+        assertEquals(DistanceUnit.METERS, repo.storedPreferences.distanceUnit)
+    }
+
+    @Test
+    fun selectHandednessRollsBackOnSaveFailure() = runTest {
+        val repo = FakeMeasurementPreferencesRepository(
+            storedPreferences = MeasurementPreferences.Imperial,
+            persistException = RuntimeException("Network error"),
+        )
+        val viewModel = createViewModel(repo)
+
+        viewModel.onAuthStateChanged(signedIn())
+        advanceUntilIdle()
+
+        viewModel.selectHandedness(Handedness.LEFT)
+        advanceUntilIdle()
+
+        assertEquals(Handedness.RIGHT, viewModel.uiState.value.measurementPreferences.handedness)
+        assertTrue(viewModel.uiState.value.statusMessage != null)
     }
 
     @Test
@@ -289,10 +330,12 @@ private fun sampleClub(code: String) = Club(
 
 private class FakeMeasurementPreferencesRepository(
     var storedPreferences: MeasurementPreferences = MeasurementPreferences.Imperial,
+    private val persistException: Throwable? = null,
 ) : MeasurementPreferencesRepository() {
     override suspend fun get(): MeasurementPreferences = storedPreferences
 
     override suspend fun persist(validated: MeasurementPreferences): MeasurementPreferences {
+        persistException?.let { throw it }
         storedPreferences = validated
         return validated
     }

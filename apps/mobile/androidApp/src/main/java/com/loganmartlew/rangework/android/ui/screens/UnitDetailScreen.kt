@@ -93,6 +93,11 @@ internal fun UnitDetailScreen(
             FocusCard(cue = cue)
         }
 
+        // Success criterion — read surface for the authored rubric
+        unit.successCriterion?.takeIf(String::isNotBlank)?.let { criterion ->
+            EntryHighlightCard(title = "Success criterion", body = criterion)
+        }
+
         // Instructions card
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(

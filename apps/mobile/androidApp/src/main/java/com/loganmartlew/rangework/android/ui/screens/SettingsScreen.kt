@@ -55,6 +55,7 @@ import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.android.ui.theme.ThemeMode
 import com.loganmartlew.rangework.shared.auth.AuthState
 import com.loganmartlew.rangework.shared.model.DistanceUnit
+import com.loganmartlew.rangework.shared.model.Handedness
 import com.loganmartlew.rangework.shared.model.SpeedUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,6 +67,7 @@ internal fun SettingsScreen(
     onSetThemeMode: (ThemeMode) -> Unit,
     onSelectDistanceUnit: (DistanceUnit) -> Unit,
     onSelectSpeedUnit: (SpeedUnit) -> Unit,
+    onSelectHandedness: (Handedness) -> Unit,
     onNavigateToAiSessionPlans: () -> Unit,
     onNavigateToManageClubs: () -> Unit,
     onNavigateToManageTags: () -> Unit,
@@ -210,6 +212,29 @@ internal fun SettingsScreen(
                             enabled = !settingsUiState.isWorking && settingsUiState.dataConfigured,
                         ) {
                             Text(speedLabels[index])
+                        }
+                    }
+                }
+            }
+            HorizontalDivider()
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                Text(
+                    text = "Handedness",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val handedOptions = listOf(Handedness.RIGHT, Handedness.LEFT)
+                    val handedLabels = listOf("Right", "Left")
+                    handedOptions.forEachIndexed { index, handedness ->
+                        SegmentedButton(
+                            selected = settingsUiState.measurementPreferences.handedness == handedness,
+                            onClick = { onSelectHandedness(handedness) },
+                            shape = SegmentedButtonDefaults.itemShape(index, handedOptions.size),
+                            enabled = !settingsUiState.isWorking && settingsUiState.dataConfigured,
+                        ) {
+                            Text(handedLabels[index])
                         }
                     }
                 }

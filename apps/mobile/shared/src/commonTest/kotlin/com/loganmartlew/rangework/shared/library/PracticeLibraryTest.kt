@@ -173,6 +173,7 @@ class PracticeLibraryTest {
                 notes = "Tight lies",
                 focus = "Weight forward",
                 defaultClubCode = "PW",
+                successCriterion = "Lands on the green",
                 instructions = listOf(
                     PracticeInstructionDraft(order = 1, text = "Grip down", ballCount = 10),
                 ),
@@ -186,6 +187,7 @@ class PracticeLibraryTest {
         assertEquals("Tight lies", duplicated.notes)
         assertEquals("Weight forward", duplicated.focus)
         assertEquals("PW", duplicated.defaultClubCode)
+        assertEquals("Lands on the green", duplicated.successCriterion)
         assertEquals(1, duplicated.instructions.size)
         assertEquals("Grip down", duplicated.instructions.first().text)
         assertEquals(10, duplicated.instructions.first().ballCount)
@@ -395,6 +397,7 @@ class PracticeLibraryTest {
                         practiceUnitId = unit.id,
                         order = 1,
                         repeatCount = 2,
+                        observationTypes = listOf(ObservationType.SHAPE, ObservationType.CONTACT),
                     ),
                 ),
             ),
@@ -405,6 +408,11 @@ class PracticeLibraryTest {
         assertTrue(duplicated.id != saved.id, "Duplicate must have a new id")
         assertEquals("Morning block", duplicated.name)
         assertEquals(1, duplicated.items.size)
+        // validated() normalizes Observation Types into catalog order (CONTACT before SHAPE).
+        assertEquals(
+            listOf(ObservationType.CONTACT, ObservationType.SHAPE),
+            duplicated.items.first().observationTypes,
+        )
     }
 
     @Test

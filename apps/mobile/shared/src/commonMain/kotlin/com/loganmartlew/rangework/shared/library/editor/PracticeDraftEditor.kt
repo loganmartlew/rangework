@@ -102,6 +102,7 @@ object PracticeDraftEditor {
                     notes = input.notes,
                     focus = input.focus,
                     defaultClubCode = input.defaultClubCode,
+                    successCriterion = input.successCriterion,
                     tagIds = input.tagIds,
                 )
             } else null,
@@ -121,6 +122,7 @@ object PracticeDraftEditor {
                 clubCode = item.clubCode,
                 notes = item.notes,
                 focusCue = item.focusCue,
+                observationTypes = item.observationTypes,
             )
         }
 
@@ -234,11 +236,9 @@ object PracticeDraftEditor {
                         if (i == target.index) item.copy(repeatCountError = issue.message) else item
                     },
                 )
-                // No dedicated observation-type slot yet (Stage 3 UI); surface on
-                // the item's unit error as the nearest fit so it isn't dropped.
                 is ValidationTarget.ItemObservationTypes -> updated.copy(
                     items = updated.items.mapIndexed { i, item ->
-                        if (i == target.index) item.copy(unitError = issue.message) else item
+                        if (i == target.index) item.copy(observationTypesError = issue.message) else item
                     },
                 )
                 is ValidationTarget.UnitTitle,
