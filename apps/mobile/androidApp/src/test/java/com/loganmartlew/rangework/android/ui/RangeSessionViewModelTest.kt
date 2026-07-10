@@ -10,6 +10,8 @@ import com.loganmartlew.rangework.shared.model.RangeSessionSnapshot
 import com.loganmartlew.rangework.shared.model.SnapshotInstruction
 import com.loganmartlew.rangework.shared.model.SnapshotStep
 import com.loganmartlew.rangework.shared.model.SnapshotUnit
+import com.loganmartlew.rangework.shared.recording.DefaultRangeSessionRecorder
+import com.loganmartlew.rangework.shared.recording.RangeSessionRecorder
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -560,14 +562,242 @@ class RangeSessionViewModelTest {
         val closedEnteredAt = repo.closedTimeEntries.first().second
         assertEquals(recordedEnteredAt, closedEnteredAt)
     }
+
+    // ── data capture: session note ───────────────────────────────────────────
+
+    @Test
+    fun saveSessionNotePersistsOnV3() = runTest {
+        val session = v3CriterionSession()
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo, session.id, DefaultRangeSessionRecorder(repo))
+        advanceUntilIdle()
+
+        viewModel.saveSessionNote("Great tempo today")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("Great tempo today", state.rangeSession?.sessionNote)
+        assertFalse(state.isSavingSessionNote)
+        assertNull(state.notification)
+    }
+
+    @Test
+    fun saveSessionNoteRunsOnCompleteAfterSuccess() = runTest {
+        val session = v3CriterionSession()
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo, session.id, DefaultRangeSessionRecorder(repo))
+        advanceUntilIdle()
+
+        var completed = false
+        viewModel.saveSessionNote("Done note") { completed = true }
+        advanceUntilIdle()
+
+        assertTrue("onComplete should run after a successful flush", completed)
+    }
+
+    @Test
+    fun saveSessionNoteRejectedOnV2ShowsNotificationAndDoesNotCompleteOrChangeModel() = runTest {
+        val session = twoBlockSession() // v2
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo, session.id, DefaultRangeSessionRecorder(repo))
+        advanceUntilIdle()
+
+        var completed = false
+        viewModel.saveSessionNote("Should be rejected") { completed = true }
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNull("v2 session note stays unwritten", state.rangeSession?.sessionNote)
+        assertFalse("Rejected flush must not navigate", completed)
+        assertTrue("Expected rejection notification", state.notification != null)
+        assertFalse(state.isSavingSessionNote)
+    }
+
+    @Test
+    fun saveSessionNoteWithNullRecorderStillRunsOnComplete() = runTest {
+        val session = v3CriterionSession()
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo, session.id, recorder = null)
+        advanceUntilIdle()
+
+        var completed = false
+        viewModel.saveSessionNote("note") { completed = true }
+        advanceUntilIdle()
+
+        assertTrue("Null recorder is a no-op that still lets Done proceed", completed)
+        assertNull(viewModel.uiState.value.rangeSession?.sessionNote)
+    }
+
+    // ── data capture: block note ─────────────────────────────────────────────
+
+    @Test
+    fun saveBlockNoteLandsUnderBlockUnitIndex() = runTest {
+        val session = v3CriterionSession()
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo, session.id, DefaultRangeSessionRecorder(repo))
+        advanceUntilIdle()
+
+        viewModel.saveBlockNote(blockIndex = 1, note = "Pushed a few")
+        advanceUntilIdle()
+
+        val results = viewModel.uiState.value.rangeSession?.blockResults
+        assertEquals("Pushed a few", results?.get("1")?.note)
+        assertNull("Sibling block untouched", results?.get("0"))
+        assertTrue(viewModel.uiState.value.savingBlockNoteIndices.isEmpty())
+    }
+
+    @Test
+    fun saveBlockNoteFailureRevertsAndNotifies() = runTest {
+        val session = v3CriterionSession()
+        val repo = FakeRangeSessionRepo(
+            sessions = mutableListOf(session),
+            shouldFailOnBlockResult = true,
+        )
+        val viewModel = makeViewModel(repo, session.id, DefaultRangeSessionRecorder(repo))
+        advanceUntilIdle()
+
+        viewModel.saveBlockNote(blockIndex = 0, note = "won't stick")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNull(state.rangeSession?.blockResults?.get("0"))
+        assertTrue("Expected error notification", state.notification != null)
+        assertTrue(state.savingBlockNoteIndices.isEmpty())
+    }
+
+    // ── data capture: manual count ───────────────────────────────────────────
+
+    @Test
+    fun saveManualCountPersistsOptimisticallyAndConfirms() = runTest {
+        val session = v3CriterionSession()
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo, session.id, DefaultRangeSessionRecorder(repo))
+        advanceUntilIdle()
+
+        viewModel.saveManualCount(blockIndex = 0, count = 2)
+        // Optimistic: value visible before the write settles.
+        assertEquals(2, viewModel.uiState.value.rangeSession?.blockResults?.get("0")?.manualCount)
+
+        advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.rangeSession?.blockResults?.get("0")?.manualCount)
+    }
+
+    @Test
+    fun saveManualCountDistinctUnitIndicesForSameUnitTwice() = runTest {
+        val session = v3CriterionSession()
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo, session.id, DefaultRangeSessionRecorder(repo))
+        advanceUntilIdle()
+
+        viewModel.saveManualCount(blockIndex = 0, count = 1)
+        advanceUntilIdle()
+        viewModel.saveManualCount(blockIndex = 1, count = 2)
+        advanceUntilIdle()
+
+        val results = viewModel.uiState.value.rangeSession?.blockResults
+        assertEquals(1, results?.get("0")?.manualCount)
+        assertEquals(2, results?.get("1")?.manualCount)
+    }
+
+    @Test
+    fun saveManualCountNullClearsTheCount() = runTest {
+        val session = v3CriterionSession(
+            blockResults = mapOf("0" to BlockResult(manualCount = 3)),
+        )
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo, session.id, DefaultRangeSessionRecorder(repo))
+        advanceUntilIdle()
+
+        viewModel.saveManualCount(blockIndex = 0, count = null)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.rangeSession?.blockResults?.get("0"))
+    }
+
+    @Test
+    fun saveManualCountRevertsOnFailure() = runTest {
+        val session = v3CriterionSession()
+        val repo = FakeRangeSessionRepo(
+            sessions = mutableListOf(session),
+            shouldFailOnBlockResult = true,
+        )
+        val viewModel = makeViewModel(repo, session.id, DefaultRangeSessionRecorder(repo))
+        advanceUntilIdle()
+
+        viewModel.saveManualCount(blockIndex = 0, count = 2)
+        assertEquals(2, viewModel.uiState.value.rangeSession?.blockResults?.get("0")?.manualCount)
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNull("Count reverts on failure", state.rangeSession?.blockResults?.get("0"))
+        assertTrue("Expected error notification", state.notification != null)
+    }
+
+    @Test
+    fun saveManualCountWithNullRecorderIsNoOp() = runTest {
+        val session = v3CriterionSession()
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo, session.id, recorder = null)
+        advanceUntilIdle()
+
+        viewModel.saveManualCount(blockIndex = 0, count = 2)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.rangeSession?.blockResults?.get("0"))
+        assertNull(viewModel.uiState.value.notification)
+    }
 }
+
+/**
+ * Two blocks, both with a Success Criterion and no Success Observation Type, on a
+ * v3 snapshot — manual-count-eligible. Block 0 has ball steps 0-1, block 1 has
+ * ball steps 2-3.
+ */
+private fun v3CriterionSession(
+    id: String = "range-session-v3",
+    blockResults: Map<String, BlockResult> = emptyMap(),
+): RangeSession = RangeSession(
+    id = id,
+    sourceSessionId = "session-1",
+    sessionName = "Criterion block",
+    snapshot = RangeSessionSnapshot(
+        units = listOf(
+            SnapshotUnit(
+                unitTitle = "Wedge A",
+                repeatCount = 1,
+                instructions = listOf(SnapshotInstruction(text = "Hit", ballCount = 2)),
+                successCriterion = "Within 10 feet",
+            ),
+            SnapshotUnit(
+                unitTitle = "Wedge B",
+                repeatCount = 1,
+                instructions = listOf(SnapshotInstruction(text = "Hit", ballCount = 2)),
+                successCriterion = "Within 10 feet",
+            ),
+        ),
+        steps = listOf(
+            snapshotStep(unitIndex = 0, instructionIndex = 0, text = "Hit", ballCount = 1),
+            snapshotStep(unitIndex = 0, instructionIndex = 0, text = "Hit", ballCount = 1),
+            snapshotStep(unitIndex = 1, instructionIndex = 0, text = "Hit", ballCount = 1),
+            snapshotStep(unitIndex = 1, instructionIndex = 0, text = "Hit", ballCount = 1),
+        ),
+    ),
+    snapshotVersion = 3,
+    completedSteps = emptyList(),
+    clubOverrides = emptyMap(),
+    blockResults = blockResults,
+    startedAt = Instant.parse("2026-06-18T08:00:00Z"),
+)
 
 private fun makeViewModel(
     repo: FakeRangeSessionRepo,
     rangeSessionId: String,
+    recorder: RangeSessionRecorder? = null,
 ): RangeSessionViewModel = RangeSessionViewModel(
     rangeSessionId = rangeSessionId,
     rangeSessionRepository = repo,
+    rangeSessionRecorder = recorder,
 )
 
 private open class FakeRangeSessionRepo(
@@ -575,6 +805,8 @@ private open class FakeRangeSessionRepo(
     var shouldFailOnCompletion: Boolean = false,
     var shouldFailOnOverride: Boolean = false,
     var getElapsedSecondsResult: Long = 0L,
+    var shouldFailOnSessionNote: Boolean = false,
+    var shouldFailOnBlockResult: Boolean = false,
 ) : RangeSessionRepository {
     val completionInvocations = mutableListOf<Triple<String, List<Int>, Boolean>>()
     val overrideInvocations = mutableListOf<Triple<String, List<Int>, String>>()
@@ -634,13 +866,32 @@ private open class FakeRangeSessionRepo(
         return updated
     }
     override suspend fun abandonSession(rangeSessionId: String) = Unit
-    override suspend fun saveSessionNote(rangeSessionId: String, note: String?): RangeSession =
-        error("Not called in these tests")
+    override suspend fun saveSessionNote(rangeSessionId: String, note: String?): RangeSession {
+        if (shouldFailOnSessionNote) throw RuntimeException("Simulated network error")
+        val session = sessions.firstOrNull { it.id == rangeSessionId } ?: error("Session not found")
+        val updated = session.copy(sessionNote = note)
+        sessions.removeAll { it.id == rangeSessionId }
+        sessions.add(updated)
+        return updated
+    }
     override suspend fun saveBlockResult(
         rangeSessionId: String,
         unitIndex: Int,
         result: BlockResult,
-    ): RangeSession = error("Not called in these tests")
+    ): RangeSession {
+        if (shouldFailOnBlockResult) throw RuntimeException("Simulated network error")
+        val session = sessions.firstOrNull { it.id == rangeSessionId } ?: error("Session not found")
+        val key = unitIndex.toString()
+        val updatedResults = if (result.isEmpty) {
+            session.blockResults - key
+        } else {
+            session.blockResults + (key to result)
+        }
+        val updated = session.copy(blockResults = updatedResults)
+        sessions.removeAll { it.id == rangeSessionId }
+        sessions.add(updated)
+        return updated
+    }
     override suspend fun listObservations(rangeSessionId: String): List<Observation> = emptyList()
     override suspend fun upsertObservation(
         rangeSessionId: String,

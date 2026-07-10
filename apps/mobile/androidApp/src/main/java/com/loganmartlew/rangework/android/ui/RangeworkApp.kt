@@ -86,6 +86,7 @@ import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.sessionsUsingUnit
 import com.loganmartlew.rangework.android.ui.screens.AiSessionPlansScreen
 import com.loganmartlew.rangework.android.ui.screens.OverviewScreen
+import com.loganmartlew.rangework.android.ui.screens.RangeSessionHistoryScreen
 import com.loganmartlew.rangework.android.ui.screens.RangeSessionScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionDetailScreen
 import com.loganmartlew.rangework.android.ui.screens.SessionEditorScreen
@@ -328,6 +329,9 @@ fun RangeworkApp(
                         onNavigateToRangeSession = { rangeSessionId ->
                             rootNavController.navigate(RangeworkRoutes.rangeSession(rangeSessionId))
                         },
+                        onOpenRangeSessionHistory = { rangeSessionId ->
+                            rootNavController.navigate(RangeworkRoutes.rangeSessionHistory(rangeSessionId))
+                        },
                         onToggleUnitTagFilter = plannerViewModel::toggleUnitTagFilter,
                         onClearUnitTagFilter = plannerViewModel::clearUnitTagFilter,
                         onToggleSessionTagFilter = plannerViewModel::toggleSessionTagFilter,
@@ -342,6 +346,7 @@ fun RangeworkApp(
                             RangeSessionViewModel.factory(
                                 rangeSessionId = rangeSessionId,
                                 rangeSessionRepository = rangeworkFoundation?.dataFoundation?.rangeSessionRepository,
+                                rangeSessionRecorder = rangeworkFoundation?.dataFoundation?.rangeSessionRecorder,
                             )
                         },
                     )
@@ -367,6 +372,31 @@ fun RangeworkApp(
                         onConfirmAbandon = {
                             rangeSessionViewModel.confirmAbandon { rootNavController.popBackStack() }
                         },
+                        onSaveBlockNote = rangeSessionViewModel::saveBlockNote,
+                        onSaveManualCount = rangeSessionViewModel::saveManualCount,
+                        onSaveSessionNote = rangeSessionViewModel::saveSessionNote,
+                    )
+                }
+                composable(RangeworkRoutes.RangeSessionHistory) { backStackEntry ->
+                    val rangeSessionId = backStackEntry.arguments?.getString(RangeSessionIdArg).orEmpty()
+                    val completedViewModel: CompletedRangeSessionViewModel = viewModel(
+                        viewModelStoreOwner = backStackEntry,
+                        factory = remember(rangeSessionId, rangeworkFoundation) {
+                            CompletedRangeSessionViewModel.factory(
+                                rangeSessionId = rangeSessionId,
+                                rangeSessionRepository = rangeworkFoundation?.dataFoundation?.rangeSessionRepository,
+                                rangeSessionRecorder = rangeworkFoundation?.dataFoundation?.rangeSessionRecorder,
+                            )
+                        },
+                    )
+                    val completedUiState by completedViewModel.uiState.collectAsStateWithLifecycle()
+                    RangeSessionHistoryScreen(
+                        uiState = completedUiState,
+                        stats = completedViewModel.stats(),
+                        onSaveSessionNote = completedViewModel::saveSessionNote,
+                        onSaveBlockNote = completedViewModel::saveBlockNote,
+                        onConsumeNotification = completedViewModel::consumeNotification,
+                        onBack = { rootNavController.popBackStack() },
                     )
                 }
             }
@@ -471,6 +501,7 @@ private fun AuthenticatedAppShell(
     onStartRangeSessionFromPicker: (String) -> Unit,
     onLoadRangeSessionHistory: (String) -> Unit,
     onNavigateToRangeSession: (String) -> Unit,
+    onOpenRangeSessionHistory: (String) -> Unit,
     onToggleUnitTagFilter: (String) -> Unit,
     onClearUnitTagFilter: () -> Unit,
     onToggleSessionTagFilter: (String) -> Unit,
@@ -1164,6 +1195,7 @@ private fun AuthenticatedAppShell(
                             onSessionDetailViewed = {
                                 onLoadRangeSessionHistory(sessionId)
                             },
+                            onOpenRangeSessionHistory = onOpenRangeSessionHistory,
                         )
                     }
                     composable(RangeworkRoutes.SessionEdit) { backStackEntry ->

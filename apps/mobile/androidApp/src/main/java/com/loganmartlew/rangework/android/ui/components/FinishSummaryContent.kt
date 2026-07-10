@@ -15,6 +15,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -29,7 +33,16 @@ internal fun FinishSummaryContent(
     summary: FinishSummaryData,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    showSessionNote: Boolean = false,
+    savedSessionNote: String? = null,
+    isSavingSessionNote: Boolean = false,
+    onSaveSessionNote: (note: String?, onComplete: () -> Unit) -> Unit = { _, done -> done() },
 ) {
+    // The note draft lives here (not inside SessionNoteCard) so the Done button
+    // can flush a dirty unsaved note before navigating (P2). The session is
+    // already Completed when this shows; the freeze matrix permits session-note
+    // writes when Completed, so this ordering is by design.
+    var noteDraft by rememberSaveable { mutableStateOf(savedSessionNote ?: "") }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -97,10 +110,31 @@ internal fun FinishSummaryContent(
             }
         }
 
+        if (showSessionNote) {
+            SessionNoteCard(
+                label = "Session note",
+                draft = noteDraft,
+                onDraftChange = { noteDraft = it },
+                savedNote = savedSessionNote,
+                isSaving = isSavingSessionNote,
+                onSave = { note -> onSaveSessionNote(note) {} },
+                placeholder = "How did the session feel?",
+            )
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
 
         Button(
-            onClick = onDone,
+            onClick = {
+                if (showSessionNote && noteIsDirty(noteDraft, savedSessionNote)) {
+                    // Flush the dirty note, then navigate; a failed flush stays put
+                    // and surfaces the snackbar (the note is never silently lost).
+                    onSaveSessionNote(normalizedNote(noteDraft), onDone)
+                } else {
+                    onDone()
+                }
+            },
+            enabled = !isSavingSessionNote,
             modifier = Modifier
                 .fillMaxWidth()
                 .semantics { contentDescription = "Done, return to previous screen" },

@@ -96,6 +96,9 @@ internal fun RangeSessionScreen(
     onRequestAbandon: () -> Unit = {},
     onDismissAbandon: () -> Unit = {},
     onConfirmAbandon: () -> Unit = {},
+    onSaveBlockNote: (blockIndex: Int, note: String?) -> Unit = { _, _ -> },
+    onSaveManualCount: (blockIndex: Int, count: Int?) -> Unit = { _, _ -> },
+    onSaveSessionNote: (note: String?, onComplete: () -> Unit) -> Unit = { _, done -> done() },
 ) {
     val view = LocalView.current
     DisposableEffect(Unit) {
@@ -173,6 +176,10 @@ internal fun RangeSessionScreen(
             FinishSummaryContent(
                 summary = uiState.finishSummary,
                 onDone = onBack,
+                showSessionNote = uiState.rangeSession?.supportsDataCapture == true,
+                savedSessionNote = uiState.rangeSession?.sessionNote,
+                isSavingSessionNote = uiState.isSavingSessionNote,
+                onSaveSessionNote = onSaveSessionNote,
                 modifier = Modifier.padding(innerPadding),
             )
         }
@@ -192,6 +199,8 @@ internal fun RangeSessionScreen(
             enabledClubs = enabledClubs,
             onRequestFinish = onRequestFinish,
             onRequestAbandon = onRequestAbandon,
+            onSaveBlockNote = onSaveBlockNote,
+            onSaveManualCount = onSaveManualCount,
         )
     } else {
         PhoneRangeSessionLayout(
@@ -206,6 +215,8 @@ internal fun RangeSessionScreen(
             enabledClubs = enabledClubs,
             onRequestFinish = onRequestFinish,
             onRequestAbandon = onRequestAbandon,
+            onSaveBlockNote = onSaveBlockNote,
+            onSaveManualCount = onSaveManualCount,
         )
     }
 }
@@ -224,6 +235,8 @@ private fun PhoneRangeSessionLayout(
     enabledClubs: List<Club>,
     onRequestFinish: () -> Unit,
     onRequestAbandon: () -> Unit,
+    onSaveBlockNote: (Int, String?) -> Unit,
+    onSaveManualCount: (Int, Int?) -> Unit,
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -296,6 +309,8 @@ private fun PhoneRangeSessionLayout(
                 onToggleActionInstruction = onToggleActionInstruction,
                 onSwapClub = onSwapClub,
                 onRequestFinish = onRequestFinish,
+                onSaveBlockNote = onSaveBlockNote,
+                onSaveManualCount = onSaveManualCount,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
@@ -318,6 +333,8 @@ private fun TabletRangeSessionLayout(
     enabledClubs: List<Club>,
     onRequestFinish: () -> Unit,
     onRequestAbandon: () -> Unit,
+    onSaveBlockNote: (Int, String?) -> Unit,
+    onSaveManualCount: (Int, Int?) -> Unit,
 ) {
     val snapshot = uiState.rangeSession?.snapshot
     val blocks = remember(snapshot) { snapshot?.executionBlocks() ?: emptyList() }
@@ -389,6 +406,8 @@ private fun TabletRangeSessionLayout(
                     onToggleActionInstruction = onToggleActionInstruction,
                     onSwapClub = onSwapClub,
                     onRequestFinish = onRequestFinish,
+                    onSaveBlockNote = onSaveBlockNote,
+                    onSaveManualCount = onSaveManualCount,
                     modifier = Modifier
                         .weight(0.65f)
                         .fillMaxHeight(),
@@ -405,6 +424,8 @@ private fun TabletRangeSessionLayout(
                 onToggleActionInstruction = onToggleActionInstruction,
                 onSwapClub = onSwapClub,
                 onRequestFinish = onRequestFinish,
+                onSaveBlockNote = onSaveBlockNote,
+                onSaveManualCount = onSaveManualCount,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
@@ -457,6 +478,8 @@ private fun RangeSessionBody(
     onToggleActionInstruction: (Int, Int) -> Unit,
     onSwapClub: (Int, Int, String) -> Unit,
     onRequestFinish: () -> Unit,
+    onSaveBlockNote: (Int, String?) -> Unit,
+    onSaveManualCount: (Int, Int?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val steps = uiState.rangeSession?.snapshot?.steps ?: emptyList()
@@ -520,6 +543,8 @@ private fun RangeSessionBody(
                 }
             }
 
+            val showDataCapture = uiState.rangeSession?.supportsDataCapture == true
+
             Column(modifier = modifier) {
                 RangeSessionProgressHeader(
                     rangeSession = uiState.rangeSession,
@@ -557,6 +582,11 @@ private fun RangeSessionBody(
                             isSessionComplete = isSessionComplete,
                             isFinishing = uiState.isFinishing,
                             onFinish = onRequestFinish,
+                            showDataCapture = showDataCapture,
+                            blockResult = uiState.rangeSession.blockResults[block.unitIndex.toString()],
+                            isSavingBlockNote = block.unitIndex in uiState.savingBlockNoteIndices,
+                            onSaveBlockNote = { note -> onSaveBlockNote(pageIndex, note) },
+                            onSetManualCount = { count -> onSaveManualCount(pageIndex, count) },
                         )
                     }
                 }

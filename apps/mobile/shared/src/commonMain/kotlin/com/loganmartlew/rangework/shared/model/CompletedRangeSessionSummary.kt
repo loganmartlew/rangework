@@ -12,4 +12,11 @@ data class CompletedRangeSessionSummary(
     val startedAt: Instant,
     val completedAt: Instant,
     val elapsedSeconds: Long,
+    /**
+     * Whether this completed session's snapshot supports data capture (v3+).
+     * History rows key their tappability off this: v1/v2 sessions have no notes,
+     * results, or observations to open. Defaults false so fixtures/fakes that do
+     * not set it stay non-tappable.
+     */
+    val supportsDataCapture: Boolean = false,
 )

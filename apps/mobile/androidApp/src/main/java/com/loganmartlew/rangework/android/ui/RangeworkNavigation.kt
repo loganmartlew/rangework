@@ -38,6 +38,7 @@ internal object RangeworkRoutes {
     const val DeleteAccount = "settings/delete-account"
     const val LegalPage = "settings/legal/{page}"
     const val RangeSession = "range-sessions/{rangeSessionId}"
+    const val RangeSessionHistory = "range-session-history/{rangeSessionId}"
 
     fun unitDetail(unitId: String): String = "units/$unitId"
 
@@ -50,6 +51,8 @@ internal object RangeworkRoutes {
     fun legalPage(page: String): String = "settings/legal/$page"
 
     fun rangeSession(rangeSessionId: String): String = "range-sessions/$rangeSessionId"
+
+    fun rangeSessionHistory(rangeSessionId: String): String = "range-session-history/$rangeSessionId"
 }
 
 internal val topLevelDestinations = listOf(

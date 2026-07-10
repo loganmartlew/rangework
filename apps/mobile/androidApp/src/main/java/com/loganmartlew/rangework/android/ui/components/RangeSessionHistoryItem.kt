@@ -1,11 +1,16 @@
 package com.loganmartlew.rangework.android.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +28,7 @@ import kotlinx.datetime.toLocalDateTime
 internal fun RangeSessionHistoryItem(
     session: CompletedRangeSessionSummary,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     val startedLocalDateTime = session.startedAt.toLocalDateTime(TimeZone.currentSystemDefault())
     val completedLocalDateTime = session.completedAt.toLocalDateTime(TimeZone.currentSystemDefault())
@@ -52,11 +58,13 @@ internal fun RangeSessionHistoryItem(
     val progressText = "${session.completedStepCount}/${session.totalSteps}"
 
     val accessibleDescription = "Session completed on $dateLabel at $timeLabel, " +
-        "$progressText steps completed, $completionPercent percent complete, elapsed $timeDisplay"
+        "$progressText steps completed, $completionPercent percent complete, elapsed $timeDisplay" +
+        if (onClick != null) ". Tap to view and edit notes" else ""
 
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .let { base -> if (onClick != null) base.clickable(onClick = onClick) else base }
             .semantics(mergeDescendants = true) {
                 contentDescription = accessibleDescription
             },
@@ -104,6 +112,14 @@ internal fun RangeSessionHistoryItem(
                     style = RangeworkMono.small,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (onClick != null) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
         }
         HorizontalDivider()

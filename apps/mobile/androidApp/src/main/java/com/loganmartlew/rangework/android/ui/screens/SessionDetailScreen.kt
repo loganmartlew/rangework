@@ -59,6 +59,7 @@ internal fun SessionDetailScreen(
     onEditSession: () -> Unit,
     onStartSession: () -> Unit = {},
     onSessionDetailViewed: () -> Unit = {},
+    onOpenRangeSessionHistory: (String) -> Unit = {},
 ) {
     LaunchedEffect(sessionId) {
         onSessionDetailViewed()
@@ -208,7 +209,14 @@ internal fun SessionDetailScreen(
                     )
                 } else {
                     history.forEach { completedSession ->
-                        RangeSessionHistoryItem(session = completedSession)
+                        RangeSessionHistoryItem(
+                            session = completedSession,
+                            onClick = if (completedSession.supportsDataCapture) {
+                                { onOpenRangeSessionHistory(completedSession.id) }
+                            } else {
+                                null
+                            },
+                        )
                     }
                 }
             }

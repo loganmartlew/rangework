@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.android.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.RangeSession
 import com.loganmartlew.rangework.shared.model.clubSwapTargets
 import com.loganmartlew.rangework.shared.model.completedBalls
@@ -14,6 +15,8 @@ import com.loganmartlew.rangework.shared.model.firstIncompleteBlockIndex
 import com.loganmartlew.rangework.shared.model.incrementTargets
 import com.loganmartlew.rangework.shared.model.totalBalls
 import com.loganmartlew.rangework.shared.model.totalStepCount
+import com.loganmartlew.rangework.shared.recording.RangeSessionRecorder
+import com.loganmartlew.rangework.shared.recording.RecordingResult
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -49,11 +52,15 @@ data class RangeSessionUiState(
     val finishSummary: FinishSummaryData? = null,
     val isFinishing: Boolean = false,
     val isAbandoning: Boolean = false,
+    val isSavingSessionNote: Boolean = false,
+    /** unitIndex set of blocks whose note is mid-save (for the per-block saving spinner). */
+    val savingBlockNoteIndices: Set<Int> = emptySet(),
 )
 
 class RangeSessionViewModel(
     private val rangeSessionId: String,
     private val rangeSessionRepository: RangeSessionRepository?,
+    private val rangeSessionRecorder: RangeSessionRecorder? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RangeSessionUiState())
@@ -224,6 +231,111 @@ class RangeSessionViewModel(
     fun consumeNotification() {
         _uiState.value = _uiState.value.copy(notification = null)
     }
+
+    // ── Data capture (snapshot v3) ───────────────────────────────────────────
+    //
+    // Notes save explicitly (P2): the model's saved value only advances on a
+    // successful write, so a failure leaves the editor's draft dirty and the Save
+    // button visible — no optimistic model mutation to revert. The manual count
+    // writes on each stepper commit, optimistically, reverting on failure (same
+    // pattern as step completion). All three no-op when the recorder is absent
+    // (misconfigured foundation) — the affordances still render.
+
+    /**
+     * Saves the session-level note. [onComplete] runs after a successful write —
+     * the finish-summary Done button passes its navigation here so a dirty note
+     * flushes before leaving; a failed flush stays put and surfaces the snackbar.
+     */
+    fun saveSessionNote(note: String?, onComplete: () -> Unit = {}) {
+        val recorder = rangeSessionRecorder
+        if (_uiState.value.rangeSession == null || recorder == null) {
+            onComplete()
+            return
+        }
+        _uiState.value = _uiState.value.copy(isSavingSessionNote = true)
+        viewModelScope.launch {
+            val result = runRecording { recorder.saveSessionNote(rangeSessionId, note) }
+            if (result is RecordingResult.Success) {
+                _uiState.value = _uiState.value.copy(
+                    rangeSession = result.value,
+                    isSavingSessionNote = false,
+                )
+                onComplete()
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isSavingSessionNote = false,
+                    notification = "Couldn't save note. Please try again.",
+                )
+            }
+        }
+    }
+
+    /** Saves one block's free-text note, keyed by the block's snapshot unit index. */
+    fun saveBlockNote(blockIndex: Int, note: String?) {
+        val session = _uiState.value.rangeSession ?: return
+        val recorder = rangeSessionRecorder ?: return
+        val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
+        val unitIndex = block.unitIndex
+        _uiState.value = _uiState.value.copy(
+            savingBlockNoteIndices = _uiState.value.savingBlockNoteIndices + unitIndex,
+        )
+        viewModelScope.launch {
+            val result = runRecording { recorder.saveBlockNote(rangeSessionId, unitIndex, note) }
+            val remaining = _uiState.value.savingBlockNoteIndices - unitIndex
+            if (result is RecordingResult.Success) {
+                _uiState.value = _uiState.value.copy(
+                    rangeSession = result.value,
+                    savingBlockNoteIndices = remaining,
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    savingBlockNoteIndices = remaining,
+                    notification = "Couldn't save note. Please try again.",
+                )
+            }
+        }
+    }
+
+    /**
+     * Sets (or clears, with [count] `null`) one block's manual success count.
+     * Writes immediately, optimistically; a failure reverts to the pre-tap
+     * session and surfaces the snackbar.
+     */
+    fun saveManualCount(blockIndex: Int, count: Int?) {
+        val session = _uiState.value.rangeSession ?: return
+        val recorder = rangeSessionRecorder ?: return
+        val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
+        val unitIndex = block.unitIndex
+        val key = unitIndex.toString()
+        val merged = (session.blockResults[key] ?: BlockResult()).copy(manualCount = count)
+        val optimisticResults = if (merged.isEmpty) {
+            session.blockResults - key
+        } else {
+            session.blockResults + (key to merged)
+        }
+        _uiState.value = _uiState.value.copy(
+            rangeSession = session.copy(blockResults = optimisticResults),
+        )
+        viewModelScope.launch {
+            val result = runRecording { recorder.saveManualCount(rangeSessionId, unitIndex, count) }
+            if (result is RecordingResult.Success) {
+                _uiState.value = _uiState.value.copy(rangeSession = result.value)
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    rangeSession = session,
+                    notification = "Couldn't save count. Please try again.",
+                )
+            }
+        }
+    }
+
+    /** Runs a recorder call, folding a thrown exception into a null (treated as failure). */
+    private suspend fun <T> runRecording(block: suspend () -> RecordingResult<T>): RecordingResult<T>? =
+        try {
+            block()
+        } catch (_: Exception) {
+            null
+        }
 
     /**
      * Finish entry point. Finishing never requires 100% of steps: with
@@ -428,6 +540,7 @@ class RangeSessionViewModel(
         fun factory(
             rangeSessionId: String,
             rangeSessionRepository: RangeSessionRepository?,
+            rangeSessionRecorder: RangeSessionRecorder? = null,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -437,6 +550,7 @@ class RangeSessionViewModel(
                 return RangeSessionViewModel(
                     rangeSessionId = rangeSessionId,
                     rangeSessionRepository = rangeSessionRepository,
+                    rangeSessionRecorder = rangeSessionRecorder,
                 ) as T
             }
         }

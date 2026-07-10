@@ -39,14 +39,18 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
+import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.ExecutionBlock
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.clubShortLabel
 import com.loganmartlew.rangework.shared.model.SnapshotStep
 import com.loganmartlew.rangework.shared.model.decrementTargets
+import com.loganmartlew.rangework.shared.model.enabledObservationTypes
 import com.loganmartlew.rangework.shared.model.hasIncompleteBallSteps
 import com.loganmartlew.rangework.shared.model.isBallStep
 import com.loganmartlew.rangework.shared.model.progress
+import com.loganmartlew.rangework.shared.model.totalBalls
 
 /**
  * One Block — the live view of one Session Item — rendered as a single screen.
@@ -68,6 +72,11 @@ internal fun ExecutionBlockPage(
     isFinishing: Boolean,
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
+    showDataCapture: Boolean = false,
+    blockResult: BlockResult? = null,
+    isSavingBlockNote: Boolean = false,
+    onSaveBlockNote: (String?) -> Unit = {},
+    onSetManualCount: (Int?) -> Unit = {},
 ) {
     val progress = block.progress(steps, completedStepIndices)
     val instructionRows = remember(block, steps, completedStepIndices, clubOverrides, enabledClubs) {
@@ -174,6 +183,23 @@ internal fun ExecutionBlockPage(
 
         block.notes?.let { notes ->
             CollapsibleNotes(notes = notes)
+        }
+
+        // Passive per-block capture (v3 only): note always; manual count only when
+        // the unit has a criterion and did not enable the Success Observation Type.
+        if (showDataCapture) {
+            val manualCountEligible = block.unit.successCriterion != null &&
+                ObservationType.SUCCESS !in block.unit.enabledObservationTypes &&
+                block.totalBalls(steps) > 0
+            BlockResultSection(
+                blockResult = blockResult,
+                isSavingNote = isSavingBlockNote,
+                onSaveNote = onSaveBlockNote,
+                manualCountEligible = manualCountEligible,
+                successCriterion = block.unit.successCriterion,
+                totalBalls = block.totalBalls(steps),
+                onSetManualCount = onSetManualCount,
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))

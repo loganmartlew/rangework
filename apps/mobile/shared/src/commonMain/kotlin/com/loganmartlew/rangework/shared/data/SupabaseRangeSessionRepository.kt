@@ -114,6 +114,7 @@ class SupabaseRangeSessionRepository(
                 startedAt = session.startedAt,
                 completedAt = session.completedAt!!,
                 elapsedSeconds = elapsed,
+                supportsDataCapture = session.supportsDataCapture,
             )
         }.sortedByDescending { it.completedAt }
     }
