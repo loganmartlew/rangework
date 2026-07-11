@@ -7,17 +7,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -118,61 +114,22 @@ private fun BlockNoteEditor(
     isSaving: Boolean,
     onSave: (String?) -> Unit,
 ) {
+    // Draft held here (rememberSaveable) so it survives rotation/process death;
+    // NoteAutoSaveField debounces the write and flushes on dispose (block swipe,
+    // section collapse), so there's no Save button.
     var draft by rememberSaveable { mutableStateOf(savedNote ?: "") }
-    val normalized = draft.trim().takeIf(String::isNotEmpty)
-    val isDirty = normalized != savedNote
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = draft,
-            onValueChange = { draft = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = "Block note text field" },
-            placeholder = { Text("Note on this block") },
-            minLines = 2,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.End,
-        ) {
-            when {
-                isSaving -> CircularProgressIndicator(
-                    modifier = Modifier
-                        .size(18.dp)
-                        .semantics { contentDescription = "Saving block note" },
-                    strokeWidth = 2.dp,
-                )
-
-                !isDirty && savedNote != null -> Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.semantics { contentDescription = "Block note saved" },
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Text(
-                        text = "Saved",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                else -> TextButton(
-                    onClick = { onSave(normalized) },
-                    enabled = isDirty,
-                    modifier = Modifier.semantics { contentDescription = "Save block note" },
-                ) {
-                    Text("Save")
-                }
-            }
-        }
-    }
+    NoteAutoSaveField(
+        draft = draft,
+        onDraftChange = { draft = it },
+        savedNote = savedNote,
+        isSaving = isSaving,
+        onSave = onSave,
+        fieldContentDescription = "Block note text field",
+        savingContentDescription = "Saving block note",
+        savedContentDescription = "Block note saved",
+        placeholder = "Note on this block",
+    )
 }
 
 @Composable

@@ -18,6 +18,7 @@ import com.loganmartlew.rangework.shared.model.totalStepCount
 import com.loganmartlew.rangework.shared.recording.RangeSessionRecorder
 import com.loganmartlew.rangework.shared.recording.RecordingResult
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -68,6 +69,12 @@ class RangeSessionViewModel(
 
     private var tickJob: Job? = null
     private var currentEnteredAt: Instant? = null
+
+    // Latest-wins guards for auto-saving notes: a new debounced/flush write
+    // cancels the in-flight one for the same target so rapid edits can't land out
+    // of order. Keyed by block unit index; the session note is a single slot.
+    private var sessionNoteSaveJob: Job? = null
+    private val blockNoteSaveJobs = mutableMapOf<Int, Job>()
 
     init {
         loadSession()
@@ -234,26 +241,37 @@ class RangeSessionViewModel(
 
     // ── Data capture (snapshot v3) ───────────────────────────────────────────
     //
-    // Notes save explicitly (P2): the model's saved value only advances on a
-    // successful write, so a failure leaves the editor's draft dirty and the Save
-    // button visible — no optimistic model mutation to revert. The manual count
-    // writes on each stepper commit, optimistically, reverting on failure (same
-    // pattern as step completion). All three no-op when the recorder is absent
-    // (misconfigured foundation) — the affordances still render.
+    // Notes auto-save: the editor debounces edits and flushes any pending edit on
+    // dispose (block swipe, screen change), so there's no Save button. Each write
+    // cancels the in-flight one for the same target (latest wins) and no-ops when
+    // the normalized value already matches the saved model, so a debounce racing a
+    // dispose-flush can't double-write. The manual count writes on each stepper
+    // commit, optimistically, reverting on failure (same pattern as step
+    // completion). All no-op when the recorder is absent (misconfigured
+    // foundation) — the affordances still render.
 
     /**
-     * Saves the session-level note. [onComplete] runs after a successful write —
-     * the finish-summary Done button passes its navigation here so a dirty note
-     * flushes before leaving; a failed flush stays put and surfaces the snackbar.
+     * Saves the session-level note. [onComplete] runs after a successful (or
+     * no-op) write — the finish-summary Done button passes its navigation here so
+     * a dirty note flushes before leaving; a failed flush stays put and surfaces
+     * the snackbar.
      */
     fun saveSessionNote(note: String?, onComplete: () -> Unit = {}) {
         val recorder = rangeSessionRecorder
-        if (_uiState.value.rangeSession == null || recorder == null) {
+        val session = _uiState.value.rangeSession
+        if (session == null || recorder == null) {
             onComplete()
             return
         }
+        // Nothing changed (e.g. a dispose-flush after the debounce already saved):
+        // skip the write but still let Done proceed.
+        if (note.normalizedNoteValue() == session.sessionNote) {
+            onComplete()
+            return
+        }
+        sessionNoteSaveJob?.cancel()
         _uiState.value = _uiState.value.copy(isSavingSessionNote = true)
-        viewModelScope.launch {
+        sessionNoteSaveJob = viewModelScope.launch {
             val result = runRecording { recorder.saveSessionNote(rangeSessionId, note) }
             if (result is RecordingResult.Success) {
                 _uiState.value = _uiState.value.copy(
@@ -276,10 +294,15 @@ class RangeSessionViewModel(
         val recorder = rangeSessionRecorder ?: return
         val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
         val unitIndex = block.unitIndex
+        // No-op when the normalized value already matches (debounce/dispose race).
+        if (note.normalizedNoteValue() == session.blockResults[unitIndex.toString()]?.note) {
+            return
+        }
+        blockNoteSaveJobs.remove(unitIndex)?.cancel()
         _uiState.value = _uiState.value.copy(
             savingBlockNoteIndices = _uiState.value.savingBlockNoteIndices + unitIndex,
         )
-        viewModelScope.launch {
+        blockNoteSaveJobs[unitIndex] = viewModelScope.launch {
             val result = runRecording { recorder.saveBlockNote(rangeSessionId, unitIndex, note) }
             val remaining = _uiState.value.savingBlockNoteIndices - unitIndex
             if (result is RecordingResult.Success) {
@@ -329,13 +352,22 @@ class RangeSessionViewModel(
         }
     }
 
-    /** Runs a recorder call, folding a thrown exception into a null (treated as failure). */
+    /**
+     * Runs a recorder call, folding a thrown exception into a null (treated as
+     * failure). CancellationException is rethrown so a latest-wins cancel of an
+     * in-flight note save doesn't get mis-reported as a save failure.
+     */
     private suspend fun <T> runRecording(block: suspend () -> RecordingResult<T>): RecordingResult<T>? =
         try {
             block()
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             null
         }
+
+    /** Normalizes a raw note to the value the model stores (null clears). */
+    private fun String?.normalizedNoteValue(): String? = this?.trim()?.takeIf(String::isNotEmpty)
 
     /**
      * Finish entry point. Finishing never requires 100% of steps: with
