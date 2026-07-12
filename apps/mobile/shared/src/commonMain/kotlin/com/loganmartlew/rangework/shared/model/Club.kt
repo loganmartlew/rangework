@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class ClubCategory {
+    DRIVER,
     WOOD,
     HYBRID,
     IRON,

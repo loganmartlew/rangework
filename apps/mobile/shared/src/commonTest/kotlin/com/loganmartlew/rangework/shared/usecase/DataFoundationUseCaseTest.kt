@@ -21,7 +21,7 @@ class DataFoundationUseCaseTest {
     fun clubRepositoryReturnsCatalog() = kotlinx.coroutines.test.runTest {
         val repository = RecordingClubRepository(
             catalog = listOf(
-                Club(code = "driver", displayName = "Driver", category = ClubCategory.WOOD, sortOrder = 1),
+                Club(code = "driver", displayName = "Driver", category = ClubCategory.DRIVER, sortOrder = 1),
                 Club(code = "putter", displayName = "Putter", category = ClubCategory.PUTTER, sortOrder = 30),
             ),
         )

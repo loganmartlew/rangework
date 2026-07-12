@@ -476,21 +476,80 @@ function flightSvg(startPhys, curvePhys, w, h) {
     '0 0 40 48', w, h);
 }
 
-/* Strike: clubface, front view, hosel on the heel side — mirrored for lefties so the
-   heel is always drawn where the heel column sits. Dot = impact zone (screen indices). */
-function faceSvg(screenRow, screenCol, handed, w, h) {
-  const xs = [15, 25, 35], ys = [12.5, 18, 23.5];
+/* Per-club strike-glyph faces (club-strike-glyphs-plan). Four club-family faces replace the
+   single generic face: driver, wood, iron, putter. Each owns its own outline, nine dot positions,
+   and marks (hosel or putter sight line). Geometry mirrors the KMP shared/ClubGlyphShape.kt. */
+
+const CLUB_FACES = {
+  driver: {
+    path: 'M8,4 Q8,1 18,1 L36,2 Q44,3 44,8 L43,23 Q42,30 35,30 L12,29 Q5,28 6,22 Z',
+    hosel: { x1: 9, y1: 4, x2: 4, y2: -1, sw: 1.8 },
+    grooves: { xs: 11, xe: 40, ys: [9, 16, 23], sw: 0.8 },
+    xs: [14, 27, 40],
+    ys: [6, 16, 25],
+  },
+  wood: {
+    path: 'M10,8 Q10,4 18,3 L34,4 Q42,5 42,10 L41,20 Q40,26 34,27 L14,26 Q8,25 8,20 Z',
+    hosel: { x1: 11, y1: 7, x2: 6, y2: 2, sw: 1.8 },
+    grooves: { xs: 12, xe: 38, ys: [10, 16, 22], sw: 0.8 },
+    xs: [15, 27, 38],
+    ys: [8, 15, 23],
+  },
+  iron: {
+    path: 'M18,4 L32,5 Q36,6 35,10 L34,23 Q33,28 29,28 L17,27 Q13,26 14,22 L16,8 Q17,4 18,4 Z',
+    hosel: { x1: 16, y1: 4, x2: 12, y2: -1, sw: 1.8 },
+    grooves: { xs: 16, xe: 34, ys: [10, 15, 20, 25], sw: 0.7 },
+    xs: [18, 26, 33],
+    ys: [8, 16, 24],
+  },
+  putter: {
+    path: 'M8,14 L42,14 Q45,14 45,17 L45,23.5 Q45,26.5 42,26.5 L8,26.5 Q5,26.5 5,23.5 L5,17 Q5,14 8,14 Z',
+    hosel: null,
+    sightLine: { x1: 10, y1: 20.5, x2: 40, y2: 20.5, sw: 1.2 },
+    grooves: null,
+    xs: [11, 25, 39],
+    ys: [15.5, 20.5, 25],
+  },
+};
+
+/** Category-to-shape mapping: DRIVER→driver, WOOD/HYBRID→wood, IRON/WEDGE→iron, PUTTER→putter. */
+function clubGlyphShape(category) {
+  if (!category) return 'iron';
+  const c = category.toUpperCase();
+  if (c === 'DRIVER') return 'driver';
+  if (c === 'WOOD' || c === 'HYBRID') return 'wood';
+  if (c === 'IRON' || c === 'WEDGE') return 'iron';
+  if (c === 'PUTTER') return 'putter';
+  return 'iron';
+}
+
+/**
+ * Per-club strike-glyph face. Front view; the base geometry is heel-left (hosel on the
+ * left side), mirrored for left-handed players so the hosel/heel column stay aligned.
+ * The dot is placed by screen column (handedness-resolved by the caller), outside the mirror.
+ */
+function faceSvg(screenRow, screenCol, handed, w, h, shape) {
+  shape = shape || 'wood';
+  const f = CLUB_FACES[shape] || CLUB_FACES.wood;
   const mirror = handed === 'left' ? ' transform="translate(48,0) scale(-1,1)"' : '';
+  let marks = '';
+  if (f.hosel) {
+    marks += `<line x1="${f.hosel.x1}" y1="${f.hosel.y1}" x2="${f.hosel.x2}" y2="${f.hosel.y2}" stroke="currentColor" stroke-width="${f.hosel.sw}" stroke-linecap="round" opacity="0.8"/>`;
+  }
+  if (f.sightLine) {
+    marks += `<line x1="${f.sightLine.x1}" y1="${f.sightLine.y1}" x2="${f.sightLine.x2}" y2="${f.sightLine.y2}" stroke="currentColor" stroke-width="${f.sightLine.sw}" stroke-linecap="round" opacity="0.3"/>`;
+  }
+  if (f.grooves) {
+    marks += f.grooves.ys.map(y =>
+      `<line x1="${f.grooves.xs}" y1="${y}" x2="${f.grooves.xe}" y2="${y}" stroke="currentColor" stroke-width="${f.grooves.sw}" opacity="0.25"/>`
+    ).join('');
+  }
   return svgWrap(
     `<g${mirror}>
-       <path d="M14,6 L38,8 Q44,9 44,15 L43.5,23 Q43,29 37,29 L10,29 Q5,29 5.5,24 L11,9 Q11.5,6 14,6 Z"
-             fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.8"/>
-       <line x1="12.5" y1="6.5" x2="8" y2="1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/>
-       <line x1="14" y1="14" x2="41" y2="15" stroke="currentColor" stroke-width="0.8" opacity="0.25"/>
-       <line x1="12.5" y1="19" x2="41" y2="19.7" stroke="currentColor" stroke-width="0.8" opacity="0.25"/>
-       <line x1="11" y1="24" x2="40" y2="24.4" stroke="currentColor" stroke-width="0.8" opacity="0.25"/>
+       <path d="${f.path}" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.8"/>
+       ${marks}
      </g>
-     <circle cx="${xs[screenCol]}" cy="${ys[screenRow]}" r="3" fill="currentColor"/>`,
+     <circle cx="${f.xs[screenCol]}" cy="${f.ys[screenRow]}" r="3" fill="currentColor"/>`,
     '0 0 48 34', w, h);
 }
 
@@ -499,7 +558,7 @@ function valueGlyph(type, value, w, h) {
   if (type === 'strike') {
     const [row, col] = value.split('_');
     const screenCol = strikeDisplayCols(state.handedness).indexOf(col);
-    return faceSvg(STRIKE_ROWS.indexOf(row), screenCol, state.handedness, w, h);
+    return faceSvg(STRIKE_ROWS.indexOf(row), screenCol, state.handedness, w, h, 'wood');
   }
   const [start, curve] = value.split('_');
   return flightSvg(start, curve, Math.round(h * 40 / 48), h);
@@ -944,7 +1003,7 @@ function gridDialogHtml() {
     colHeads = cols.map(c => STRIKE_COL_LABELS[c]);
     rowHeads = STRIKE_ROWS.map(r => STRIKE_ROW_LABELS[r]);
     valueAt = (r, c) => STRIKE_ROWS[r] + '_' + cols[c];
-    cellGlyph = (r, c) => faceSvg(r, c, state.handedness, 62, 44);
+    cellGlyph = (r, c) => faceSvg(r, c, state.handedness, 62, 44, 'wood');
   } else {
     colHeads = SHAPE_COL_LABELS;
     rowHeads = SHAPE_ROW_LABELS;

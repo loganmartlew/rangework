@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
+import com.loganmartlew.rangework.shared.model.ClubGlyphShape
 import com.loganmartlew.rangework.shared.model.ContactValue
 import com.loganmartlew.rangework.shared.model.DirectionValue
 import com.loganmartlew.rangework.shared.model.DistanceValue
@@ -61,6 +62,7 @@ internal fun ObservationCaptureSection(
     successCriterion: String?,
     arming: Boolean,
     handedness: Handedness,
+    clubGlyphShape: ClubGlyphShape = ClubGlyphShape.IRON,
     readOnly: Boolean,
     onStageChip: (typeId: String, value: String) -> Unit,
     onOpenGrid: (ObservationType) -> Unit,
@@ -95,6 +97,7 @@ internal fun ObservationCaptureSection(
                     stagedValue = staging[type.id],
                     denominatorText = denom,
                     handedness = handedness,
+                    clubGlyphShape = clubGlyphShape,
                     arming = arming,
                     enabled = !readOnly,
                     onOpen = { onOpenGrid(type) },
@@ -221,6 +224,7 @@ internal fun GridLauncherRow(
     stagedValue: String?,
     denominatorText: String?,
     handedness: Handedness,
+    clubGlyphShape: ClubGlyphShape = ClubGlyphShape.IRON,
     arming: Boolean,
     enabled: Boolean,
     onOpen: () -> Unit,
@@ -258,7 +262,7 @@ internal fun GridLauncherRow(
         ) {
             CompositionLocalProvider(LocalContentColor provides content) {
                 if (staged) {
-                    GridValueGlyph(type, stagedValue!!, handedness)
+                    GridValueGlyph(type, stagedValue!!, handedness, clubGlyphShape)
                 } else {
                     MiniGridGlyph(height = 20.dp)
                 }
@@ -280,10 +284,15 @@ internal fun GridLauncherRow(
 
 /** The staged/stored value glyph on a launcher or edit row. */
 @Composable
-internal fun GridValueGlyph(type: ObservationType, valueId: String, handedness: Handedness) {
+internal fun GridValueGlyph(
+    type: ObservationType,
+    valueId: String,
+    handedness: Handedness,
+    clubGlyphShape: ClubGlyphShape = ClubGlyphShape.IRON,
+) {
     when (type) {
         ObservationType.STRIKE_LOCATION ->
-            StrikeLocation.fromId(valueId)?.let { ClubfaceGlyph(it, handedness, height = 24.dp) }
+            StrikeLocation.fromId(valueId)?.let { ClubfaceGlyph(it, clubGlyphShape, handedness, height = 24.dp) }
         ObservationType.SHAPE ->
             ShapeFlight.fromId(valueId)?.let { FlightGlyph(it, height = 26.dp) }
         else -> Unit

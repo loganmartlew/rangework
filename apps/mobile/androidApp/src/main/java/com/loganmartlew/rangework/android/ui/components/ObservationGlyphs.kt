@@ -12,14 +12,18 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
+import com.loganmartlew.rangework.shared.model.ClubGlyphGeometry
+import com.loganmartlew.rangework.shared.model.ClubGlyphShape
 import com.loganmartlew.rangework.shared.model.ContactValue
 import com.loganmartlew.rangework.shared.model.DirectionValue
 import com.loganmartlew.rangework.shared.model.DistanceValue
 import com.loganmartlew.rangework.shared.model.Handedness
+import com.loganmartlew.rangework.shared.model.PathSegment
 import com.loganmartlew.rangework.shared.model.ShapeDirection
 import com.loganmartlew.rangework.shared.model.ShapeFlight
 import com.loganmartlew.rangework.shared.model.StrikeLocation
 import com.loganmartlew.rangework.shared.model.StrikeRow
+import com.loganmartlew.rangework.shared.model.geometry
 import com.loganmartlew.rangework.shared.model.strikeDisplayColumns
 
 /**
@@ -153,67 +157,82 @@ internal fun FlightGlyph(flight: ShapeFlight, height: Dp, modifier: Modifier = M
 }
 
 /**
- * A clubface (front view) with an impact dot at the strike zone. The hosel sits on
- * the heel side; the base geometry is a lefty's face (hosel on the left), so it
- * mirrors for a right-handed player, putting the hosel on the right as it
- * physically sits when looking at the face. The dot is placed by *screen* column
- * (already handedness-resolved by the caller), so it is not part of the mirror.
- * viewBox 48×34.
+ * A clubface (front view) with an impact dot at the strike zone. The face outline,
+ * hosel/sight-line marks, and grooves are selected from the per-shape geometry data
+ * in [shared] and walked onto a Compose Canvas by a single generic renderer. The
+ * outline is stored heel-left; it mirrors for a right-handed player so the hosel
+ * sits on the correct side. The dot is placed by *screen* column (already
+ * handedness-resolved by the caller), outside the mirror — identical to the
+ * original single-face renderer. viewBox 48×34 for every shape.
  */
 @Composable
 internal fun ClubfaceGlyph(
     location: StrikeLocation,
+    shape: ClubGlyphShape,
     handedness: Handedness,
     height: Dp,
     modifier: Modifier = Modifier,
 ) {
     val color = LocalContentColor.current
+    val geometry = shape.geometry()
     val screenColumns = strikeDisplayColumns(handedness)
     val screenCol = screenColumns.indexOf(location.column)
     val screenRow = StrikeRow.entries.indexOf(location.row)
     val mirror = handedness == Handedness.RIGHT
-    val xs = floatArrayOf(15f, 25f, 35f)
-    val ys = floatArrayOf(12.5f, 18f, 23.5f)
-    GlyphCanvas(vbW = 48f, vbH = 34f, height = height, modifier = modifier) { s ->
-        // Reflect x around the viewBox centre (translate(48,0) scale(-1,1)) for RH.
-        fun rx(x: Float): Float = (if (mirror) 48f - x else x) * s
+    GlyphCanvas(
+        vbW = geometry.viewBoxWidth,
+        vbH = geometry.viewBoxHeight,
+        height = height,
+        modifier = modifier,
+    ) { s ->
+        fun rx(x: Float): Float = (if (mirror) geometry.viewBoxWidth - x else x) * s
         fun ry(y: Float): Float = y * s
 
-        val face = Path().apply {
-            moveTo(rx(14f), ry(6f))
-            lineTo(rx(38f), ry(8f))
-            quadraticTo(rx(44f), ry(9f), rx(44f), ry(15f))
-            lineTo(rx(43.5f), ry(23f))
-            quadraticTo(rx(43f), ry(29f), rx(37f), ry(29f))
-            lineTo(rx(10f), ry(29f))
-            quadraticTo(rx(5f), ry(29f), rx(5.5f), ry(24f))
-            lineTo(rx(11f), ry(9f))
-            quadraticTo(rx(11.5f), ry(6f), rx(14f), ry(6f))
-            close()
-        }
+        val face = buildPath(geometry.outline, ::rx, ::ry)
         drawPath(
             face,
             color = color.copy(alpha = color.alpha * 0.8f),
             style = Stroke(width = 1.6f * s),
         )
-        // Hosel (heel side).
-        drawLine(
-            color = color.copy(alpha = color.alpha * 0.8f),
-            start = Offset(rx(12.5f), ry(6.5f)),
-            end = Offset(rx(8f), ry(1.5f)),
-            strokeWidth = 1.8f * s,
-            cap = StrokeCap.Round,
-        )
+
+        // Hosel or sight-line mark.
+        geometry.hosel?.let { h ->
+            drawLine(
+                color = color.copy(alpha = color.alpha * 0.8f),
+                start = Offset(rx(h.x1), ry(h.y1)),
+                end = Offset(rx(h.x2), ry(h.y2)),
+                strokeWidth = h.strokeWidth * s,
+                cap = StrokeCap.Round,
+            )
+        }
+        geometry.sightLine?.let { sl ->
+            drawLine(
+                color = color.copy(alpha = color.alpha * 0.3f),
+                start = Offset(rx(sl.x1), ry(sl.y1)),
+                end = Offset(rx(sl.x2), ry(sl.y2)),
+                strokeWidth = sl.strokeWidth * s,
+                cap = StrokeCap.Round,
+            )
+        }
+
         // Grooves.
-        val grooveColor = color.copy(alpha = color.alpha * 0.25f)
-        drawLine(grooveColor, Offset(rx(14f), ry(14f)), Offset(rx(41f), ry(15f)), strokeWidth = 0.8f * s)
-        drawLine(grooveColor, Offset(rx(12.5f), ry(19f)), Offset(rx(41f), ry(19.7f)), strokeWidth = 0.8f * s)
-        drawLine(grooveColor, Offset(rx(11f), ry(24f)), Offset(rx(40f), ry(24.4f)), strokeWidth = 0.8f * s)
+        geometry.grooves?.let { g ->
+            val grooveColor = color.copy(alpha = color.alpha * 0.25f)
+            for (gy in g.yPositions) {
+                drawLine(
+                    grooveColor,
+                    Offset(rx(g.xStart), ry(gy)),
+                    Offset(rx(g.xEnd), ry(gy)),
+                    strokeWidth = g.strokeWidth * s,
+                )
+            }
+        }
+
         // Impact dot — screen-positioned, outside the mirror.
         drawCircle(
             color = color,
             radius = 3f * s,
-            center = Offset(xs[screenCol] * s, ys[screenRow] * s),
+            center = Offset(geometry.dotXs[screenCol] * s, geometry.dotYs[screenRow] * s),
         )
     }
 }
@@ -233,6 +252,22 @@ internal fun MiniGridGlyph(height: Dp, modifier: Modifier = Modifier) {
 }
 
 // ── Internals ─────────────────────────────────────────────────────────────────
+
+/** Walks the platform-neutral [PathSegment] list onto a Compose [Path]. */
+private fun buildPath(
+    segments: List<PathSegment>,
+    xf: (Float) -> Float,
+    yf: (Float) -> Float,
+): Path = Path().apply {
+    for (seg in segments) {
+        when (seg) {
+            is PathSegment.MoveTo -> moveTo(xf(seg.x), yf(seg.y))
+            is PathSegment.LineTo -> lineTo(xf(seg.x), yf(seg.y))
+            is PathSegment.QuadraticTo -> quadraticTo(xf(seg.cx), yf(seg.cy), xf(seg.x), yf(seg.y))
+            is PathSegment.Close -> close()
+        }
+    }
+}
 
 private fun ShapeDirection.axis(): Float = when (this) {
     ShapeDirection.LEFT -> -1f
