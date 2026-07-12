@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -38,10 +39,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.ExecutionBlock
+import com.loganmartlew.rangework.shared.model.Handedness
+import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.clubShortLabel
 import com.loganmartlew.rangework.shared.model.SnapshotStep
@@ -51,6 +61,7 @@ import com.loganmartlew.rangework.shared.model.hasIncompleteBallSteps
 import com.loganmartlew.rangework.shared.model.isBallStep
 import com.loganmartlew.rangework.shared.model.progress
 import com.loganmartlew.rangework.shared.model.totalBalls
+import com.loganmartlew.rangework.shared.model.typeTallies
 
 /**
  * One Block — the live view of one Session Item — rendered as a single screen.
@@ -77,8 +88,19 @@ internal fun ExecutionBlockPage(
     isSavingBlockNote: Boolean = false,
     onSaveBlockNote: (String?) -> Unit = {},
     onSetManualCount: (Int?) -> Unit = {},
+    // ── Per-ball observation capture (v3) ────────────────────────────────────
+    observationsByStep: Map<Int, Observation> = emptyMap(),
+    blockStaging: Map<String, String> = emptyMap(),
+    arming: Boolean = false,
+    handedness: Handedness = Handedness.RIGHT,
+    commitSignal: Int = 0,
+    onStageChip: (typeId: String, value: String) -> Unit = { _, _ -> },
+    onOpenGrid: (ObservationType) -> Unit = {},
+    onOpenBallSheet: (instructionIndex: Int) -> Unit = {},
 ) {
     val progress = block.progress(steps, completedStepIndices)
+    val enabledObservationTypes = if (showDataCapture) block.unit.enabledObservationTypes else emptyList()
+    val captureEnabled = enabledObservationTypes.isNotEmpty()
     val instructionRows = remember(block, steps, completedStepIndices, clubOverrides, enabledClubs) {
         buildInstructionRows(block, steps, completedStepIndices, clubOverrides, enabledClubs)
     }
@@ -150,6 +172,26 @@ internal fun ExecutionBlockPage(
             completedStepIndices = completedStepIndices,
             onIncrement = onIncrement,
             onDecrement = onDecrement,
+            commitSignal = commitSignal,
+            captureSection = if (captureEnabled) {
+                {
+                    val readOnly = !block.hasIncompleteBallSteps(steps, completedStepIndices)
+                    ObservationCaptureSection(
+                        enabledTypes = enabledObservationTypes,
+                        tallies = block.typeTallies(steps, completedStepIndices, observationsByStep),
+                        staging = blockStaging,
+                        completedBalls = progress.completedBalls,
+                        successCriterion = block.unit.successCriterion,
+                        arming = arming,
+                        handedness = handedness,
+                        readOnly = readOnly,
+                        onStageChip = onStageChip,
+                        onOpenGrid = onOpenGrid,
+                    )
+                }
+            } else {
+                null
+            },
         )
 
         if (isSessionComplete) {
@@ -176,6 +218,8 @@ internal fun ExecutionBlockPage(
                         enabledClubs = enabledClubs,
                         onToggleAction = { onToggleActionInstruction(row.instructionIndex) },
                         onSwapClub = { clubCode -> onSwapClub(row.instructionIndex, clubCode) },
+                        editable = captureEnabled && !row.isAction && row.completedBalls > 0,
+                        onOpenBallSheet = { onOpenBallSheet(row.instructionIndex) },
                     )
                 }
             }
@@ -214,11 +258,29 @@ private fun BlockCounter(
     onIncrement: () -> Unit,
     onDecrement: () -> Unit,
     modifier: Modifier = Modifier,
+    commitSignal: Int = 0,
+    captureSection: (@Composable () -> Unit)? = null,
 ) {
     val progress = block.progress(steps, completedStepIndices)
     val hasBalls = progress.totalBalls > 0
     val showPlusOne = block.hasIncompleteBallSteps(steps, completedStepIndices)
     val canDecrement = block.decrementTargets(steps, completedStepIndices).isNotEmpty()
+
+    // Counter pulse + haptic tick, fired once per commit (design P6). commitSignal
+    // only advances for the page that committed, so other pages never bump.
+    val haptics = LocalHapticFeedback.current
+    val bump = remember { Animatable(1f) }
+    var lastSignal by remember { mutableIntStateOf(commitSignal) }
+    LaunchedEffect(commitSignal) {
+        if (commitSignal != lastSignal && commitSignal > 0) {
+            lastSignal = commitSignal
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            bump.animateTo(1.18f, tween(120))
+            bump.animateTo(1f, tween(180))
+        } else {
+            lastSignal = commitSignal
+        }
+    }
 
     Card(modifier = modifier.fillMaxWidth()) {
         Column(
@@ -247,6 +309,10 @@ private fun BlockCounter(
                     },
                     style = RangeworkMono.large,
                     color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.graphicsLayer {
+                        scaleX = bump.value
+                        scaleY = bump.value
+                    },
                 )
                 Text(
                     text = if (hasBalls) "balls" else "steps",
@@ -255,6 +321,10 @@ private fun BlockCounter(
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
             }
+
+            // The per-ball capture stack lives between the readout and the button
+            // row — one container, one thumb zone (design §0).
+            captureSection?.invoke()
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -392,6 +462,8 @@ private fun InstructionRow(
     onToggleAction: () -> Unit,
     onSwapClub: (String) -> Unit,
     modifier: Modifier = Modifier,
+    editable: Boolean = false,
+    onOpenBallSheet: () -> Unit = {},
 ) {
     var showClubPicker by remember { mutableStateOf(false) }
     val isDone = row.totalSteps > 0 && row.completedSteps == row.totalSteps
@@ -400,18 +472,24 @@ private fun InstructionRow(
         modifier = modifier
             .fillMaxWidth()
             .let { base ->
-                if (row.isAction) {
-                    base
-                        .clickable(onClick = onToggleAction)
-                        .semantics {
-                            contentDescription = buildString {
-                                append(row.text)
-                                append(if (isDone) ". Done" else ". Not done")
-                                append(". Tap to toggle")
+                when {
+                    row.isAction ->
+                        base
+                            .clickable(onClick = onToggleAction)
+                            .semantics {
+                                contentDescription = buildString {
+                                    append(row.text)
+                                    append(if (isDone) ". Done" else ". Not done")
+                                    append(". Tap to toggle")
+                                }
                             }
-                        }
-                } else {
-                    base
+                    editable ->
+                        base
+                            .clickable(onClick = onOpenBallSheet)
+                            .semantics {
+                                contentDescription = "${row.text}. Tap to edit ball observations"
+                            }
+                    else -> base
                 }
             }
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -489,6 +567,16 @@ private fun InstructionRow(
                     )
                 }
             }
+        }
+
+        // Edit affordance: a tappable ball instruction opens its correction sheet.
+        if (editable) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 

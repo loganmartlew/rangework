@@ -56,6 +56,28 @@ interface RangeSessionRecorder {
         stepIndices: List<Int>,
     ): RecordingResult<RangeSession>
 
+    /**
+     * The +1 / auto-commit — the mirror image of [uncompleteStepsVoidingObservations].
+     * Validates, completes [stepIndices], then upserts the ball's Observation.
+     *
+     * [stepIndices] is the `incrementTargets` output: the next incomplete Ball
+     * Step plus any Action Steps swept along before it. The Observation attaches
+     * to the single Ball Step among them. When [values] is non-empty it is
+     * validated (via `validateObservationWrite`) *before* any write, so a rejected
+     * value leaves nothing written. Completion runs before the observation so a
+     * partial failure leaves a legal completed-but-unobserved state, never an
+     * observation on an uncompleted step.
+     *
+     * An empty [values] map, or targets with no Ball Step (the "Done" tap arriving
+     * here defensively), writes no Observation row at all — byte-identical to never
+     * observing (Stage 1 D2).
+     */
+    suspend fun completeStepsRecordingObservation(
+        rangeSessionId: String,
+        stepIndices: List<Int>,
+        values: Map<String, String>,
+    ): RecordingResult<RangeSession>
+
     /** All Observations for the session, ascending by step index. */
     suspend fun observations(rangeSessionId: String): List<Observation>
 }

@@ -4,6 +4,8 @@ import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.CompletedRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.CompletedStep
+import com.loganmartlew.rangework.shared.model.Handedness
+import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.RangeSession
 import com.loganmartlew.rangework.shared.model.RangeSessionSnapshot
@@ -12,6 +14,7 @@ import com.loganmartlew.rangework.shared.model.SnapshotStep
 import com.loganmartlew.rangework.shared.model.SnapshotUnit
 import com.loganmartlew.rangework.shared.recording.DefaultRangeSessionRecorder
 import com.loganmartlew.rangework.shared.recording.RangeSessionRecorder
+import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -747,6 +750,309 @@ class RangeSessionViewModelTest {
         assertNull(viewModel.uiState.value.rangeSession?.blockResults?.get("0"))
         assertNull(viewModel.uiState.value.notification)
     }
+
+    // ── data capture: observation staging & auto-commit ──────────────────────
+
+    private fun captureViewModel(
+        session: RangeSession,
+        repo: FakeRangeSessionRepo,
+        handedness: Handedness? = null,
+    ) = makeViewModel(
+        repo = repo,
+        rangeSessionId = session.id,
+        recorder = DefaultRangeSessionRecorder(repo),
+        measurementPreferencesRepository = handedness?.let(::FakePrefsRepo),
+    )
+
+    @Test
+    fun stagingSingleTypeAutoCommitsAfterDelay() = runTest {
+        val session = v3CaptureSession(observationTypes = listOf("direction"))
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        viewModel.stageObservation(0, "direction", "left")
+        // Arms synchronously; commit is deferred to the delay.
+        assertEquals(0, viewModel.uiState.value.armingBlockIndex)
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNull(state.armingBlockIndex)
+        assertTrue("First ball step completed", 0 in state.completedStepIndices)
+        assertEquals(mapOf("direction" to "left"), state.observationsByStep[0]?.values)
+        assertTrue("Staging cleared after commit", state.stagingByBlock.isEmpty())
+        assertEquals(mapOf("direction" to "left"), repo.observations[0]?.values)
+    }
+
+    @Test
+    fun noAutoCommitWhileATypeIsMissing() = runTest {
+        val session = v3CaptureSession(observationTypes = listOf("direction", "shape"))
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        viewModel.stageObservation(0, "direction", "left")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNull("Partial coverage must not arm", state.armingBlockIndex)
+        assertTrue("Nothing committed", state.completedStepIndices.isEmpty())
+        assertEquals(mapOf("direction" to "left"), state.stagingByBlock[0])
+    }
+
+    @Test
+    fun stagingNoOpWhenNoTypesEnabled() = runTest {
+        val session = v3CaptureSession(observationTypes = emptyList())
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        viewModel.stageObservation(0, "direction", "left")
+
+        assertTrue(viewModel.uiState.value.stagingByBlock.isEmpty())
+        assertNull(viewModel.uiState.value.armingBlockIndex)
+    }
+
+    @Test
+    fun plusOnePartialCommitPersistsStagedSubset() = runTest {
+        val session = v3CaptureSession(observationTypes = listOf("direction", "shape"))
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        viewModel.stageObservation(0, "direction", "left") // partial — no arm
+        viewModel.incrementBlock(0)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(0 in state.completedStepIndices)
+        assertEquals(mapOf("direction" to "left"), state.observationsByStep[0]?.values)
+        assertEquals(mapOf("direction" to "left"), repo.observations[0]?.values)
+    }
+
+    @Test
+    fun plusOneEmptyCommitWritesNoObservation() = runTest {
+        val session = v3CaptureSession(observationTypes = listOf("direction"))
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        viewModel.incrementBlock(0) // nothing staged
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(0 in state.completedStepIndices)
+        assertNull("Empty commit stores no observation", state.observationsByStep[0])
+        assertTrue(repo.observations.isEmpty())
+    }
+
+    @Test
+    fun inputIsIgnoredDuringArmWindow() = runTest {
+        val session = v3CaptureSession(observationTypes = listOf("direction"))
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        viewModel.stageObservation(0, "direction", "left") // arms
+        assertEquals(0, viewModel.uiState.value.armingBlockIndex)
+
+        // Everything during the arm window is a no-op.
+        viewModel.stageObservation(0, "direction", "right")
+        viewModel.incrementBlock(0)
+        assertEquals(mapOf("direction" to "left"), viewModel.uiState.value.stagingByBlock[0])
+        assertTrue(viewModel.uiState.value.completedStepIndices.isEmpty())
+
+        advanceUntilIdle()
+        // The originally staged value is what commits.
+        assertEquals(mapOf("direction" to "left"), viewModel.uiState.value.observationsByStep[0]?.values)
+    }
+
+    @Test
+    fun commitFailureRevertsEverythingAndNotifies() = runTest {
+        val session = v3CaptureSession(observationTypes = listOf("direction"))
+        val repo = FakeRangeSessionRepo(
+            sessions = mutableListOf(session),
+            shouldFailOnCompletion = true,
+        )
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        viewModel.stageObservation(0, "direction", "left")
+        advanceUntilIdle() // arm fires → commit → fails
+
+        val state = viewModel.uiState.value
+        assertTrue("Counter reverts", state.completedStepIndices.isEmpty())
+        assertNull("Observation reverts", state.observationsByStep[0])
+        assertTrue("Staging is not restored on wholesale failure", state.stagingByBlock.isEmpty())
+        assertTrue("Expected error notification", state.notification != null)
+    }
+
+    @Test
+    fun decrementVoidsObservationsAndKeepsStaging() = runTest {
+        val session = v3CaptureSession(
+            observationTypes = listOf("direction", "shape"),
+            completedStepIndices = setOf(0),
+        )
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        repo.observations[0] = Observation(0, mapOf("direction" to "left"))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+        assertEquals(mapOf("direction" to "left"), viewModel.uiState.value.observationsByStep[0]?.values)
+
+        viewModel.stageObservation(0, "direction", "right") // partial staging on the pending ball
+        viewModel.decrementBlock(0)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse("Undone ball step", 0 in state.completedStepIndices)
+        assertNull("Voided observation", state.observationsByStep[0])
+        assertNull(repo.observations[0])
+        assertEquals("Staging survives the undo", mapOf("direction" to "right"), state.stagingByBlock[0])
+    }
+
+    @Test
+    fun decrementFailureRestoresCounterAndObservation() = runTest {
+        val session = v3CaptureSession(
+            observationTypes = listOf("direction"),
+            completedStepIndices = setOf(0),
+        )
+        val repo = FakeRangeSessionRepo(
+            sessions = mutableListOf(session),
+            shouldFailOnCompletion = true,
+        )
+        repo.observations[0] = Observation(0, mapOf("direction" to "left"))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        viewModel.decrementBlock(0)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue("Counter restored", 0 in state.completedStepIndices)
+        assertEquals(mapOf("direction" to "left"), state.observationsByStep[0]?.values)
+        assertTrue("Expected error notification", state.notification != null)
+    }
+
+    @Test
+    fun editWriteThroughUpsertsFullMapAndTogglesOff() = runTest {
+        val session = v3CaptureSession(
+            observationTypes = listOf("direction", "shape"),
+            completedStepIndices = setOf(0),
+        )
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        repo.observations[0] = Observation(0, mapOf("direction" to "left"))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        // Add a second type: the full map is upserted, not merged per key.
+        viewModel.updateBallObservation(0, "shape", "straight_left")
+        advanceUntilIdle()
+        assertEquals(
+            mapOf("direction" to "left", "shape" to "straight_left"),
+            repo.observations[0]?.values,
+        )
+
+        // Re-selecting a set value toggles it off.
+        viewModel.updateBallObservation(0, "direction", "left")
+        advanceUntilIdle()
+        assertEquals(mapOf("shape" to "straight_left"), viewModel.uiState.value.observationsByStep[0]?.values)
+
+        // Emptying the ball upserts an empty map (D2-equivalent to no row).
+        viewModel.updateBallObservation(0, "shape", "straight_left")
+        advanceUntilIdle()
+        assertEquals(emptyMap<String, String>(), viewModel.uiState.value.observationsByStep[0]?.values)
+        assertEquals(emptyMap<String, String>(), repo.observations[0]?.values)
+    }
+
+    @Test
+    fun editWriteThroughRevertsOnFailure() = runTest {
+        val session = v3CaptureSession(
+            observationTypes = listOf("direction"),
+            completedStepIndices = setOf(0),
+        )
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        repo.observations[0] = Observation(0, mapOf("direction" to "left"))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+        repo.shouldFailOnObservation = true
+
+        viewModel.updateBallObservation(0, "direction", "right")
+        advanceUntilIdle()
+
+        assertEquals(
+            "Reverts to the pre-edit record",
+            mapOf("direction" to "left"),
+            viewModel.uiState.value.observationsByStep[0]?.values,
+        )
+        assertTrue(viewModel.uiState.value.notification != null)
+    }
+
+    @Test
+    fun v2SessionIgnoresCaptureAndUsesPlainPaths() = runTest {
+        val session = twoBlockSession() // v2
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        viewModel.stageObservation(0, "direction", "left")
+        assertTrue("v2 rejects staging", viewModel.uiState.value.stagingByBlock.isEmpty())
+
+        viewModel.incrementBlock(0)
+        advanceUntilIdle()
+        // Plain v2 increment sweeps the leading action step with the first ball step.
+        assertEquals(setOf(0, 1), viewModel.uiState.value.completedStepIndices)
+        assertTrue("No observations on v2", repo.observations.isEmpty())
+    }
+
+    @Test
+    fun nullRecorderCaptureMethodsNoOpWithoutCrash() = runTest {
+        val session = v3CaptureSession(observationTypes = listOf("direction"))
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = makeViewModel(repo, session.id, recorder = null)
+        advanceUntilIdle()
+
+        viewModel.updateBallObservation(0, "direction", "left")
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.observationsByStep[0])
+        assertNull(viewModel.uiState.value.notification)
+    }
+
+    @Test
+    fun handednessLoadsFromPreferences() = runTest {
+        val session = v3CaptureSession()
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = captureViewModel(session, repo, handedness = Handedness.LEFT)
+        advanceUntilIdle()
+
+        assertEquals(Handedness.LEFT, viewModel.uiState.value.handedness)
+    }
+
+    @Test
+    fun handednessFallsBackToRightWithoutPreferencesRepo() = runTest {
+        val session = v3CaptureSession()
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        val viewModel = captureViewModel(session, repo, handedness = null)
+        advanceUntilIdle()
+
+        assertEquals(Handedness.RIGHT, viewModel.uiState.value.handedness)
+    }
+
+    @Test
+    fun observationsLoadKeyedByGlobalStepIndex() = runTest {
+        val session = v3CaptureSession(observationTypes = listOf("direction"))
+        val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
+        repo.observations[1] = Observation(1, mapOf("direction" to "right"))
+        repo.observations[2] = Observation(2, mapOf("direction" to "on_line"))
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        val loaded = viewModel.uiState.value.observationsByStep
+        assertEquals(mapOf("direction" to "right"), loaded[1]?.values)
+        assertEquals(mapOf("direction" to "on_line"), loaded[2]?.values)
+        assertNull(loaded[0])
+    }
 }
 
 /**
@@ -794,10 +1100,57 @@ private fun makeViewModel(
     repo: FakeRangeSessionRepo,
     rangeSessionId: String,
     recorder: RangeSessionRecorder? = null,
+    measurementPreferencesRepository: MeasurementPreferencesRepository? = null,
+    autoCommitDelayMillis: Long = 300,
 ): RangeSessionViewModel = RangeSessionViewModel(
     rangeSessionId = rangeSessionId,
     rangeSessionRepository = repo,
     rangeSessionRecorder = recorder,
+    measurementPreferencesRepository = measurementPreferencesRepository,
+    autoCommitDelayMillis = autoCommitDelayMillis,
+)
+
+/** Fixed-handedness preferences fake for the capture load path. */
+private class FakePrefsRepo(private val handedness: Handedness) : MeasurementPreferencesRepository() {
+    override suspend fun persist(validated: MeasurementPreferences): MeasurementPreferences = validated
+    override suspend fun get(): MeasurementPreferences = MeasurementPreferences(handedness = handedness)
+}
+
+/**
+ * A single-block v3 session with three ball steps (indices 0-2) on one instruction,
+ * [observationTypes] enabled — the substrate for the per-ball capture tests.
+ */
+private fun v3CaptureSession(
+    id: String = "range-capture",
+    observationTypes: List<String> = listOf("direction"),
+    successCriterion: String? = null,
+    completedStepIndices: Set<Int> = emptySet(),
+): RangeSession = RangeSession(
+    id = id,
+    sourceSessionId = "session-1",
+    sessionName = "Capture block",
+    snapshot = RangeSessionSnapshot(
+        units = listOf(
+            SnapshotUnit(
+                unitTitle = "Wedge work",
+                repeatCount = 1,
+                instructions = listOf(SnapshotInstruction(text = "Hit", ballCount = 3)),
+                successCriterion = successCriterion,
+                observationTypes = observationTypes,
+            ),
+        ),
+        steps = listOf(
+            snapshotStep(unitIndex = 0, instructionIndex = 0, text = "Hit", ballCount = 1),
+            snapshotStep(unitIndex = 0, instructionIndex = 0, text = "Hit", ballCount = 1),
+            snapshotStep(unitIndex = 0, instructionIndex = 0, text = "Hit", ballCount = 1),
+        ),
+    ),
+    snapshotVersion = 3,
+    completedSteps = completedStepIndices.map {
+        CompletedStep(stepIndex = it, completedAt = Instant.parse("2026-06-19T09:00:00Z"))
+    },
+    clubOverrides = emptyMap(),
+    startedAt = Instant.parse("2026-06-18T08:00:00Z"),
 )
 
 private open class FakeRangeSessionRepo(
@@ -813,6 +1166,8 @@ private open class FakeRangeSessionRepo(
     val recordedTimeEntries = mutableListOf<Pair<String, Instant>>()
     val closedTimeEntries = mutableListOf<Triple<String, Instant, Instant>>()
     var finishedSessionId: String? = null
+    val observations = mutableMapOf<Int, Observation>()
+    var shouldFailOnObservation: Boolean = false
 
     override suspend fun start(sessionId: String): RangeSession =
         error("Not called in these tests")
@@ -892,13 +1247,21 @@ private open class FakeRangeSessionRepo(
         sessions.add(updated)
         return updated
     }
-    override suspend fun listObservations(rangeSessionId: String): List<Observation> = emptyList()
+    override suspend fun listObservations(rangeSessionId: String): List<Observation> =
+        observations.values.sortedBy(Observation::stepIndex)
     override suspend fun upsertObservation(
         rangeSessionId: String,
         stepIndex: Int,
         values: Map<String, String>,
-    ): Observation = error("Not called in these tests")
-    override suspend fun deleteObservations(rangeSessionId: String, stepIndices: List<Int>) = Unit
+    ): Observation {
+        if (shouldFailOnObservation) throw RuntimeException("Simulated network error")
+        val observation = Observation(stepIndex, values)
+        observations[stepIndex] = observation
+        return observation
+    }
+    override suspend fun deleteObservations(rangeSessionId: String, stepIndices: List<Int>) {
+        stepIndices.forEach(observations::remove)
+    }
     override suspend fun recordTimeEntry(rangeSessionId: String, enteredAt: Instant) {
         recordedTimeEntries.add(Pair(rangeSessionId, enteredAt))
     }

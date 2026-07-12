@@ -347,6 +347,7 @@ fun RangeworkApp(
                                 rangeSessionId = rangeSessionId,
                                 rangeSessionRepository = rangeworkFoundation?.dataFoundation?.rangeSessionRepository,
                                 rangeSessionRecorder = rangeworkFoundation?.dataFoundation?.rangeSessionRecorder,
+                                measurementPreferencesRepository = rangeworkFoundation?.dataFoundation?.measurementPreferencesRepository,
                             )
                         },
                     )
@@ -375,6 +376,8 @@ fun RangeworkApp(
                         onSaveBlockNote = rangeSessionViewModel::saveBlockNote,
                         onSaveManualCount = rangeSessionViewModel::saveManualCount,
                         onSaveSessionNote = rangeSessionViewModel::saveSessionNote,
+                        onStageObservation = rangeSessionViewModel::stageObservation,
+                        onUpdateBallObservation = rangeSessionViewModel::updateBallObservation,
                     )
                 }
                 composable(RangeworkRoutes.RangeSessionHistory) { backStackEntry ->

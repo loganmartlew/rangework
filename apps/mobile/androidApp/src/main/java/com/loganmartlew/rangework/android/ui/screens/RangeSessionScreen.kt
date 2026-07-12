@@ -44,9 +44,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,13 +63,22 @@ import com.loganmartlew.rangework.android.ui.RangeSessionUiState
 import com.loganmartlew.rangework.android.ui.components.AbandonConfirmDialog
 import com.loganmartlew.rangework.android.ui.components.BlockOverviewContent
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
+import com.loganmartlew.rangework.android.ui.components.BallEditEntry
+import com.loganmartlew.rangework.android.ui.components.BallEditSheet
 import com.loganmartlew.rangework.android.ui.components.ExecutionBlockPage
 import com.loganmartlew.rangework.android.ui.components.FinishSessionDialog
 import com.loganmartlew.rangework.android.ui.components.FinishSummaryContent
+import com.loganmartlew.rangework.android.ui.components.ObservationGridDialog
 import com.loganmartlew.rangework.android.ui.components.RangeSessionProgressHeader
 import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.ExecutionBlock
+import com.loganmartlew.rangework.shared.model.ObservationType
+import com.loganmartlew.rangework.shared.model.canEditObservations
+import com.loganmartlew.rangework.shared.model.enabledObservationTypes
 import com.loganmartlew.rangework.shared.model.executionBlocks
+import com.loganmartlew.rangework.shared.model.isBallStep
+import com.loganmartlew.rangework.shared.model.progress
+import com.loganmartlew.rangework.shared.model.typeTally
 import kotlinx.coroutines.launch
 
 /**
@@ -99,6 +110,8 @@ internal fun RangeSessionScreen(
     onSaveBlockNote: (blockIndex: Int, note: String?) -> Unit = { _, _ -> },
     onSaveManualCount: (blockIndex: Int, count: Int?) -> Unit = { _, _ -> },
     onSaveSessionNote: (note: String?, onComplete: () -> Unit) -> Unit = { _, done -> done() },
+    onStageObservation: (blockIndex: Int, typeId: String, value: String) -> Unit = { _, _, _ -> },
+    onUpdateBallObservation: (stepIndex: Int, typeId: String, value: String?) -> Unit = { _, _, _ -> },
 ) {
     val view = LocalView.current
     DisposableEffect(Unit) {
@@ -201,6 +214,8 @@ internal fun RangeSessionScreen(
             onRequestAbandon = onRequestAbandon,
             onSaveBlockNote = onSaveBlockNote,
             onSaveManualCount = onSaveManualCount,
+            onStageObservation = onStageObservation,
+            onUpdateBallObservation = onUpdateBallObservation,
         )
     } else {
         PhoneRangeSessionLayout(
@@ -217,6 +232,8 @@ internal fun RangeSessionScreen(
             onRequestAbandon = onRequestAbandon,
             onSaveBlockNote = onSaveBlockNote,
             onSaveManualCount = onSaveManualCount,
+            onStageObservation = onStageObservation,
+            onUpdateBallObservation = onUpdateBallObservation,
         )
     }
 }
@@ -237,6 +254,8 @@ private fun PhoneRangeSessionLayout(
     onRequestAbandon: () -> Unit,
     onSaveBlockNote: (Int, String?) -> Unit,
     onSaveManualCount: (Int, Int?) -> Unit,
+    onStageObservation: (Int, String, String) -> Unit,
+    onUpdateBallObservation: (Int, String, String?) -> Unit,
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -311,6 +330,8 @@ private fun PhoneRangeSessionLayout(
                 onRequestFinish = onRequestFinish,
                 onSaveBlockNote = onSaveBlockNote,
                 onSaveManualCount = onSaveManualCount,
+                onStageObservation = onStageObservation,
+                onUpdateBallObservation = onUpdateBallObservation,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
@@ -335,6 +356,8 @@ private fun TabletRangeSessionLayout(
     onRequestAbandon: () -> Unit,
     onSaveBlockNote: (Int, String?) -> Unit,
     onSaveManualCount: (Int, Int?) -> Unit,
+    onStageObservation: (Int, String, String) -> Unit,
+    onUpdateBallObservation: (Int, String, String?) -> Unit,
 ) {
     val snapshot = uiState.rangeSession?.snapshot
     val blocks = remember(snapshot) { snapshot?.executionBlocks() ?: emptyList() }
@@ -408,6 +431,8 @@ private fun TabletRangeSessionLayout(
                     onRequestFinish = onRequestFinish,
                     onSaveBlockNote = onSaveBlockNote,
                     onSaveManualCount = onSaveManualCount,
+                    onStageObservation = onStageObservation,
+                    onUpdateBallObservation = onUpdateBallObservation,
                     modifier = Modifier
                         .weight(0.65f)
                         .fillMaxHeight(),
@@ -426,6 +451,8 @@ private fun TabletRangeSessionLayout(
                 onRequestFinish = onRequestFinish,
                 onSaveBlockNote = onSaveBlockNote,
                 onSaveManualCount = onSaveManualCount,
+                onStageObservation = onStageObservation,
+                onUpdateBallObservation = onUpdateBallObservation,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
@@ -480,6 +507,8 @@ private fun RangeSessionBody(
     onRequestFinish: () -> Unit,
     onSaveBlockNote: (Int, String?) -> Unit,
     onSaveManualCount: (Int, Int?) -> Unit,
+    onStageObservation: (Int, String, String) -> Unit,
+    onUpdateBallObservation: (Int, String, String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val steps = uiState.rangeSession?.snapshot?.steps ?: emptyList()
@@ -545,6 +574,15 @@ private fun RangeSessionBody(
 
             val showDataCapture = uiState.rangeSession?.supportsDataCapture == true
 
+            // Which grid dialog / edit sheet is open is screen-local state (survives
+            // rotation via rememberSaveable); *what* they show comes from uiState.
+            var gridTypeId by rememberSaveable { mutableStateOf<String?>(null) }
+            var gridBlockIndex by rememberSaveable { mutableIntStateOf(-1) }
+            var gridStepIndex by rememberSaveable { mutableIntStateOf(-1) } // -1 = staging mode
+            var sheetBlockIndex by rememberSaveable { mutableIntStateOf(-1) }
+            var sheetInstructionIndex by rememberSaveable { mutableIntStateOf(-1) }
+            var sheetExpandedStep by rememberSaveable { mutableIntStateOf(-1) }
+
             Column(modifier = modifier) {
                 RangeSessionProgressHeader(
                     rangeSession = uiState.rangeSession,
@@ -587,6 +625,22 @@ private fun RangeSessionBody(
                             isSavingBlockNote = block.unitIndex in uiState.savingBlockNoteIndices,
                             onSaveBlockNote = { note -> onSaveBlockNote(pageIndex, note) },
                             onSetManualCount = { count -> onSaveManualCount(pageIndex, count) },
+                            observationsByStep = uiState.observationsByStep,
+                            blockStaging = uiState.stagingByBlock[pageIndex].orEmpty(),
+                            arming = uiState.armingBlockIndex == pageIndex,
+                            handedness = uiState.handedness,
+                            commitSignal = if (uiState.committedBlockIndex == pageIndex) uiState.commitSignal else 0,
+                            onStageChip = { typeId, value -> onStageObservation(pageIndex, typeId, value) },
+                            onOpenGrid = { type ->
+                                gridTypeId = type.id
+                                gridBlockIndex = pageIndex
+                                gridStepIndex = -1
+                            },
+                            onOpenBallSheet = { instructionIndex ->
+                                sheetBlockIndex = pageIndex
+                                sheetInstructionIndex = instructionIndex
+                                sheetExpandedStep = -1
+                            },
                         )
                     }
                 }
@@ -605,8 +659,93 @@ private fun RangeSessionBody(
                     },
                 )
             }
+
+            // ── Grid dialog (staging or edit mode) ───────────────────────────
+            val gridType = gridTypeId?.let(ObservationType::fromId)
+            val gridBlock = blocks.getOrNull(gridBlockIndex)
+            if (gridType != null && gridBlock != null) {
+                val editing = gridStepIndex >= 0
+                val currentValue = if (editing) {
+                    uiState.observationsByStep[gridStepIndex]?.value(gridType)
+                } else {
+                    uiState.stagingByBlock[gridBlockIndex]?.get(gridType.id)
+                }
+                ObservationGridDialog(
+                    type = gridType,
+                    handedness = uiState.handedness,
+                    tally = gridBlock.typeTally(
+                        steps, uiState.completedStepIndices, uiState.observationsByStep, gridType,
+                    ),
+                    completedBalls = gridBlock.progress(steps, uiState.completedStepIndices).completedBalls,
+                    currentValue = currentValue,
+                    editingBallNumber = if (editing) ballOrdinal(gridBlock, steps, gridStepIndex) else null,
+                    onPick = { value ->
+                        if (editing) {
+                            onUpdateBallObservation(gridStepIndex, gridType.id, value)
+                        } else {
+                            onStageObservation(gridBlockIndex, gridType.id, value)
+                        }
+                        gridTypeId = null
+                    },
+                    onDismiss = { gridTypeId = null },
+                )
+            }
+
+            // ── Per-ball edit sheet ──────────────────────────────────────────
+            val sheetBlock = blocks.getOrNull(sheetBlockIndex)
+            if (sheetBlock != null && sheetInstructionIndex >= 0) {
+                val entries = ballEditEntries(sheetBlock, steps, uiState.completedStepIndices, sheetInstructionIndex)
+                val instructionText = entries.firstOrNull()
+                    ?.let { steps[it.stepIndex].instructionText } ?: ""
+                BallEditSheet(
+                    instructionText = instructionText,
+                    entries = entries,
+                    enabledTypes = sheetBlock.unit.enabledObservationTypes,
+                    observationsByStep = uiState.observationsByStep,
+                    handedness = uiState.handedness,
+                    expandedStepIndex = sheetExpandedStep.takeIf { it >= 0 },
+                    enabled = uiState.rangeSession.canEditObservations,
+                    onToggleExpand = { step ->
+                        sheetExpandedStep = if (sheetExpandedStep == step) -1 else step
+                    },
+                    onEditChip = { step, typeId, value -> onUpdateBallObservation(step, typeId, value) },
+                    onOpenGrid = { step, type ->
+                        gridTypeId = type.id
+                        gridBlockIndex = sheetBlockIndex
+                        gridStepIndex = step
+                    },
+                    onDismiss = { sheetBlockIndex = -1 },
+                )
+            }
         }
     }
+}
+
+/**
+ * A block instruction's Ball Steps as edit-sheet entries: 1-based ordinal by
+ * snapshot position among the instruction's Ball Steps, filtered to the completed
+ * ones (only committed balls are correctable).
+ */
+private fun ballEditEntries(
+    block: ExecutionBlock,
+    steps: List<com.loganmartlew.rangework.shared.model.SnapshotStep>,
+    completedStepIndices: Set<Int>,
+    instructionIndex: Int,
+): List<BallEditEntry> = block.stepIndices
+    .filter { steps[it].instructionIndex == instructionIndex && steps[it].isBallStep }
+    .mapIndexed { position, stepIndex -> BallEditEntry(stepIndex, position + 1) }
+    .filter { it.stepIndex in completedStepIndices }
+
+/** The 1-based ordinal of [stepIndex] among its instruction's Ball Steps. */
+private fun ballOrdinal(
+    block: ExecutionBlock,
+    steps: List<com.loganmartlew.rangework.shared.model.SnapshotStep>,
+    stepIndex: Int,
+): Int {
+    val instructionIndex = steps[stepIndex].instructionIndex
+    val ballSteps = block.stepIndices
+        .filter { steps[it].instructionIndex == instructionIndex && steps[it].isBallStep }
+    return ballSteps.indexOf(stepIndex) + 1
 }
 
 /**

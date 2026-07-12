@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.shared.recording
 import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.RangeSession
+import com.loganmartlew.rangework.shared.model.isBallStep
 import com.loganmartlew.rangework.shared.model.normalizedOptionalText
 import com.loganmartlew.rangework.shared.model.validateBlockNoteEdit
 import com.loganmartlew.rangework.shared.model.validateManualCountEdit
@@ -84,6 +85,29 @@ class DefaultRangeSessionRecorder(
         return RecordingResult.Success(
             repository.setStepsCompletion(rangeSessionId, stepIndices, completed = false),
         )
+    }
+
+    override suspend fun completeStepsRecordingObservation(
+        rangeSessionId: String,
+        stepIndices: List<Int>,
+        values: Map<String, String>,
+    ): RecordingResult<RangeSession> {
+        val session = load(rangeSessionId)
+        // The observation attaches to the single Ball Step among the targets; the
+        // rest are swept Action Steps. Absent one (a defensive "Done" tap, or an
+        // empty commit), this degrades to plain step completion.
+        val ballStep = stepIndices.firstOrNull { session.snapshot.steps.getOrNull(it)?.isBallStep == true }
+        if (values.isNotEmpty() && ballStep != null) {
+            // Validate before any write, so a rejected value leaves nothing written.
+            session.validateObservationWrite(ballStep, values)?.let { return RecordingResult.Rejected(it) }
+        }
+        // Completion first: a partial failure afterwards leaves a legal
+        // completed-but-unobserved state, never an observation on an uncompleted step.
+        val updated = repository.setStepsCompletion(rangeSessionId, stepIndices, completed = true)
+        if (values.isNotEmpty() && ballStep != null) {
+            repository.upsertObservation(rangeSessionId, ballStep, values)
+        }
+        return RecordingResult.Success(updated)
     }
 
     override suspend fun observations(rangeSessionId: String): List<Observation> =

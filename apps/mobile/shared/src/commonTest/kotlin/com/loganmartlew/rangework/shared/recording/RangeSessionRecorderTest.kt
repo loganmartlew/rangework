@@ -137,6 +137,91 @@ class RangeSessionRecorderTest {
         assertTrue(repo.session.completedSteps.any { it.stepIndex == 1 })
     }
 
+    // ── completeStepsRecordingObservation (the +1 / auto-commit) ─────────────────
+
+    @Test
+    fun completeRecordingLandsValuesOnTheBallStep() = runTest {
+        // Steps: 0 action, 1 ball, 2 ball. Commit sweeps the action + first ball.
+        val repo = FakeRepo(session(observationTypes = listOf("shape")))
+        val recorder = DefaultRangeSessionRecorder(repo)
+
+        val result = recorder.completeStepsRecordingObservation(
+            "rs-1",
+            stepIndices = listOf(0, 1),
+            values = mapOf("shape" to "straight_left"),
+        )
+
+        assertTrue(result is RecordingResult.Success)
+        // Both targets completed.
+        assertTrue(repo.session.completedSteps.any { it.stepIndex == 0 })
+        assertTrue(repo.session.completedSteps.any { it.stepIndex == 1 })
+        // Observation attached to the Ball Step only, not the Action Step.
+        assertEquals(mapOf("shape" to "straight_left"), repo.observations[1]?.values)
+        assertNull(repo.observations[0])
+    }
+
+    @Test
+    fun completeRecordingEmptyValuesWritesNoObservation() = runTest {
+        val repo = FakeRepo(session(observationTypes = listOf("shape")))
+        val recorder = DefaultRangeSessionRecorder(repo)
+
+        val result = recorder.completeStepsRecordingObservation("rs-1", listOf(1), emptyMap())
+
+        assertTrue(result is RecordingResult.Success)
+        assertTrue(repo.session.completedSteps.any { it.stepIndex == 1 })
+        assertNull(repo.observations[1], "Empty commit writes no observation row")
+    }
+
+    @Test
+    fun completeRecordingRejectsBadValueWritingNothing() = runTest {
+        val repo = FakeRepo(session(observationTypes = listOf("shape")))
+        val recorder = DefaultRangeSessionRecorder(repo)
+
+        val result = recorder.completeStepsRecordingObservation(
+            "rs-1",
+            listOf(1),
+            mapOf("shape" to "banana"),
+        )
+
+        assertEquals(RecordingRejection.ValueOutOfVocabulary, (result as RecordingResult.Rejected).reason)
+        // Nothing written: no completion, no observation.
+        assertTrue(repo.session.completedSteps.isEmpty())
+        assertNull(repo.observations[1])
+    }
+
+    @Test
+    fun completeRecordingRejectedOnUnsupportedSnapshotWritesNothing() = runTest {
+        val repo = FakeRepo(session(version = 2, observationTypes = listOf("shape")))
+        val recorder = DefaultRangeSessionRecorder(repo)
+
+        val result = recorder.completeStepsRecordingObservation(
+            "rs-1",
+            listOf(1),
+            mapOf("shape" to "straight_left"),
+        )
+
+        assertEquals(RecordingRejection.UnsupportedSnapshot, (result as RecordingResult.Rejected).reason)
+        assertTrue(repo.session.completedSteps.isEmpty())
+        assertNull(repo.observations[1])
+    }
+
+    @Test
+    fun completeRecordingActionOnlyTargetsDegradeToCompletion() = runTest {
+        val repo = FakeRepo(session(observationTypes = listOf("shape")))
+        val recorder = DefaultRangeSessionRecorder(repo)
+
+        // Action-only target (the "Done" tap): no ball step, values ignored.
+        val result = recorder.completeStepsRecordingObservation(
+            "rs-1",
+            listOf(0),
+            mapOf("shape" to "straight_left"),
+        )
+
+        assertTrue(result is RecordingResult.Success)
+        assertTrue(repo.session.completedSteps.any { it.stepIndex == 0 })
+        assertNull(repo.observations[0], "No ball step among targets → no observation")
+    }
+
     @Test
     fun voidRejectedWhenFrozen() = runTest {
         val repo = FakeRepo(session(observationTypes = listOf("shape")).copy(completedAt = started))

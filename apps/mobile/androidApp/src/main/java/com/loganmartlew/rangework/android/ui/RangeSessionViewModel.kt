@@ -4,19 +4,25 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.loganmartlew.rangework.shared.model.BlockResult
+import com.loganmartlew.rangework.shared.model.Handedness
+import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.RangeSession
 import com.loganmartlew.rangework.shared.model.clubSwapTargets
 import com.loganmartlew.rangework.shared.model.completedBalls
 import com.loganmartlew.rangework.shared.model.completedStepCount
 import com.loganmartlew.rangework.shared.model.completionPercentage
 import com.loganmartlew.rangework.shared.model.decrementTargets
+import com.loganmartlew.rangework.shared.model.enabledObservationTypes
 import com.loganmartlew.rangework.shared.model.executionBlocks
 import com.loganmartlew.rangework.shared.model.firstIncompleteBlockIndex
 import com.loganmartlew.rangework.shared.model.incrementTargets
+import com.loganmartlew.rangework.shared.model.isBallStep
+import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.totalBalls
 import com.loganmartlew.rangework.shared.model.totalStepCount
 import com.loganmartlew.rangework.shared.recording.RangeSessionRecorder
 import com.loganmartlew.rangework.shared.recording.RecordingResult
+import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -56,12 +62,27 @@ data class RangeSessionUiState(
     val isSavingSessionNote: Boolean = false,
     /** unitIndex set of blocks whose note is mid-save (for the per-block saving spinner). */
     val savingBlockNoteIndices: Set<Int> = emptySet(),
+    // ── Per-ball observation capture (snapshot v3) ────────────────────────────
+    /** Committed observations keyed by global step index (the Ball Step's identity). */
+    val observationsByStep: Map<Int, Observation> = emptyMap(),
+    /** The pending (uncommitted) ball's staged values per block index: type id → value. */
+    val stagingByBlock: Map<Int, Map<String, String>> = emptyMap(),
+    /** The block whose staged ball is in its auto-commit arm window, or null. */
+    val armingBlockIndex: Int? = null,
+    /** Orients the perspective-dependent capture surfaces; RIGHT until loaded. */
+    val handedness: Handedness = Handedness.RIGHT,
+    /** Bumps once per successful commit; the committed block's counter pulses on change. */
+    val commitSignal: Int = 0,
+    /** The block index of the most recent commit (which page should pulse). */
+    val committedBlockIndex: Int? = null,
 )
 
 class RangeSessionViewModel(
     private val rangeSessionId: String,
     private val rangeSessionRepository: RangeSessionRepository?,
     private val rangeSessionRecorder: RangeSessionRecorder? = null,
+    private val measurementPreferencesRepository: MeasurementPreferencesRepository? = null,
+    private val autoCommitDelayMillis: Long = 300,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RangeSessionUiState())
@@ -69,6 +90,9 @@ class RangeSessionViewModel(
 
     private var tickJob: Job? = null
     private var currentEnteredAt: Instant? = null
+
+    /** The pending auto-commit; cancelled if the ball is re-edited before it fires. */
+    private var armJob: Job? = null
 
     // Latest-wins guards for auto-saving notes: a new debounced/flush write
     // cancels the in-flight one for the same target so rapid edits can't land out
@@ -96,12 +120,39 @@ class RangeSessionViewModel(
                 val landingBlock = session?.let {
                     firstIncompleteBlockIndex(it.snapshot.executionBlocks(), completedIndices)
                 } ?: 0
+
+                // v3 capture: load committed observations (failure degrades to empty
+                // + a snackbar — the counter floor still works) and the handedness
+                // preference (any failure → RIGHT, the transform identity).
+                var observationsByStep: Map<Int, Observation> = emptyMap()
+                var observationLoadFailed = false
+                var handedness = Handedness.RIGHT
+                if (session?.supportsDataCapture == true) {
+                    val recorder = rangeSessionRecorder
+                    if (recorder != null) {
+                        try {
+                            observationsByStep = recorder.observations(rangeSessionId)
+                                .associateBy(Observation::stepIndex)
+                        } catch (_: Exception) {
+                            observationLoadFailed = true
+                        }
+                    }
+                    handedness = try {
+                        measurementPreferencesRepository?.get()?.handedness ?: Handedness.RIGHT
+                    } catch (_: Exception) {
+                        Handedness.RIGHT
+                    }
+                }
+
                 _uiState.value = RangeSessionUiState(
                     rangeSession = session,
                     currentBlockIndex = landingBlock,
                     isLoading = false,
                     statusMessage = if (session == null) "Session not found." else null,
                     completedStepIndices = completedIndices,
+                    observationsByStep = observationsByStep,
+                    handedness = handedness,
+                    notification = if (observationLoadFailed) "Couldn't load observations." else null,
                 )
             } catch (exception: Exception) {
                 _uiState.value = RangeSessionUiState(
@@ -122,22 +173,215 @@ class RangeSessionViewModel(
         }
     }
 
-    /** One "+1" (or "Done") tap on the given block's counter. */
+    /**
+     * One "+1" (or "Done") tap on the given block's counter. v3 sessions route it
+     * through the observation-committing path (whatever is staged is written with
+     * the ball); v1/v2 keep the plain repository completion.
+     */
     fun incrementBlock(blockIndex: Int) {
         val state = _uiState.value
         val session = state.rangeSession ?: return
+        if (session.supportsDataCapture) {
+            commitBall(blockIndex)
+            return
+        }
         val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
         val targets = block.incrementTargets(session.snapshot.steps, state.completedStepIndices)
         setStepsCompletion(targets, completed = true)
     }
 
-    /** One "−1" tap: the exact inverse of the block's most recent counter tap. */
+    /**
+     * One "−1" tap: the exact inverse of the block's most recent counter tap. On v3
+     * it also voids the undone ball's observations (Stage 2 rule); v1/v2 keep the
+     * plain repository path.
+     */
     fun decrementBlock(blockIndex: Int) {
         val state = _uiState.value
         val session = state.rangeSession ?: return
         val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
         val targets = block.decrementTargets(session.snapshot.steps, state.completedStepIndices)
-        setStepsCompletion(targets, completed = false)
+        if (targets.isEmpty()) return
+
+        if (!session.supportsDataCapture) {
+            setStepsCompletion(targets, completed = false)
+            return
+        }
+        // Arm window locks −/+1/stage for the arming block.
+        if (state.armingBlockIndex != null) return
+        val recorder = rangeSessionRecorder ?: run {
+            // Misconfigured foundation: keep the counter working, no observation void.
+            setStepsCompletion(targets, completed = false)
+            return
+        }
+
+        val targetSet = targets.toSet()
+        val removedObservations = state.observationsByStep.filterKeys { it in targetSet }
+        _uiState.value = state.copy(
+            completedStepIndices = state.completedStepIndices - targetSet,
+            observationsByStep = state.observationsByStep - targetSet,
+        )
+        viewModelScope.launch {
+            val result = runRecording { recorder.uncompleteStepsVoidingObservations(rangeSessionId, targets) }
+            if (result is RecordingResult.Success) {
+                _uiState.value = _uiState.value.copy(rangeSession = result.value)
+            } else {
+                val current = _uiState.value
+                _uiState.value = current.copy(
+                    completedStepIndices = current.completedStepIndices + targetSet,
+                    observationsByStep = current.observationsByStep + removedObservations,
+                    notification = "Couldn't undo ball. Please try again.",
+                )
+            }
+        }
+    }
+
+    // ── Observation staging & commit (v3) ─────────────────────────────────────
+
+    /**
+     * Toggles a staged value for the pending ball on [blockIndex]: tap stages,
+     * re-tap the same value un-stages, tapping another value in the type moves the
+     * selection. When every enabled type is staged, arms the auto-commit. No-op
+     * while that block is arming (input locked) or on non-v3 sessions.
+     */
+    fun stageObservation(blockIndex: Int, typeId: String, value: String) {
+        val state = _uiState.value
+        val session = state.rangeSession ?: return
+        if (!session.supportsDataCapture) return
+        if (state.armingBlockIndex != null) return
+        val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
+        val enabled = block.unit.enabledObservationTypes
+        if (enabled.isEmpty()) return
+
+        val current = state.stagingByBlock[blockIndex].orEmpty()
+        val updatedForBlock = if (current[typeId] == value) current - typeId else current + (typeId to value)
+        val updatedStaging = if (updatedForBlock.isEmpty()) {
+            state.stagingByBlock - blockIndex
+        } else {
+            state.stagingByBlock + (blockIndex to updatedForBlock)
+        }
+        _uiState.value = state.copy(stagingByBlock = updatedStaging)
+
+        val enabledIds = enabled.map(ObservationType::id).toSet()
+        if (enabledIds.isNotEmpty() && updatedForBlock.keys.containsAll(enabledIds)) {
+            scheduleAutoCommit(blockIndex)
+        }
+    }
+
+    /** Sets the arm flash and schedules the (uncancellable) auto-commit. */
+    private fun scheduleAutoCommit(blockIndex: Int) {
+        armJob?.cancel()
+        _uiState.value = _uiState.value.copy(armingBlockIndex = blockIndex)
+        armJob = viewModelScope.launch {
+            delay(autoCommitDelayMillis)
+            doCommit(blockIndex)
+        }
+    }
+
+    /** The user +1 tap on a v3 block: ignored while arming, else commits now. */
+    fun commitBall(blockIndex: Int) {
+        if (_uiState.value.armingBlockIndex != null) return
+        doCommit(blockIndex)
+    }
+
+    /**
+     * The single commit path (both +1 and auto-commit). Optimistically completes
+     * the ball's steps, attaches the staged Observation, clears staging/arm, and
+     * pulses the counter; persists via [RangeSessionRecorder.completeStepsRecordingObservation].
+     * A failure reverts every optimistic piece (staging is *not* restored — the
+     * tap failed wholesale) and surfaces the snackbar.
+     */
+    private fun doCommit(blockIndex: Int) {
+        armJob?.cancel()
+        armJob = null
+        val state = _uiState.value
+        val session = state.rangeSession ?: return
+        val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
+        val targets = block.incrementTargets(session.snapshot.steps, state.completedStepIndices)
+        if (targets.isEmpty()) {
+            _uiState.value = state.copy(armingBlockIndex = null)
+            return
+        }
+        val recorder = rangeSessionRecorder ?: run {
+            // Misconfigured foundation: keep the counter working, drop observations.
+            _uiState.value = state.copy(armingBlockIndex = null)
+            setStepsCompletion(targets, completed = true)
+            return
+        }
+
+        val ballStep = targets.firstOrNull { session.snapshot.steps[it].isBallStep }
+        val staging = state.stagingByBlock[blockIndex].orEmpty()
+        val writesObservation = ballStep != null && staging.isNotEmpty()
+
+        val optimisticObservations = if (writesObservation) {
+            state.observationsByStep + (ballStep!! to Observation(ballStep, staging))
+        } else {
+            state.observationsByStep
+        }
+        _uiState.value = state.copy(
+            completedStepIndices = state.completedStepIndices + targets,
+            observationsByStep = optimisticObservations,
+            stagingByBlock = state.stagingByBlock - blockIndex,
+            armingBlockIndex = null,
+            commitSignal = state.commitSignal + 1,
+            committedBlockIndex = blockIndex,
+        )
+
+        viewModelScope.launch {
+            val result = runRecording {
+                recorder.completeStepsRecordingObservation(rangeSessionId, targets, staging)
+            }
+            if (result is RecordingResult.Success) {
+                _uiState.value = _uiState.value.copy(rangeSession = result.value)
+            } else {
+                val current = _uiState.value
+                _uiState.value = current.copy(
+                    completedStepIndices = current.completedStepIndices - targets.toSet(),
+                    observationsByStep = if (writesObservation) {
+                        current.observationsByStep - ballStep!!
+                    } else {
+                        current.observationsByStep
+                    },
+                    notification = "Couldn't record ball. Please try again.",
+                )
+            }
+        }
+    }
+
+    /**
+     * Edit-sheet write-through: toggles one type's value on an already-committed
+     * ball (re-selecting the same value, or a null [value], clears it), then upserts
+     * the ball's *full* value map. Optimistic; reverts that ball's record on failure.
+     */
+    fun updateBallObservation(stepIndex: Int, typeId: String, value: String?) {
+        val state = _uiState.value
+        val session = state.rangeSession ?: return
+        if (!session.supportsDataCapture) return
+        val recorder = rangeSessionRecorder ?: return
+
+        val previous = state.observationsByStep[stepIndex]
+        val currentValues = previous?.values.orEmpty()
+        val updatedValues = if (value == null || currentValues[typeId] == value) {
+            currentValues - typeId
+        } else {
+            currentValues + (typeId to value)
+        }
+        _uiState.value = state.copy(
+            observationsByStep = state.observationsByStep + (stepIndex to Observation(stepIndex, updatedValues)),
+        )
+        viewModelScope.launch {
+            val result = runRecording { recorder.recordObservation(rangeSessionId, stepIndex, updatedValues) }
+            if (result !is RecordingResult.Success) {
+                val current = _uiState.value
+                _uiState.value = current.copy(
+                    observationsByStep = if (previous != null) {
+                        current.observationsByStep + (stepIndex to previous)
+                    } else {
+                        current.observationsByStep - stepIndex
+                    },
+                    notification = "Couldn't update ball. Please try again.",
+                )
+            }
+        }
     }
 
     /**
@@ -573,6 +817,7 @@ class RangeSessionViewModel(
             rangeSessionId: String,
             rangeSessionRepository: RangeSessionRepository?,
             rangeSessionRecorder: RangeSessionRecorder? = null,
+            measurementPreferencesRepository: MeasurementPreferencesRepository? = null,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -583,6 +828,7 @@ class RangeSessionViewModel(
                     rangeSessionId = rangeSessionId,
                     rangeSessionRepository = rangeSessionRepository,
                     rangeSessionRecorder = rangeSessionRecorder,
+                    measurementPreferencesRepository = measurementPreferencesRepository,
                 ) as T
             }
         }
