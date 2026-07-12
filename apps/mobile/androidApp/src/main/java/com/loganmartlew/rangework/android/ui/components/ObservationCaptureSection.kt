@@ -302,7 +302,7 @@ internal fun GridValueGlyph(
 // ── Shared bits ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ObservationRowHeader(
+internal fun ObservationRowHeader(
     label: String,
     rubric: String?,
     denominatorText: String?,
@@ -356,7 +356,7 @@ private val CAPTURE_ORDER = listOf(
 internal fun orderedCaptureTypes(types: List<ObservationType>): List<ObservationType> =
     CAPTURE_ORDER.filter { it in types }
 
-private val ObservationType.isChipType: Boolean
+internal val ObservationType.isChipType: Boolean
     get() = this == ObservationType.SUCCESS ||
         this == ObservationType.CONTACT ||
         this == ObservationType.DISTANCE ||

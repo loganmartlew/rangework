@@ -389,6 +389,8 @@ fun RangeworkApp(
                                 rangeSessionId = rangeSessionId,
                                 rangeSessionRepository = rangeworkFoundation?.dataFoundation?.rangeSessionRepository,
                                 rangeSessionRecorder = rangeworkFoundation?.dataFoundation?.rangeSessionRecorder,
+                                measurementPreferencesRepository =
+                                    rangeworkFoundation?.dataFoundation?.measurementPreferencesRepository,
                             )
                         },
                     )
@@ -400,6 +402,7 @@ fun RangeworkApp(
                         onSaveBlockNote = completedViewModel::saveBlockNote,
                         onConsumeNotification = completedViewModel::consumeNotification,
                         onBack = { rootNavController.popBackStack() },
+                        enabledClubs = plannerUiState.clubCatalog.filter { it.code in plannerUiState.enabledClubCodes },
                     )
                 }
             }

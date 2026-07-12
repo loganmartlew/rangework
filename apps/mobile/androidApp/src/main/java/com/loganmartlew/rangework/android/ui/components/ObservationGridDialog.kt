@@ -58,9 +58,6 @@ internal fun ObservationGridDialog(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val spec = gridSpec(type, handedness, clubGlyphShape)
-    val maxCount = (tally.valueCounts.values.maxOrNull() ?: 0).coerceAtLeast(1)
-
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
@@ -90,47 +87,14 @@ internal fun ObservationGridDialog(
                     )
                 }
 
-                // Header row: empty corner + three column headers.
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Box(modifier = Modifier.width(28.dp))
-                    for (head in spec.columnHeaders) {
-                        Text(
-                            text = head,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-
-                for (r in 0..2) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = spec.rowHeaders[r],
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.width(28.dp),
-                        )
-                        for (c in 0..2) {
-                            val value = spec.valueAt(r, c)
-                            val count = tally.valueCounts[value] ?: 0
-                            GridCell(
-                                modifier = Modifier.weight(1f),
-                                count = count,
-                                alpha = if (count == 0) 0f else 0.12f + 0.45f * (count / maxCount.toFloat()),
-                                staged = currentValue == value,
-                                glyph = { spec.cellGlyph(this, r, c) },
-                                onClick = { onPick(value) },
-                            )
-                        }
-                    }
-                }
+                ObservationGridContent(
+                    type = type,
+                    handedness = handedness,
+                    tally = tally,
+                    currentValue = currentValue,
+                    clubGlyphShape = clubGlyphShape,
+                    onCell = onPick,
+                )
 
                 Text(
                     text = editingBallNumber?.let { "Editing Ball $it — tap to set, re-tap to clear" }
@@ -143,13 +107,79 @@ internal fun ObservationGridDialog(
     }
 }
 
+/**
+ * The grid body shared by the capture dialog and the read-only history summary
+ * (P2): axis headers, the 3×3 heatmap, corner counts, and body glyphs. [onCell]
+ * is passed only by the capture dialog — when null, cells render inert (no
+ * ripple, no staged border) for the history read-only render.
+ */
+@Composable
+internal fun ObservationGridContent(
+    type: ObservationType,
+    handedness: Handedness,
+    tally: TypeTally,
+    currentValue: String? = null,
+    clubGlyphShape: ClubGlyphShape = ClubGlyphShape.IRON,
+    onCell: ((String) -> Unit)? = null,
+) {
+    val spec = gridSpec(type, handedness, clubGlyphShape)
+    val maxCount = (tally.valueCounts.values.maxOrNull() ?: 0).coerceAtLeast(1)
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        // Header row: empty corner + three column headers.
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(modifier = Modifier.width(28.dp))
+            for (head in spec.columnHeaders) {
+                Text(
+                    text = head,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        for (r in 0..2) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = spec.rowHeaders[r],
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.width(28.dp),
+                )
+                for (c in 0..2) {
+                    val value = spec.valueAt(r, c)
+                    val count = tally.valueCounts[value] ?: 0
+                    GridCell(
+                        modifier = Modifier.weight(1f),
+                        count = count,
+                        alpha = if (count == 0) 0f else 0.12f + 0.45f * (count / maxCount.toFloat()),
+                        staged = currentValue == value,
+                        glyph = { spec.cellGlyph(this, r, c) },
+                        onClick = onCell?.let { { it(value) } },
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun GridCell(
     count: Int,
     alpha: Float,
     staged: Boolean,
     glyph: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -164,7 +194,7 @@ private fun GridCell(
                     Modifier.border(1.dp, colors.outlineVariant, RoundedCornerShape(10.dp))
                 },
             )
-            .clickable(onClick = onClick),
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         CompositionLocalProvider(

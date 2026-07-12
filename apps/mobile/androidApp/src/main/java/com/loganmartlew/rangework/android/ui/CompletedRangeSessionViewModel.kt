@@ -3,6 +3,8 @@ package com.loganmartlew.rangework.android.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.loganmartlew.rangework.shared.model.Handedness
+import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.RangeSession
 import com.loganmartlew.rangework.shared.model.completedBalls
 import com.loganmartlew.rangework.shared.model.completedStepCount
@@ -12,6 +14,7 @@ import com.loganmartlew.rangework.shared.model.totalBalls
 import com.loganmartlew.rangework.shared.model.totalStepCount
 import com.loganmartlew.rangework.shared.recording.RangeSessionRecorder
 import com.loganmartlew.rangework.shared.recording.RecordingResult
+import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +29,13 @@ data class CompletedRangeSessionUiState(
     val elapsedSeconds: Long = 0,
     val isSavingSessionNote: Boolean = false,
     val savingBlockNoteIndices: Set<Int> = emptySet(),
+    // ── Observation summaries (Stage 6) ───────────────────────────────────────
+    /** Committed observations keyed by global step index; v3 sessions only. */
+    val observationsByStep: Map<Int, Observation> = emptyMap(),
+    /** Orients the perspective-dependent summary surfaces; RIGHT until loaded. */
+    val handedness: Handedness = Handedness.RIGHT,
+    /** True when the observation load failed — summary cards are omitted, not shown empty. */
+    val observationsUnavailable: Boolean = false,
 )
 
 /**
@@ -42,6 +52,7 @@ class CompletedRangeSessionViewModel(
     private val rangeSessionId: String,
     private val rangeSessionRepository: RangeSessionRepository?,
     private val rangeSessionRecorder: RangeSessionRecorder?,
+    private val measurementPreferencesRepository: MeasurementPreferencesRepository? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CompletedRangeSessionUiState())
@@ -67,11 +78,40 @@ class CompletedRangeSessionViewModel(
                 } catch (_: Exception) {
                     0L
                 }
+
+                // v3 history: load committed observations (failure omits the
+                // summary cards rather than rendering them empty — see Stage 6
+                // plan's "load failure degrades" rule) and the handedness
+                // preference (any failure → RIGHT, the transform identity).
+                var observationsByStep: Map<Int, Observation> = emptyMap()
+                var observationsUnavailable = false
+                var handedness = Handedness.RIGHT
+                if (session?.supportsDataCapture == true) {
+                    val recorder = rangeSessionRecorder
+                    if (recorder != null) {
+                        try {
+                            observationsByStep = recorder.observations(rangeSessionId)
+                                .associateBy(Observation::stepIndex)
+                        } catch (_: Exception) {
+                            observationsUnavailable = true
+                        }
+                    }
+                    handedness = try {
+                        measurementPreferencesRepository?.get()?.handedness ?: Handedness.RIGHT
+                    } catch (_: Exception) {
+                        Handedness.RIGHT
+                    }
+                }
+
                 _uiState.value = CompletedRangeSessionUiState(
                     rangeSession = session,
                     isLoading = false,
                     statusMessage = if (session == null) "Session not found." else null,
                     elapsedSeconds = elapsed,
+                    observationsByStep = observationsByStep,
+                    handedness = handedness,
+                    observationsUnavailable = observationsUnavailable,
+                    notification = if (observationsUnavailable) "Couldn't load observations." else null,
                 )
             } catch (exception: Exception) {
                 _uiState.value = CompletedRangeSessionUiState(
@@ -156,6 +196,7 @@ class CompletedRangeSessionViewModel(
             rangeSessionId: String,
             rangeSessionRepository: RangeSessionRepository?,
             rangeSessionRecorder: RangeSessionRecorder?,
+            measurementPreferencesRepository: MeasurementPreferencesRepository? = null,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -166,6 +207,7 @@ class CompletedRangeSessionViewModel(
                     rangeSessionId = rangeSessionId,
                     rangeSessionRepository = rangeSessionRepository,
                     rangeSessionRecorder = rangeSessionRecorder,
+                    measurementPreferencesRepository = measurementPreferencesRepository,
                 ) as T
             }
         }

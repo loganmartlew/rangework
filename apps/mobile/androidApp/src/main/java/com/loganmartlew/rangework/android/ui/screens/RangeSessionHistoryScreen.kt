@@ -40,18 +40,29 @@ import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.CompletedRangeSessionStats
 import com.loganmartlew.rangework.android.ui.CompletedRangeSessionUiState
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
+import com.loganmartlew.rangework.android.ui.components.ObservationSummarySection
 import com.loganmartlew.rangework.android.ui.components.SessionNoteCard
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
+import com.loganmartlew.rangework.shared.model.BlockSuccessCount
+import com.loganmartlew.rangework.shared.model.Club
+import com.loganmartlew.rangework.shared.model.ClubGlyphShape
+import com.loganmartlew.rangework.shared.model.ExecutionBlock
+import com.loganmartlew.rangework.shared.model.SnapshotStep
+import com.loganmartlew.rangework.shared.model.enabledObservationTypes
 import com.loganmartlew.rangework.shared.model.executionBlocks
-import com.loganmartlew.rangework.shared.model.totalBalls
+import com.loganmartlew.rangework.shared.model.isBallStep
+import com.loganmartlew.rangework.shared.model.progress
+import com.loganmartlew.rangework.shared.model.successCount
+import com.loganmartlew.rangework.shared.model.toGlyphShape
+import com.loganmartlew.rangework.shared.model.typeTallies
 import kotlin.math.roundToInt
 
 /**
- * The completed-session detail screen (P1): the notes/results half of the Stage 6
- * history detail screen, built now as this stage's post-completion editing
- * surface. Session note and per-block notes stay editable (freeze matrix permits
- * prose after Completion); manual counts render frozen. No observation summaries
- * or provenance labels — that is Stage 6's remaining scope.
+ * The completed-session detail screen: the notes/results half shipped in Stage 4
+ * (session note and per-block notes stay editable — freeze matrix permits prose
+ * after Completion); Stage 6 adds the observation half — read-only per-block
+ * tallies/grids and the provenance-labeled success row, gated on
+ * `supportsDataCapture` (v3).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +73,7 @@ internal fun RangeSessionHistoryScreen(
     onSaveBlockNote: (blockIndex: Int, note: String?) -> Unit,
     onConsumeNotification: () -> Unit,
     onBack: () -> Unit,
+    enabledClubs: List<Club> = emptyList(),
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.notification) {
@@ -123,6 +135,10 @@ internal fun RangeSessionHistoryScreen(
             else -> {
                 val session = uiState.rangeSession
                 val blocks = remember(session.snapshot) { session.snapshot.executionBlocks() }
+                val completedStepIndices = remember(session.completedSteps) {
+                    session.completedSteps.map { it.stepIndex }.toSet()
+                }
+                val showSummaries = session.supportsDataCapture && !uiState.observationsUnavailable
 
                 Column(
                     modifier = Modifier
@@ -144,18 +160,35 @@ internal fun RangeSessionHistoryScreen(
 
                     blocks.forEach { block ->
                         val blockResult = session.blockResults[block.unitIndex.toString()]
+                        val steps = session.snapshot.steps
+                        val successCount = remember(block, completedStepIndices, uiState.observationsByStep, blockResult) {
+                            block.successCount(steps, completedStepIndices, uiState.observationsByStep, blockResult)
+                        }
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
                                 text = block.unit.unitTitle,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onBackground,
                             )
-                            // Frozen manual count — display only, when one was recorded.
-                            blockResult?.manualCount?.let { count ->
-                                FrozenCountRow(
-                                    count = count,
-                                    totalBalls = block.totalBalls(session.snapshot.steps),
-                                    criterion = block.unit.successCriterion,
+                            SuccessProvenanceRow(
+                                successCount = successCount,
+                                criterion = block.unit.successCriterion,
+                                observationsAvailable = showSummaries,
+                            )
+                            if (showSummaries && block.stepIndices.any { steps[it].isBallStep }) {
+                                val tallies = remember(block, completedStepIndices, uiState.observationsByStep) {
+                                    block.typeTallies(steps, completedStepIndices, uiState.observationsByStep)
+                                }
+                                val glyphShape = remember(block, session.clubOverrides, enabledClubs) {
+                                    resolveBlockGlyphShape(block, steps, session.clubOverrides, enabledClubs)
+                                }
+                                ObservationSummarySection(
+                                    enabledTypes = block.unit.enabledObservationTypes,
+                                    tallies = tallies,
+                                    completedBalls = block.progress(steps, completedStepIndices).completedBalls,
+                                    successCriterion = block.unit.successCriterion,
+                                    handedness = uiState.handedness,
+                                    clubGlyphShape = glyphShape,
                                 )
                             }
                             SessionNoteHistoryCard(
@@ -271,12 +304,38 @@ private fun StatRow(
     }
 }
 
+/**
+ * The block's headline success number, with its provenance made explicit
+ * (Stage 6, P4): "X of Y observed" when derived from an enabled Success type,
+ * "X of Y balls" when a manual count, absent otherwise. Never both — the two
+ * wordings *are* the provenance label, no separate suffix needed.
+ *
+ * When [observationsAvailable] is false (the observation load failed), the
+ * Derived line is suppressed rather than shown as "0 of 0 observed" — that
+ * would be a false statement, the same reason the summary cards are omitted on
+ * load failure. The Manual line is unaffected: it doesn't depend on observations.
+ */
 @Composable
-private fun FrozenCountRow(
-    count: Int,
-    totalBalls: Int,
+private fun SuccessProvenanceRow(
+    successCount: BlockSuccessCount,
     criterion: String?,
+    observationsAvailable: Boolean,
 ) {
+    val labels = when (successCount) {
+        is BlockSuccessCount.Derived ->
+            if (!observationsAvailable) {
+                null
+            } else {
+                "${successCount.hits} of ${successCount.observed} observed" to
+                    "${successCount.hits} of ${successCount.observed} successful, of observed balls"
+            }
+        is BlockSuccessCount.Manual ->
+            "${successCount.count} of ${successCount.totalBalls} balls" to
+                "${successCount.count} of ${successCount.totalBalls} successful, of all balls"
+        BlockSuccessCount.None -> null
+    } ?: return
+    val (valueText, accessible) = labels
+
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         criterion?.let {
             Text(
@@ -286,12 +345,28 @@ private fun FrozenCountRow(
             )
         }
         Text(
-            text = "$count of $totalBalls balls",
+            text = valueText,
             style = RangeworkMono.small,
             color = MaterialTheme.colorScheme.secondary,
-            modifier = Modifier.semantics {
-                contentDescription = "$count of $totalBalls balls successful"
-            },
+            modifier = Modifier.semantics { contentDescription = accessible },
         )
     }
+}
+
+/**
+ * The club glyph shape for a block's observation summary: unlike the live
+ * block screen's "current ball" (there is none — every ball here is frozen),
+ * this resolves from the block's *first* Ball Step, respecting club overrides,
+ * falling back to [ClubGlyphShape.IRON] when the block has none or the club
+ * isn't in the enabled catalog.
+ */
+private fun resolveBlockGlyphShape(
+    block: ExecutionBlock,
+    steps: List<SnapshotStep>,
+    clubOverrides: Map<String, String>,
+    enabledClubs: List<Club>,
+): ClubGlyphShape {
+    val firstBallStep = block.stepIndices.firstOrNull { steps[it].isBallStep } ?: return ClubGlyphShape.IRON
+    val clubCode = clubOverrides[firstBallStep.toString()] ?: steps[firstBallStep].club
+    return enabledClubs.firstOrNull { it.code == clubCode }?.category.toGlyphShape()
 }

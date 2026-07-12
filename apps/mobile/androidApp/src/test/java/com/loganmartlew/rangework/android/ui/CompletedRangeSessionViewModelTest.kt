@@ -3,6 +3,8 @@ package com.loganmartlew.rangework.android.ui
 import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.CompletedRangeSessionSummary
+import com.loganmartlew.rangework.shared.model.Handedness
+import com.loganmartlew.rangework.shared.model.MeasurementPreferences
 import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.RangeSession
 import com.loganmartlew.rangework.shared.model.RangeSessionSnapshot
@@ -10,6 +12,7 @@ import com.loganmartlew.rangework.shared.model.SnapshotInstruction
 import com.loganmartlew.rangework.shared.model.SnapshotStep
 import com.loganmartlew.rangework.shared.model.SnapshotUnit
 import com.loganmartlew.rangework.shared.recording.DefaultRangeSessionRecorder
+import com.loganmartlew.rangework.shared.repository.MeasurementPreferencesRepository
 import com.loganmartlew.rangework.shared.repository.RangeSessionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -111,23 +114,116 @@ class CompletedRangeSessionViewModelTest {
 
         assertEquals(4, viewModel.uiState.value.rangeSession?.blockResults?.get("0")?.manualCount)
     }
+
+    // ── data capture: observation summaries (Stage 6) ────────────────────────
+
+    @Test
+    fun v3SessionLoadsObservationsAndHandedness() = runTest {
+        val session = completedV3Session()
+        val repo = FakeRepo(mutableListOf(session))
+        repo.observations[0] = Observation(0, mapOf("direction" to "left"))
+        val viewModel = makeVm(
+            repo,
+            session.id,
+            DefaultRangeSessionRecorder(repo),
+            measurementPreferencesRepository = FakeHandednessRepo(Handedness.LEFT),
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(mapOf("direction" to "left"), state.observationsByStep[0]?.values)
+        assertEquals(Handedness.LEFT, state.handedness)
+        assertFalse(state.observationsUnavailable)
+    }
+
+    @Test
+    fun v3ObservationLoadFailureOmitsSummariesButSessionStillRenders() = runTest {
+        val session = completedV3Session()
+        val repo = FakeRepo(mutableListOf(session), shouldFailOnObservations = true)
+        val viewModel = makeVm(repo, session.id, DefaultRangeSessionRecorder(repo))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.observationsUnavailable)
+        assertEquals("Couldn't load observations.", state.notification)
+        assertEquals(session.id, state.rangeSession?.id)
+
+        // Notes still function despite the observation load failure.
+        viewModel.saveBlockNote(blockIndex = 0, note = "still works")
+        advanceUntilIdle()
+        assertEquals("still works", viewModel.uiState.value.rangeSession?.blockResults?.get("0")?.note)
+    }
+
+    @Test
+    fun v3HandednessFallsBackToRightWithoutPreferencesRepo() = runTest {
+        val session = completedV3Session()
+        val repo = FakeRepo(mutableListOf(session))
+        val viewModel = makeVm(repo, session.id, DefaultRangeSessionRecorder(repo))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(Handedness.RIGHT, state.handedness)
+        assertNull("No notification for a missing preferences repo", state.notification)
+    }
+
+    @Test
+    fun v2SessionSkipsObservationAndHandednessLoad() = runTest {
+        val session = completedV2Session()
+        val repo = FakeRepo(mutableListOf(session))
+        repo.observations[0] = Observation(0, mapOf("direction" to "left")) // present but must not be read
+        val viewModel = makeVm(
+            repo,
+            session.id,
+            DefaultRangeSessionRecorder(repo),
+            measurementPreferencesRepository = FakeHandednessRepo(Handedness.LEFT),
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.observationsByStep.isEmpty())
+        assertEquals(Handedness.RIGHT, state.handedness)
+        assertFalse(state.observationsUnavailable)
+    }
+
+    @Test
+    fun nullRecorderSkipsObservationLoadWithoutCrash() = runTest {
+        val session = completedV3Session()
+        val repo = FakeRepo(mutableListOf(session))
+        val viewModel = makeVm(repo, session.id, recorder = null)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.observationsByStep.isEmpty())
+        assertFalse(state.observationsUnavailable)
+        assertNull(state.notification)
+    }
 }
 
 private fun makeVm(
     repo: FakeRepo,
     rangeSessionId: String,
     recorder: DefaultRangeSessionRecorder? = null,
+    measurementPreferencesRepository: MeasurementPreferencesRepository? = null,
 ): CompletedRangeSessionViewModel = CompletedRangeSessionViewModel(
     rangeSessionId = rangeSessionId,
     rangeSessionRepository = repo,
     rangeSessionRecorder = recorder,
+    measurementPreferencesRepository = measurementPreferencesRepository,
 )
+
+/** Fixed-handedness preferences fake — precedent: `RangeSessionViewModelTest`. */
+private class FakeHandednessRepo(private val handedness: Handedness) : MeasurementPreferencesRepository() {
+    override suspend fun persist(validated: MeasurementPreferences): MeasurementPreferences = validated
+    override suspend fun get(): MeasurementPreferences = MeasurementPreferences(handedness = handedness)
+}
 
 private class FakeRepo(
     val sessions: MutableList<RangeSession>,
     var elapsed: Long = 0L,
     var failOnBlockResult: Boolean = false,
+    var shouldFailOnObservations: Boolean = false,
 ) : RangeSessionRepository {
+    val observations = mutableMapOf<Int, Observation>()
     override suspend fun start(sessionId: String): RangeSession = error("unused")
     override suspend fun getSession(rangeSessionId: String): RangeSession? =
         sessions.firstOrNull { it.id == rangeSessionId }
@@ -166,7 +262,10 @@ private class FakeRepo(
         sessions.add(updated)
         return updated
     }
-    override suspend fun listObservations(rangeSessionId: String): List<Observation> = emptyList()
+    override suspend fun listObservations(rangeSessionId: String): List<Observation> {
+        if (shouldFailOnObservations) throw RuntimeException("Simulated network error")
+        return observations.values.sortedBy(Observation::stepIndex)
+    }
     override suspend fun upsertObservation(
         rangeSessionId: String,
         stepIndex: Int,
@@ -220,6 +319,49 @@ private fun completedV3Session(
     completedSteps = emptyList(),
     clubOverrides = emptyMap(),
     blockResults = blockResults,
+    startedAt = Instant.parse("2026-06-18T08:00:00Z"),
+    completedAt = Instant.parse("2026-06-18T09:00:00Z"),
+)
+
+/** Same shape as [completedV3Session] but pre-dates data capture (v2): no observation load. */
+private fun completedV2Session(
+    id: String = "completed-v2",
+): RangeSession = RangeSession(
+    id = id,
+    sourceSessionId = "session-1",
+    sessionName = "Finished block",
+    snapshot = RangeSessionSnapshot(
+        units = listOf(
+            SnapshotUnit(
+                unitTitle = "Wedge work",
+                repeatCount = 1,
+                instructions = listOf(SnapshotInstruction(text = "Hit", ballCount = 2)),
+            ),
+        ),
+        steps = listOf(
+            SnapshotStep(
+                unitIndex = 0,
+                instructionIndex = 0,
+                repNumber = 1,
+                totalReps = 1,
+                instructionText = "Hit",
+                ballCount = 1,
+                unitTitle = "Wedge work",
+            ),
+            SnapshotStep(
+                unitIndex = 0,
+                instructionIndex = 0,
+                repNumber = 1,
+                totalReps = 1,
+                instructionText = "Hit",
+                ballCount = 1,
+                unitTitle = "Wedge work",
+            ),
+        ),
+    ),
+    snapshotVersion = 2,
+    completedSteps = emptyList(),
+    clubOverrides = emptyMap(),
     startedAt = Instant.parse("2026-06-18T08:00:00Z"),
     completedAt = Instant.parse("2026-06-18T09:00:00Z"),
 )
