@@ -1,0 +1,1076 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stage 5 — Observation capture prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ---------- Design tokens (packages/design/tokens/color.tokens.json, dark scheme) ---------- */
+  :root {
+    --bg: #161412;            /* background = neutral.90 */
+    --surface: #1C1A18;       /* surface = neutral.88 */
+    --card: #222020;          /* surface.dark.default */
+    --card-high: #282624;     /* surface.dark.high */
+    --card-highest: #2E2C2A;
+    --on-bg: #EAE8E4;         /* onBackground = neutral.20 */
+    --on-surface: #D5D3CF;    /* onSurface = neutral.30 */
+    --on-surface-var: #C4C2BB;/* onSurfaceVariant = neutralVariant.30 */
+    --muted: #8E8C88;         /* outline = neutral.50 */
+    --outline-var: #3C3A37;   /* outlineVariant = neutralVariant.70 */
+    --primary: #8FC8A8;       /* primary.30 */
+    --on-primary: #09160D;
+    --primary-dim: #1A3D28;   /* primaryContainer = primary.70 */
+    --secondary: #8ABFB6;     /* secondary.30 */
+    --sec-container: #2E4740; /* secondaryContainer = secondary.70 */
+    --on-sec-container: #B0D4CC;
+    --sans: "DM Sans", system-ui, sans-serif;
+    --mono: "DM Mono", ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: var(--sans);
+    background: #F5F3EF;
+    color: #282624;
+    min-height: 100vh;
+  }
+
+  /* ---------- Page chrome (outside the phone) ---------- */
+  .page-header { padding: 20px 28px 4px; }
+  .page-header h1 { font-size: 18px; font-weight: 500; }
+  .page-header p { font-size: 13px; color: #605E5A; margin-top: 2px; max-width: 720px; }
+
+  .layout {
+    display: flex; gap: 28px; padding: 20px 28px 48px;
+    align-items: flex-start; flex-wrap: wrap;
+  }
+
+  /* ---------- Controls rail ---------- */
+  .controls {
+    width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px;
+    position: sticky; top: 20px;
+  }
+  .ctl-group {
+    background: #FFFFFF; border: 1px solid #D5D3CF; border-radius: 12px; padding: 14px 16px;
+  }
+  .ctl-group h2 {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #8E8C88; margin-bottom: 10px;
+  }
+  .scenario-btn {
+    display: block; width: 100%; text-align: left; margin-bottom: 6px;
+    background: #F5F3EF; border: 1px solid #D5D3CF; border-radius: 8px;
+    padding: 8px 10px; font-family: var(--sans); font-size: 13px; cursor: pointer;
+  }
+  .scenario-btn:hover { border-color: #2D6A4F; }
+  .scenario-btn.active { background: #DDEEE6; border-color: #2D6A4F; }
+  .scenario-btn .tag { font-weight: 500; color: #2D6A4F; margin-right: 6px; }
+  .scenario-btn .sub { display: block; font-size: 11px; color: #8E8C88; margin-top: 1px; }
+  .ctl-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; padding: 4px 0; }
+  .ctl-row label { cursor: pointer; }
+  .ctl-row input[type="checkbox"] { accent-color: #2D6A4F; cursor: pointer; }
+  .ctl-row input[type="text"], .ctl-row input[type="number"] {
+    font-family: var(--sans); font-size: 13px; border: 1px solid #D5D3CF; border-radius: 6px;
+    padding: 4px 8px; width: 170px;
+  }
+  .ctl-row input[type="number"] { width: 64px; }
+  .seg-toggle { display: flex; border: 1px solid #D5D3CF; border-radius: 8px; overflow: hidden; }
+  .seg-toggle button {
+    font-family: var(--sans); font-size: 13px; padding: 6px 14px; border: none;
+    background: #FFF; cursor: pointer;
+  }
+  .seg-toggle button.active { background: #2D6A4F; color: #FFF; }
+  .ctl-note { font-size: 11px; color: #8E8C88; margin-top: 8px; line-height: 1.5; }
+  .reset-btn {
+    width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #D5D3CF; background: #FFF;
+    font-family: var(--sans); font-size: 13px; cursor: pointer;
+  }
+  .reset-btn:hover { border-color: #BA1A1A; color: #BA1A1A; }
+
+  /* ---------- Phone frame ---------- */
+  .phone {
+    width: 412px; flex-shrink: 0;
+    background: #0A0908; border-radius: 34px; padding: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+  }
+  .screen {
+    position: relative;
+    background: var(--bg); color: var(--on-bg);
+    border-radius: 24px; height: 860px; overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: var(--outline-var) transparent;
+  }
+  .screen-inner { padding: 18px 16px 28px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* ---------- Block header ---------- */
+  .pass-line { font-family: var(--mono); font-size: 12px; color: var(--on-surface-var); }
+  .unit-title { font-size: 23px; font-weight: 400; line-height: 1.25; color: var(--on-bg); }
+
+  /* ---------- Cards ---------- */
+  .card { background: var(--card); border-radius: 12px; }
+  .focus-card { background: var(--sec-container); color: var(--on-sec-container); padding: 18px 20px; border-radius: 12px; }
+  .focus-label { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; }
+  .focus-cue { font-size: 22px; margin-top: 8px; line-height: 1.3; }
+
+  /* ---------- Counter card (merged capture) ---------- */
+  .counter-card { padding: 18px 16px; display: flex; flex-direction: column; gap: 14px; }
+  .readout { display: flex; align-items: baseline; justify-content: center; gap: 6px; }
+  .readout .count { font-family: var(--mono); font-size: 40px; font-weight: 500; color: var(--secondary); }
+  .readout .unit { font-size: 14px; color: var(--on-surface-var); }
+  .readout .count.bump { animation: bump 0.35s ease; }
+  @keyframes bump { 0% {transform: scale(1);} 35% {transform: scale(1.14);} 100% {transform: scale(1);} }
+
+  .capture { display: flex; flex-direction: column; gap: 12px; }
+  .capture.readonly { opacity: 0.5; pointer-events: none; }
+
+  .obs-row { display: flex; flex-direction: column; gap: 5px; }
+  .obs-header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .obs-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--on-surface-var); min-width: 0;
+  }
+  .obs-label .rubric { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--muted); }
+  .obs-denom { font-family: var(--mono); font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+  .chip-row {
+    display: flex; width: 100%;
+    border: 1px solid var(--outline-var); border-radius: 12px; overflow: hidden;
+  }
+  .chip {
+    flex: 1 1 0; min-width: 0; padding: 8px 2px 7px; text-align: center; cursor: pointer;
+    border: none; background: transparent; color: var(--on-surface);
+    font-family: var(--sans); display: flex; flex-direction: column; gap: 2px; align-items: center;
+    transition: background 0.12s;
+  }
+  .chip + .chip { border-left: 1px solid var(--outline-var); }
+  .chip .v { font-size: 12px; white-space: nowrap; }
+  .chip .n { font-family: var(--mono); font-size: 13px; color: var(--muted); min-height: 16px; }
+  .chip .ico { line-height: 0; }
+  .chip .ico svg { color: var(--muted); }
+  .chip.staged .ico svg { color: var(--on-sec-container); }
+  .chip.arm .ico svg { color: var(--on-primary); }
+  .chip:active { background: var(--card-highest); }
+  .chip.staged { background: var(--sec-container); }
+  .chip.staged .v { color: var(--on-sec-container); font-weight: 500; }
+  .chip.staged .n { color: var(--on-sec-container); }
+  .chip.arm { background: var(--primary); }
+  .chip.arm .v, .chip.arm .n { color: var(--on-primary); }
+
+  .launcher {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    border: 1px solid var(--outline-var); border-radius: 12px; padding: 9px 12px;
+    background: transparent; cursor: pointer; font-family: var(--sans); color: var(--on-surface);
+    text-align: left; transition: background 0.12s;
+  }
+  .launcher:active { background: var(--card-highest); }
+  .launcher.staged { background: var(--sec-container); border-color: var(--sec-container); }
+  .launcher.staged .staged-val { color: var(--on-sec-container); font-weight: 500; }
+  .launcher.arm { background: var(--primary); border-color: var(--primary); }
+  .launcher.arm .staged-val { color: var(--on-primary); }
+  .launcher .glyph { line-height: 0; flex-shrink: 0; }
+  .launcher .glyph svg { color: var(--muted); }
+  .launcher.staged .glyph svg { color: var(--on-sec-container); }
+  .launcher.arm .glyph svg { color: var(--on-primary); }
+  .mini-grid {
+    display: grid; grid-template-columns: repeat(3, 5px); grid-template-rows: repeat(3, 5px);
+    gap: 2px; flex-shrink: 0;
+  }
+  .mini-grid span { background: var(--muted); border-radius: 1px; opacity: 0.7; }
+  .staged-val { font-size: 13px; color: var(--muted); flex: 1; }
+  .launcher .chev { color: var(--muted); font-size: 14px; }
+
+  .btn-row { display: flex; align-items: center; gap: 14px; }
+  .minus-btn {
+    width: 52px; height: 52px; flex-shrink: 0; border-radius: 50%;
+    border: 1px solid var(--muted); background: transparent; color: var(--on-surface);
+    font-size: 24px; line-height: 1; cursor: pointer;
+  }
+  .minus-btn:disabled { opacity: 0.35; cursor: default; }
+  .minus-btn:not(:disabled):active { background: var(--card-highest); }
+  .plus-btn {
+    flex: 1; height: 60px; border-radius: 30px; border: none;
+    background: var(--primary); color: var(--on-primary);
+    font-family: var(--sans); font-size: 22px; font-weight: 500; cursor: pointer;
+  }
+  .plus-btn:active { filter: brightness(1.08); }
+  .block-complete {
+    flex: 1; height: 60px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    color: var(--primary); font-size: 16px; font-weight: 500;
+  }
+
+  /* ---------- Finish button ---------- */
+  .finish-btn {
+    width: 100%; height: 44px; border-radius: 22px; border: none;
+    background: var(--primary); color: var(--on-primary);
+    font-family: var(--sans); font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+
+  /* ---------- Instruction list ---------- */
+  .instr-row {
+    display: flex; align-items: center; gap: 12px; padding: 13px 16px; cursor: default;
+  }
+  .instr-row.tappable { cursor: pointer; }
+  .instr-row.tappable:active { background: var(--card-highest); }
+  .instr-row + .instr-row { border-top: 1px solid var(--outline-var); }
+  .instr-tally { font-family: var(--mono); font-size: 13px; color: var(--secondary); flex-shrink: 0; }
+  .instr-tally.done { color: var(--primary); }
+  .instr-check { color: var(--muted); flex-shrink: 0; font-size: 15px; width: 18px; text-align: center; }
+  .instr-check.done { color: var(--primary); }
+  .instr-text { flex: 1; font-size: 15px; color: var(--on-bg); }
+  .instr-club { font-size: 13px; color: var(--primary); flex-shrink: 0; }
+  .instr-chev { color: var(--muted); flex-shrink: 0; }
+
+  /* ---------- Collapsed cards (Notes / Block result) ---------- */
+  .collapse-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 13px 16px; cursor: pointer;
+  }
+  .collapse-header .t { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: var(--on-surface-var); }
+  .collapse-header .chev { color: var(--on-surface-var); }
+  .collapse-body { padding: 0 16px 16px; font-size: 14px; color: var(--on-surface-var); display: flex; flex-direction: column; gap: 12px; }
+  .note-stub {
+    width: 100%; min-height: 64px; background: transparent; border: 1px solid var(--outline-var);
+    border-radius: 8px; color: var(--on-surface); font-family: var(--sans); font-size: 14px; padding: 10px; resize: vertical;
+  }
+  .manual-count { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .manual-count .stepper { display: flex; align-items: center; gap: 8px; }
+  .manual-count button {
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--muted);
+    background: transparent; color: var(--on-surface); font-size: 16px; cursor: pointer;
+  }
+  .manual-count .mc-val { font-family: var(--mono); font-size: 16px; min-width: 22px; text-align: center; }
+
+  /* ---------- Grid dialog ---------- */
+  .scrim {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.55); z-index: 10;
+    display: flex; align-items: center; justify-content: center; border-radius: 24px;
+  }
+  .dialog {
+    background: var(--card-high); border-radius: 20px; padding: 20px; width: 330px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .dialog-header { display: flex; justify-content: space-between; align-items: baseline; }
+  .dialog-title { font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--on-surface-var); }
+  .grid-wrap { display: grid; grid-template-columns: 52px repeat(3, 1fr); gap: 6px; }
+  .grid-corner { }
+  .grid-col-h, .grid-row-h {
+    font-size: 11px; color: var(--muted); display: flex; align-items: center; justify-content: center;
+    text-align: center;
+  }
+  .grid-row-h { justify-content: flex-end; padding-right: 8px; }
+  .grid-cell {
+    aspect-ratio: 1.1; border: 1px solid var(--outline-var); border-radius: 10px;
+    background: transparent; cursor: pointer; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 16px; color: var(--on-surface);
+  }
+  .grid-cell svg { max-width: 82%; max-height: 84%; color: var(--on-surface-var); pointer-events: none; }
+  .grid-cell.staged { border: 2px solid var(--primary); }
+  .grid-cell.staged svg { color: var(--primary); }
+  .grid-cell:active { background: var(--card-highest); }
+  .cell-n {
+    position: absolute; top: 3px; right: 6px;
+    font-family: var(--mono); font-size: 11px; color: var(--on-surface);
+  }
+  .dialog-hint { font-size: 11px; color: var(--muted); text-align: center; }
+
+  /* ---------- Edit sheet ---------- */
+  .sheet-scrim {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.45); z-index: 9;
+    display: flex; align-items: flex-end; border-radius: 24px;
+  }
+  .sheet {
+    background: var(--card-high); border-radius: 24px 24px 24px 24px; width: 100%;
+    max-height: 78%; overflow-y: auto; padding: 8px 16px 20px;
+    scrollbar-width: thin; scrollbar-color: var(--outline-var) transparent;
+  }
+  .sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--muted); margin: 6px auto 12px; }
+  .sheet-title { font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--on-surface-var); margin-bottom: 4px; }
+  .sheet-sub { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .ball-row {
+    display: flex; align-items: center; gap: 10px; padding: 12px 4px; cursor: pointer;
+    border-top: 1px solid var(--outline-var);
+  }
+  .ball-row:first-of-type { border-top: none; }
+  .ball-num { font-family: var(--mono); font-size: 13px; color: var(--secondary); flex-shrink: 0; width: 58px; }
+  .ball-summary { flex: 1; font-size: 13px; color: var(--on-surface); line-height: 1.45; }
+  .ball-summary .missing { color: var(--muted); }
+  .ball-summary .none { color: var(--muted); font-style: italic; }
+  .ball-chev { color: var(--muted); }
+  .ball-editor { padding: 4px 0 14px; display: flex; flex-direction: column; gap: 12px; border-top: 1px dashed var(--outline-var); }
+  .ball-editor .obs-label { font-size: 10px; }
+  .ball-editor .chip { padding: 7px 2px 6px; }
+  .ball-editor .chip .n { display: none; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 800px) {
+    .layout { flex-direction: column; align-items: center; }
+    .controls { position: static; width: 412px; max-width: 100%; }
+    .phone { max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Stage 5 — per-ball observation capture · interactive prototype</h1>
+  <p>The capture surface lives inside the counter card (§0 merged-card call). Tap chips/grids to stage
+     values for the pending ball — when every enabled type has a value the ball auto-commits. +1 always
+     commits, with whatever is staged. − voids the last ball's observations. Tap the ball instruction
+     row to open the per-ball edit sheet.</p>
+</div>
+
+<div class="layout">
+  <aside class="controls">
+    <div class="ctl-group">
+      <h2>Scenarios (§5 drawn states)</h2>
+      <div id="scenario-btns"></div>
+    </div>
+    <div class="ctl-group">
+      <h2>Configuration</h2>
+      <div id="type-checks"></div>
+      <div class="ctl-row"><label for="cfg-criterion">Criterion</label></div>
+      <div class="ctl-row"><input type="text" id="cfg-criterion" placeholder="(none — Success hidden)" style="width:100%"></div>
+      <div class="ctl-row">
+        <label for="cfg-balls">Total balls</label>
+        <input type="number" id="cfg-balls" min="1" max="99">
+      </div>
+      <div class="ctl-row">
+        <label>Handedness</label>
+        <div class="seg-toggle">
+          <button id="hand-right" onclick="setHandedness('right')">RH</button>
+          <button id="hand-left" onclick="setHandedness('left')">LH</button>
+        </div>
+      </div>
+      <p class="ctl-note">Success requires a criterion (shipped rule: SUCCESS without criterion is
+      filtered out). Handedness flips the strike grid columns; the shape grid keeps golfer labels in
+      place; Direction never flips (D4 physical frame).</p>
+    </div>
+    <div class="ctl-group">
+      <button class="reset-btn" onclick="resetBalls()">Reset balls (empty block)</button>
+      <p class="ctl-note">Deferred-scope tripwire honoured: no charts, no judgement colours (grid fill
+      scales with count only), no progress-toward-target framing.</p>
+    </div>
+  </aside>
+
+  <div class="phone"><div class="screen" id="screen"></div></div>
+</div>
+
+<script>
+/* ================= Vocabulary (mirrors shared/model/ObservationCatalog.kt) ================= */
+
+const CHIP_TYPES = {
+  success:   { label: 'Success',   values: ['hit', 'miss'],
+               labels: { hit: 'Hit', miss: 'Miss' } },
+  contact:   { label: 'Contact',   values: ['very_fat', 'fat', 'flush', 'thin', 'very_thin'],
+               labels: { very_fat: 'V. Fat', fat: 'Fat', flush: 'Flush', thin: 'Thin', very_thin: 'V. Thin' } },
+  distance:  { label: 'Distance',  values: ['way_short', 'short', 'on', 'long', 'way_long'],
+               labels: { way_short: 'W. Short', short: 'Short', on: 'On', long: 'Long', way_long: 'W. Long' } },
+  direction: { label: 'Direction', values: ['way_left', 'left', 'on', 'right', 'way_right'],
+               labels: { way_left: 'W. Left', left: 'Left', on: 'On', right: 'Right', way_right: 'W. Right' } },
+};
+const GRID_TYPES = {
+  strike: { label: 'Strike location' },
+  shape:  { label: 'Shape' },
+};
+const TYPE_ORDER = ['success', 'contact', 'distance', 'direction', 'strike', 'shape'];
+const TYPE_NAMES = { success:'Success', contact:'Contact', distance:'Distance', direction:'Direction', strike:'Strike location', shape:'Shape' };
+
+const STRIKE_ROWS = ['high', 'middle', 'low'];
+const STRIKE_ROW_LABELS = { high: 'High', middle: 'Middle', low: 'Low' };
+const STRIKE_COL_LABELS = { heel: 'Heel', center: 'Center', toe: 'Toe' };
+// ObservationRendering.kt: strike display columns mirror for LEFT; rows never flip.
+function strikeDisplayCols(handed) { return handed === 'right' ? ['heel','center','toe'] : ['toe','center','heel']; }
+
+// Shape: screen grid always shows rows Pull/Straight/Push × cols Draw/Straight/Fade (golfer terms);
+// the physical start/curve value under each screen position depends on handedness, so a lefty's
+// dialog LOOKS identical to a righty's.
+const SHAPE_ROW_LABELS = ['Pull', 'Straight', 'Push'];
+const SHAPE_COL_LABELS = ['Draw', 'Straight', 'Fade'];
+function shapePhysical(handed, idx /* 0..2 screen position */) {
+  return handed === 'right' ? ['left','straight','right'][idx] : ['right','straight','left'][idx];
+}
+function shapeScreenIndex(handed, physical) {
+  return (handed === 'right' ? ['left','straight','right'] : ['right','straight','left']).indexOf(physical);
+}
+
+function startLabel(physical, handed) {
+  if (physical === 'straight') return 'Straight';
+  const pull = handed === 'right' ? 'left' : 'right';
+  return physical === pull ? 'Pull' : 'Push';
+}
+function curveLabel(physical, handed) {
+  if (physical === 'straight') return 'Straight';
+  const draw = handed === 'right' ? 'left' : 'right';
+  return physical === draw ? 'Draw' : 'Fade';
+}
+function shapeGolferLabel(value, handed) {
+  const [start, curve] = value.split('_');
+  const s = startLabel(start, handed), c = curveLabel(curve, handed);
+  if (s === 'Straight' && c === 'Straight') return 'Straight';
+  if (c === 'Straight') return s;           // e.g. Pull (no curve)
+  if (s === 'Straight') return c;           // e.g. Draw (starts on line)
+  return s + ' ' + c;                       // e.g. Pull Draw
+}
+function strikeLabel(value) {
+  const [row, col] = value.split('_');
+  return STRIKE_COL_LABELS[col] + ' · ' + STRIKE_ROW_LABELS[row];
+}
+function valueLabel(type, value, handed) {
+  if (type === 'strike') return strikeLabel(value);
+  if (type === 'shape') return shapeGolferLabel(value, handed);
+  return CHIP_TYPES[type].labels[value];
+}
+
+/* ================= SVG value glyphs ================= */
+
+function svgWrap(inner, vb, w, h) {
+  return `<svg viewBox="${vb}" width="${w}" height="${h}" aria-hidden="true">${inner}</svg>`;
+}
+
+/* Chip glyphs — abstract, monochrome (currentColor), judgement-free. */
+function chipIcon(type, value) {
+  if (type === 'direction') {
+    // Ball's start line, top-down: physical of the target line — never flips (D4).
+    const ends = { way_left: [3.5, 6.5], left: [8.5, 3.5], on: [14, 2.5], right: [19.5, 3.5], way_right: [24.5, 6.5] };
+    const [x, y] = ends[value];
+    return svgWrap(
+      `<line x1="14" y1="15.5" x2="${x}" y2="${y}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+       <circle cx="${x}" cy="${y}" r="2.1" fill="currentColor"/>`,
+      '0 0 28 18', 26, 17);
+  }
+  if (type === 'distance') {
+    // Landing spot (dot) vs the target line (dashed).
+    const ys = { way_short: 15.5, short: 12.5, on: 9, long: 5.5, way_long: 2.5 };
+    return svgWrap(
+      `<line x1="6" y1="9" x2="22" y2="9" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2.5 2.5" opacity="0.55"/>
+       <circle cx="14" cy="${ys[value]}" r="2.4" fill="currentColor"/>`,
+      '0 0 28 18', 26, 17);
+  }
+  if (type === 'contact') {
+    // Side view: ground line + ball; the dot is where the club met turf/ball.
+    const marks = { very_fat: [6, 14.6], fat: [10.5, 13.6], flush: [15, 12.4], thin: [18, 9.6], very_thin: [16.8, 6.9] };
+    const [x, y] = marks[value];
+    return svgWrap(
+      `<line x1="2" y1="13" x2="26" y2="13" stroke="currentColor" stroke-width="1.2" opacity="0.45"/>
+       <circle cx="15" cy="9.8" r="3" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.7"/>
+       <circle cx="${x}" cy="${y}" r="1.9" fill="currentColor"/>`,
+      '0 0 28 18', 26, 17);
+  }
+  return '';
+}
+
+/* Shape: top-down ball flight. Drawn from the PHYSICAL start/curve, so a lefty's
+   pull-draw visibly flies right — labels stay put, curves mirror with reality. */
+function flightSvg(startPhys, curvePhys, w, h) {
+  const s = { left: -1, straight: 0, right: 1 }[startPhys];
+  const c = { left: -1, straight: 0, right: 1 }[curvePhys];
+  const x3 = 20 + s * 9 + c * 9;
+  const d = `M20,43 C${20 + s * 6},31 ${20 + s * 9 + c * 2.5},17 ${x3},6`;
+  return svgWrap(
+    `<line x1="20" y1="43" x2="20" y2="6" stroke="currentColor" stroke-width="1" stroke-dasharray="2 3" opacity="0.28"/>
+     <path d="${d}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+     <circle cx="${x3}" cy="6" r="2" fill="currentColor"/>
+     <circle cx="20" cy="43" r="1.7" fill="currentColor" opacity="0.6"/>`,
+    '0 0 40 48', w, h);
+}
+
+/* Strike: clubface, front view, hosel on the heel side — mirrored for lefties so the
+   heel is always drawn where the heel column sits. Dot = impact zone (screen indices). */
+function faceSvg(screenRow, screenCol, handed, w, h) {
+  const xs = [15, 25, 35], ys = [12.5, 18, 23.5];
+  const mirror = handed === 'left' ? ' transform="translate(48,0) scale(-1,1)"' : '';
+  return svgWrap(
+    `<g${mirror}>
+       <path d="M14,6 L38,8 Q44,9 44,15 L43.5,23 Q43,29 37,29 L10,29 Q5,29 5.5,24 L11,9 Q11.5,6 14,6 Z"
+             fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.8"/>
+       <line x1="12.5" y1="6.5" x2="8" y2="1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/>
+       <line x1="14" y1="14" x2="41" y2="15" stroke="currentColor" stroke-width="0.8" opacity="0.25"/>
+       <line x1="12.5" y1="19" x2="41" y2="19.7" stroke="currentColor" stroke-width="0.8" opacity="0.25"/>
+       <line x1="11" y1="24" x2="40" y2="24.4" stroke="currentColor" stroke-width="0.8" opacity="0.25"/>
+     </g>
+     <circle cx="${xs[screenCol]}" cy="${ys[screenRow]}" r="3" fill="currentColor"/>`,
+    '0 0 48 34', w, h);
+}
+
+/* Small glyph of a staged/stored grid value, for launcher rows. */
+function valueGlyph(type, value, w, h) {
+  if (type === 'strike') {
+    const [row, col] = value.split('_');
+    const screenCol = strikeDisplayCols(state.handedness).indexOf(col);
+    return faceSvg(STRIKE_ROWS.indexOf(row), screenCol, state.handedness, w, h);
+  }
+  const [start, curve] = value.split('_');
+  return flightSvg(start, curve, Math.round(h * 40 / 48), h);
+}
+
+/* ================= Scenarios (the §5 drawn states) ================= */
+
+const SCENARIOS = {
+  A: {
+    name: 'One type only', sub: 'Direction · 7/10 balls · 60m wedges',
+    title: 'Wedge ladder — 60m', cue: 'Hold the finish', club: 'SW',
+    instruction: 'Hit 10 balls at the 60m flag',
+    enabled: ['direction'], criterion: '', totalBalls: 10, handedness: 'right',
+    balls: [
+      { direction: 'left' }, { direction: 'on' }, { direction: 'on' },
+      { direction: 'right' }, { direction: 'on' }, { direction: 'left' }, { direction: 'right' },
+    ],
+  },
+  B: {
+    name: 'All six types', sub: 'Honest worst case · 12/20 · criterion set',
+    title: '7-iron — 150m target', cue: 'Smooth tempo, full finish', club: '7I',
+    instruction: 'Hit 20 balls at the 150m sign',
+    enabled: ['success','contact','distance','direction','strike','shape'],
+    criterion: 'Carry the 150m sign', totalBalls: 20, handedness: 'right',
+    balls: [
+      { success:'hit',  contact:'flush', distance:'on',        direction:'on',    strike:'middle_center', shape:'straight_straight' },
+      { success:'miss', contact:'thin',  distance:'short',     direction:'right', strike:'low_toe',       shape:'straight_right' },
+      { success:'hit',  contact:'flush', distance:'on',        direction:'left',  strike:'middle_center', shape:'straight_left' },
+      { success:'miss', contact:'fat',   distance:'short',     direction:'on',    strike:'low_heel' },
+      { success:'hit',  contact:'flush', distance:'long',      direction:'right', strike:'middle_toe',    shape:'straight_right' },
+      { }, /* skipped ball — counted, nothing observed */
+      { success:'hit',  contact:'flush', distance:'on',        direction:'on',    strike:'middle_center', shape:'straight_straight' },
+      { success:'miss', contact:'thin',  distance:'short',     direction:'right', strike:'middle_toe',    shape:'straight_right' },
+      { success:'hit',  contact:'flush', distance:'on',        direction:'on',    strike:'middle_center', shape:'straight_left' },
+      { success:'hit',  contact:'flush', distance:'on',        direction:'left',  strike:'middle_center', shape:'straight_straight' },
+      { success:'miss', contact:'very_thin', distance:'way_short',                strike:'low_center' },
+      { success:'hit',  contact:'flush', distance:'on',        direction:'on',    strike:'middle_center', shape:'straight_straight' },
+    ],
+  },
+  C: {
+    name: 'Criterion-less unit', sub: 'Strike + Shape · 5/15 · no Success row',
+    title: 'Driver — free hitting', cue: 'Wide takeaway', club: 'DR',
+    instruction: 'Hit 15 drivers, no target',
+    enabled: ['strike','shape'], criterion: '', totalBalls: 15, handedness: 'right',
+    balls: [
+      { strike:'middle_center', shape:'straight_straight' },
+      { strike:'low_toe',       shape:'straight_right' },
+      { strike:'middle_heel',   shape:'straight_left' },
+      { strike:'middle_center', shape:'left_left' },
+      { strike:'high_center',   shape:'straight_straight' },
+    ],
+  },
+  D: {
+    name: 'Mid-block heatmap', sub: 'Strike only · 19/25 · toe bias visible',
+    title: 'Driver — strike ladder', cue: 'Strike before speed', club: 'DR',
+    instruction: 'Hit 25 drivers, centre strike',
+    enabled: ['strike'], criterion: '', totalBalls: 25, handedness: 'right',
+    balls: [
+      { strike:'middle_center' }, { strike:'middle_toe' }, { strike:'high_toe' },
+      { strike:'middle_center' }, { strike:'middle_heel' }, { strike:'middle_center' },
+      { strike:'high_center' }, { strike:'middle_toe' }, { strike:'middle_center' },
+      { strike:'low_center' }, { strike:'high_toe' }, { strike:'middle_center' },
+      { strike:'high_toe' }, { strike:'middle_center' }, { strike:'middle_heel' },
+      { }, /* one unobserved */
+      { strike:'middle_toe' }, { strike:'high_center' }, { strike:'middle_center' },
+    ],
+  },
+  E: {
+    name: 'Left-handed', sub: 'Strike + Shape · mirrored strike grid',
+    title: 'Lefty check — 8-iron', cue: 'Commit through impact', club: '8I',
+    instruction: 'Hit 15 balls at the 130m flag',
+    enabled: ['strike','shape'], criterion: '', totalBalls: 15, handedness: 'left',
+    balls: [
+      { strike:'middle_center', shape:'straight_straight' },
+      { strike:'middle_toe',    shape:'straight_left' },   /* lefty fade (curves left) */
+      { strike:'low_heel',      shape:'straight_right' },  /* lefty draw (curves right) */
+      { strike:'middle_center', shape:'right_right' },     /* lefty pull draw */
+      { strike:'high_center',   shape:'straight_straight' },
+      { strike:'middle_toe',    shape:'straight_left' },
+    ],
+  },
+};
+
+/* ================= State ================= */
+
+let state = {
+  scenario: 'B',
+  handedness: 'right',
+  enabled: [],
+  criterion: '',
+  totalBalls: 20,
+  title: '', cue: '', club: '', instruction: '',
+  balls: [],        // committed balls, oldest first: { obs: { type: value } }
+  staging: {},      // pending ball: { type: value }
+  committing: false,
+  bumpNext: false,  // one-shot counter animation after a commit
+  gridDialog: null, // { type, target: 'staging' | ballIndex }
+  sheetOpen: false,
+  expandedBall: null,
+  actionDone: false,
+  notesOpen: false, resultOpen: false,
+  manualCount: null,
+};
+
+function setScenario(id) {
+  const s = SCENARIOS[id];
+  state = { ...state,
+    scenario: id, handedness: s.handedness, enabled: [...s.enabled],
+    criterion: s.criterion, totalBalls: s.totalBalls,
+    title: s.title, cue: s.cue, club: s.club, instruction: s.instruction,
+    balls: s.balls.map(b => ({ obs: { ...b } })),
+    staging: {}, committing: false, gridDialog: null,
+    sheetOpen: false, expandedBall: null, actionDone: false,
+    notesOpen: false, resultOpen: false, manualCount: null,
+  };
+  syncControls(); render();
+}
+
+/* Enabled types with the shipped filter: SUCCESS without a criterion is dropped. */
+function effectiveTypes() {
+  return TYPE_ORDER.filter(t =>
+    state.enabled.includes(t) && (t !== 'success' || state.criterion.trim() !== ''));
+}
+function isComplete() { return state.balls.length >= state.totalBalls; }
+
+/* ================= Tallies (mirrors ObservationTallies.kt) ================= */
+
+function typeTally(type) {
+  const counts = {};
+  let observed = 0;
+  for (const b of state.balls) {
+    const v = b.obs[type];
+    if (v != null) { observed++; counts[v] = (counts[v] || 0) + 1; }
+  }
+  return { observed, counts };
+}
+
+/* ================= Actions ================= */
+
+function stage(type, value) {
+  if (state.committing || isComplete()) return;
+  if (state.staging[type] === value) delete state.staging[type];
+  else state.staging[type] = value;
+  maybeAutoCommit();
+  render();
+}
+
+function maybeAutoCommit() {
+  const types = effectiveTypes();
+  if (types.length === 0) return;
+  if (types.every(t => state.staging[t] != null)) {
+    state.committing = true;
+    setTimeout(() => { commitBall(); }, 320);
+  }
+}
+
+function commitBall() {
+  state.balls.push({ obs: { ...state.staging } });
+  state.staging = {};
+  state.committing = false;
+  state.bumpNext = true;
+  render();
+}
+
+function plusOne() {
+  if (state.committing || isComplete()) return;
+  commitBall(); // commits whatever is staged — partial or empty is legal (absent = unobserved)
+}
+
+function minusOne() {
+  if (state.balls.length === 0) return;
+  state.balls.pop(); // voids that ball's observations; staged values do NOT return
+  if (state.expandedBall != null && state.expandedBall >= state.balls.length) state.expandedBall = null;
+  render();
+}
+
+function resetBalls() {
+  state.balls = []; state.staging = {}; state.committing = false;
+  state.sheetOpen = false; state.expandedBall = null;
+  render();
+}
+
+/* Grid dialog. target: 'staging' or a ball index (edit mode). */
+function openGrid(type, target) {
+  if (target === 'staging' && (state.committing || isComplete())) return;
+  state.gridDialog = { type, target };
+  render();
+}
+function closeGrid() { state.gridDialog = null; render(); }
+
+function gridPick(value) {
+  const d = state.gridDialog;
+  if (!d) return;
+  if (d.target === 'staging') {
+    state.gridDialog = null;
+    stage(d.type, value); // stages (or unstages on re-tap) and may arm auto-commit
+  } else {
+    const ball = state.balls[d.target];
+    if (ball.obs[d.type] === value) delete ball.obs[d.type];
+    else ball.obs[d.type] = value;
+    state.gridDialog = null;
+    render();
+  }
+}
+
+/* Edit sheet */
+function openSheet() {
+  if (state.balls.length === 0) return;
+  state.sheetOpen = true; state.expandedBall = null; render();
+}
+function closeSheet() { state.sheetOpen = false; state.expandedBall = null; render(); }
+function toggleBall(i) {
+  state.expandedBall = state.expandedBall === i ? null : i;
+  render();
+}
+function editSet(ballIndex, type, value) {
+  const ball = state.balls[ballIndex];
+  if (ball.obs[type] === value) delete ball.obs[type]; // toggle off = remove = unobserved
+  else ball.obs[type] = value;
+  render();
+}
+
+function toggleAction() { state.actionDone = !state.actionDone; render(); }
+function toggleNotes() { state.notesOpen = !state.notesOpen; render(); }
+function toggleResult() { state.resultOpen = !state.resultOpen; render(); }
+function setManualCount(v) {
+  state.manualCount = v == null ? null : Math.max(0, Math.min(state.totalBalls, v));
+  render();
+}
+
+/* ================= Controls ================= */
+
+function setHandedness(h) { state.handedness = h; syncControls(); render(); }
+
+function toggleType(t) {
+  if (state.enabled.includes(t)) state.enabled = state.enabled.filter(x => x !== t);
+  else state.enabled = TYPE_ORDER.filter(x => state.enabled.includes(x) || x === t);
+  syncControls(); render();
+}
+
+function syncControls() {
+  document.querySelectorAll('.scenario-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.id === state.scenario));
+  TYPE_ORDER.forEach(t => {
+    const cb = document.getElementById('check-' + t);
+    if (cb) cb.checked = state.enabled.includes(t);
+  });
+  document.getElementById('cfg-criterion').value = state.criterion;
+  document.getElementById('cfg-balls').value = state.totalBalls;
+  document.getElementById('hand-right').classList.toggle('active', state.handedness === 'right');
+  document.getElementById('hand-left').classList.toggle('active', state.handedness === 'left');
+}
+
+function initControls() {
+  const sb = document.getElementById('scenario-btns');
+  sb.innerHTML = Object.entries(SCENARIOS).map(([id, s]) =>
+    `<button class="scenario-btn" data-id="${id}" onclick="setScenario('${id}')">
+       <span class="tag">${id}</span>${s.name}<span class="sub">${s.sub}</span>
+     </button>`).join('');
+  const tc = document.getElementById('type-checks');
+  tc.innerHTML = TYPE_ORDER.map(t =>
+    `<div class="ctl-row">
+       <label for="check-${t}">${TYPE_NAMES[t]}</label>
+       <input type="checkbox" id="check-${t}" onchange="toggleType('${t}')">
+     </div>`).join('');
+  document.getElementById('cfg-criterion').addEventListener('input', e => {
+    state.criterion = e.target.value; render();
+  });
+  document.getElementById('cfg-balls').addEventListener('change', e => {
+    state.totalBalls = Math.max(1, parseInt(e.target.value, 10) || 1); render();
+  });
+}
+
+/* ================= Rendering ================= */
+
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+function chipRowHtml(type, opts) {
+  // opts: { selected, denom, onTap: (value)=>js, showTallies, arm }
+  const t = CHIP_TYPES[type];
+  const tally = typeTally(type);
+  const chips = t.values.map(v => {
+    const staged = opts.selected === v;
+    const cls = ['chip', staged ? 'staged' : '', staged && opts.arm ? 'arm' : ''].join(' ');
+    const n = opts.showTallies ? (tally.counts[v] ? tally.counts[v] : '') : null;
+    const ico = chipIcon(type, v);
+    return `<button class="${cls}" onclick="${opts.onTap(v)}">
+              ${ico ? `<span class="ico">${ico}</span>` : ''}
+              <span class="v">${t.labels[v]}</span>
+              ${n !== null ? `<span class="n">${n}</span>` : ''}
+            </button>`;
+  }).join('');
+  const rubric = type === 'success' && state.criterion.trim()
+    ? ` <span class="rubric">· ${esc(state.criterion)}</span>` : '';
+  const denom = opts.denom != null
+    ? `<span class="obs-denom">${opts.denom}</span>` : '';
+  return `<div class="obs-row">
+            <div class="obs-header">
+              <span class="obs-label">${t.label}${rubric}</span>${denom}
+            </div>
+            <div class="chip-row">${chips}</div>
+          </div>`;
+}
+
+function launcherHtml(type, opts) {
+  // opts: { value, denom, onTap: js, arm }
+  const staged = opts.value != null;
+  const cls = ['launcher', staged ? 'staged' : '', staged && opts.arm ? 'arm' : ''].join(' ');
+  const lead = staged
+    ? `<span class="glyph">${valueGlyph(type, opts.value, 32, 24)}</span>`
+    : `<span class="mini-grid">${'<span></span>'.repeat(9)}</span>`;
+  const text = staged
+    ? `<span class="staged-val">${valueLabel(type, opts.value, state.handedness)}</span>`
+    : `<span class="staged-val">Tap to mark</span>`;
+  const denom = opts.denom != null
+    ? `<span class="obs-denom">${opts.denom}</span>` : '';
+  return `<div class="obs-row">
+            <div class="obs-header">
+              <span class="obs-label">${GRID_TYPES[type].label}</span>${denom}
+            </div>
+            <button class="${cls}" onclick="${opts.onTap}">
+              ${lead}
+              ${text}
+              <span class="chev">›</span>
+            </button>
+          </div>`;
+}
+
+function captureHtml() {
+  const types = effectiveTypes();
+  if (types.length === 0) return '';
+  const done = state.balls.length;
+  const rows = types.map(t => {
+    const tally = typeTally(t);
+    const denom = `${tally.observed}/${done}`;
+    if (CHIP_TYPES[t]) {
+      return chipRowHtml(t, {
+        selected: state.staging[t], denom, showTallies: true, arm: state.committing,
+        onTap: v => `stage('${t}','${v}')`,
+      });
+    }
+    return launcherHtml(t, {
+      value: state.staging[t], denom, arm: state.committing,
+      onTap: `openGrid('${t}','staging')`,
+    });
+  }).join('');
+  return `<div class="capture ${isComplete() ? 'readonly' : ''}">${rows}</div>`;
+}
+
+function counterCardHtml() {
+  const done = state.balls.length;
+  const bump = state.bumpNext ? ' bump' : '';
+  const middle = isComplete()
+    ? `<div class="block-complete">✓&nbsp; Block complete</div>`
+    : `<button class="plus-btn" onclick="plusOne()">+1</button>`;
+  return `<div class="card counter-card">
+    <div class="readout">
+      <span class="count${bump}">${done}/${state.totalBalls}</span><span class="unit">balls</span>
+    </div>
+    ${captureHtml()}
+    <div class="btn-row">
+      <button class="minus-btn" onclick="minusOne()" ${done === 0 ? 'disabled' : ''}>−</button>
+      ${middle}
+    </div>
+  </div>`;
+}
+
+function instructionsHtml() {
+  const done = state.balls.length;
+  const ballsDone = isComplete();
+  const tappable = done > 0;
+  return `<div class="card">
+    <div class="instr-row ${tappable ? 'tappable' : ''}" ${tappable ? 'onclick="openSheet()"' : ''}>
+      <span class="instr-tally ${ballsDone ? 'done' : ''}">${done}/${state.totalBalls}</span>
+      <span class="instr-text">${esc(state.instruction)}</span>
+      <span class="instr-club">${state.club} ⇄</span>
+      ${tappable ? '<span class="instr-chev">›</span>' : ''}
+    </div>
+    <div class="instr-row tappable" onclick="toggleAction()">
+      <span class="instr-check ${state.actionDone ? 'done' : ''}">${state.actionDone ? '✓' : '○'}</span>
+      <span class="instr-text">Re-set alignment stick</span>
+    </div>
+  </div>`;
+}
+
+function collapsedCardsHtml() {
+  const notes = `<div class="card">
+    <div class="collapse-header" onclick="toggleNotes()">
+      <span class="t">NOTES</span><span class="chev">${state.notesOpen ? '▴' : '▾'}</span>
+    </div>
+    ${state.notesOpen ? `<div class="collapse-body">Ladder up through the bag; finish with three full-target reps before moving on.</div>` : ''}
+  </div>`;
+
+  const manualEligible = state.criterion.trim() !== '' && !effectiveTypes().includes('success') && state.totalBalls > 0;
+  let resultBody = '';
+  if (state.resultOpen) {
+    let mc = '';
+    if (manualEligible) {
+      const row = state.manualCount == null
+        ? `<div class="manual-count"><span style="flex:1">Not counted</span>
+             <button style="width:auto;border-radius:16px;padding:0 14px;font-size:13px" onclick="setManualCount(0)">Add count</button></div>`
+        : `<div class="manual-count">
+             <div class="stepper">
+               <button onclick="setManualCount(${state.manualCount - 1})">−</button>
+               <span class="mc-val">${state.manualCount}</span>
+               <button onclick="setManualCount(${state.manualCount + 1})">+</button>
+             </div>
+             <span style="flex:1">of ${state.totalBalls} balls</span>
+             <button style="width:auto;border:none;color:var(--primary);font-size:13px" onclick="setManualCount(null)">Remove</button>
+           </div>`;
+      mc = `<div style="border-top:1px solid var(--outline-var);padding-top:12px">
+              <div style="font-size:13px;margin-bottom:8px">${esc(state.criterion)}</div>${row}
+            </div>`;
+    }
+    resultBody = `<div class="collapse-body">
+        <textarea class="note-stub" placeholder="Note on this block"></textarea>${mc}
+      </div>`;
+  }
+  const result = `<div class="card">
+    <div class="collapse-header" onclick="toggleResult()">
+      <span class="t">BLOCK RESULT</span><span class="chev">${state.resultOpen ? '▴' : '▾'}</span>
+    </div>
+    ${resultBody}
+  </div>`;
+  return notes + result;
+}
+
+/* ---------- Grid dialog ---------- */
+
+function gridDialogHtml() {
+  const d = state.gridDialog;
+  if (!d) return '';
+  const isEdit = d.target !== 'staging';
+  const current = isEdit ? state.balls[d.target].obs[d.type] : state.staging[d.type];
+  const tally = typeTally(d.type);
+  const max = Math.max(1, ...Object.values(tally.counts));
+  const done = state.balls.length;
+
+  let colHeads, rowHeads, valueAt, cellGlyph;
+  if (d.type === 'strike') {
+    const cols = strikeDisplayCols(state.handedness);
+    colHeads = cols.map(c => STRIKE_COL_LABELS[c]);
+    rowHeads = STRIKE_ROWS.map(r => STRIKE_ROW_LABELS[r]);
+    valueAt = (r, c) => STRIKE_ROWS[r] + '_' + cols[c];
+    cellGlyph = (r, c) => faceSvg(r, c, state.handedness, 62, 44);
+  } else {
+    colHeads = SHAPE_COL_LABELS;
+    rowHeads = SHAPE_ROW_LABELS;
+    valueAt = (r, c) => shapePhysical(state.handedness, r) + '_' + shapePhysical(state.handedness, c);
+    cellGlyph = (r, c) => flightSvg(shapePhysical(state.handedness, r), shapePhysical(state.handedness, c), 44, 53);
+  }
+
+  let cells = `<div class="grid-corner"></div>` +
+    colHeads.map(h => `<div class="grid-col-h">${h}</div>`).join('');
+  for (let r = 0; r < 3; r++) {
+    cells += `<div class="grid-row-h">${rowHeads[r]}</div>`;
+    for (let c = 0; c < 3; c++) {
+      const v = valueAt(r, c);
+      const n = tally.counts[v] || 0;
+      const alpha = n === 0 ? 0 : 0.12 + 0.45 * (n / max); // magnitude only — never judgement
+      const staged = current === v;
+      cells += `<button class="grid-cell ${staged ? 'staged' : ''}"
+                        style="background: rgba(143,200,168,${alpha.toFixed(3)})"
+                        onclick="gridPick('${v}')">
+                  ${cellGlyph(r, c)}
+                  ${n > 0 ? `<span class="cell-n">${n}</span>` : ''}
+                </button>`;
+    }
+  }
+  const hint = isEdit
+    ? `Editing Ball ${d.target + 1} — tap to set, re-tap to clear`
+    : `Tap to stage · re-tap staged cell to clear`;
+  return `<div class="scrim" onclick="if (event.target === this) closeGrid()">
+    <div class="dialog">
+      <div class="dialog-header">
+        <span class="dialog-title">${GRID_TYPES[d.type].label}</span>
+        <span class="obs-denom">${tally.observed}/${done}</span>
+      </div>
+      <div class="grid-wrap">${cells}</div>
+      <div class="dialog-hint">${hint}</div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Edit sheet ---------- */
+
+function ballSummaryHtml(ball) {
+  const types = effectiveTypes();
+  const parts = types.map(t => {
+    const v = ball.obs[t];
+    return v != null
+      ? esc(valueLabel(t, v, state.handedness))
+      : '<span class="missing">—</span>';
+  });
+  const any = types.some(t => ball.obs[t] != null);
+  return any ? parts.join(' · ') : '<span class="none">not observed</span>';
+}
+
+function ballEditorHtml(i) {
+  const ball = state.balls[i];
+  const rows = effectiveTypes().map(t => {
+    if (CHIP_TYPES[t]) {
+      return chipRowHtml(t, {
+        selected: ball.obs[t], denom: null, showTallies: false, arm: false,
+        onTap: v => `event.stopPropagation();editSet(${i},'${t}','${v}')`,
+      });
+    }
+    return launcherHtml(t, {
+      value: ball.obs[t], denom: null, arm: false,
+      onTap: `event.stopPropagation();openGrid('${t}',${i})`,
+    });
+  }).join('');
+  return `<div class="ball-editor" onclick="event.stopPropagation()">${rows}</div>`;
+}
+
+function sheetHtml() {
+  if (!state.sheetOpen) return '';
+  const rows = state.balls.map((ball, i) => ({ ball, i }))
+    .reverse() // newest first
+    .map(({ ball, i }) =>
+      `<div class="ball-row" onclick="toggleBall(${i})">
+         <span class="ball-num">Ball ${i + 1}</span>
+         <span class="ball-summary">${ballSummaryHtml(ball)}</span>
+         <span class="ball-chev">${state.expandedBall === i ? '▴' : '›'}</span>
+       </div>
+       ${state.expandedBall === i ? ballEditorHtml(i) : ''}`
+    ).join('');
+  return `<div class="sheet-scrim" onclick="if (event.target === this) closeSheet()">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">${esc(state.instruction)}</div>
+      <div class="sheet-sub">Tap a ball to correct its observations · changes save immediately</div>
+      ${rows}
+    </div>
+  </div>`;
+}
+
+/* ---------- Screen ---------- */
+
+function render() {
+  const screen = document.getElementById('screen');
+  const scroll = screen.scrollTop;
+  screen.innerHTML = `
+    <div class="screen-inner">
+      <div>
+        <div class="pass-line">Pass 1 of 1</div>
+        <div class="unit-title">${esc(state.title)}</div>
+      </div>
+      <div class="focus-card">
+        <div class="focus-label">◎ FOCUS</div>
+        <div class="focus-cue">${esc(state.cue)}</div>
+      </div>
+      ${counterCardHtml()}
+      ${isComplete() ? '<button class="finish-btn">Finish Session</button>' : ''}
+      ${instructionsHtml()}
+      ${collapsedCardsHtml()}
+    </div>
+    ${sheetHtml()}
+    ${gridDialogHtml()}
+  `;
+  screen.scrollTop = scroll;
+  if (state.bumpNext) {
+    state.bumpNext = false;
+    // class already applied via render; remove it after the animation so it can replay
+    const c = screen.querySelector('.readout .count');
+    if (c) setTimeout(() => c.classList.remove('bump'), 400);
+  }
+}
+
+initControls();
+setScenario('B');
+</script>
+</body>
+</html>
