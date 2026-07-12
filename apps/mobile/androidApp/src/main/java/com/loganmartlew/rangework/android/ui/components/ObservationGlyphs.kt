@@ -154,8 +154,9 @@ internal fun FlightGlyph(flight: ShapeFlight, height: Dp, modifier: Modifier = M
 
 /**
  * A clubface (front view) with an impact dot at the strike zone. The hosel sits on
- * the heel side; the face art mirrors for a left-handed player so the heel is
- * always drawn where the heel column sits. The dot is placed by *screen* column
+ * the heel side; the base geometry is a lefty's face (hosel on the left), so it
+ * mirrors for a right-handed player, putting the hosel on the right as it
+ * physically sits when looking at the face. The dot is placed by *screen* column
  * (already handedness-resolved by the caller), so it is not part of the mirror.
  * viewBox 48×34.
  */
@@ -170,11 +171,11 @@ internal fun ClubfaceGlyph(
     val screenColumns = strikeDisplayColumns(handedness)
     val screenCol = screenColumns.indexOf(location.column)
     val screenRow = StrikeRow.entries.indexOf(location.row)
-    val mirror = handedness == Handedness.LEFT
+    val mirror = handedness == Handedness.RIGHT
     val xs = floatArrayOf(15f, 25f, 35f)
     val ys = floatArrayOf(12.5f, 18f, 23.5f)
     GlyphCanvas(vbW = 48f, vbH = 34f, height = height, modifier = modifier) { s ->
-        // Reflect x around the viewBox centre (translate(48,0) scale(-1,1)) for LH.
+        // Reflect x around the viewBox centre (translate(48,0) scale(-1,1)) for RH.
         fun rx(x: Float): Float = (if (mirror) 48f - x else x) * s
         fun ry(y: Float): Float = y * s
 
