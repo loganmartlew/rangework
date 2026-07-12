@@ -43,6 +43,7 @@ import com.loganmartlew.rangework.shared.model.Club
 import com.loganmartlew.rangework.shared.model.ClubCategory
 
 private val CATEGORY_ORDER = listOf(
+    ClubCategory.DRIVER,
     ClubCategory.WOOD,
     ClubCategory.HYBRID,
     ClubCategory.IRON,
@@ -51,6 +52,7 @@ private val CATEGORY_ORDER = listOf(
 )
 
 private val CATEGORY_LABELS = mapOf(
+    ClubCategory.DRIVER to "Drivers",
     ClubCategory.WOOD to "Woods",
     ClubCategory.HYBRID to "Hybrids",
     ClubCategory.IRON to "Irons",

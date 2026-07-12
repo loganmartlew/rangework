@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
 import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.Club
+import com.loganmartlew.rangework.shared.model.ClubGlyphShape
 import com.loganmartlew.rangework.shared.model.ExecutionBlock
 import com.loganmartlew.rangework.shared.model.Handedness
 import com.loganmartlew.rangework.shared.model.Observation
@@ -61,6 +62,7 @@ import com.loganmartlew.rangework.shared.model.enabledObservationTypes
 import com.loganmartlew.rangework.shared.model.hasIncompleteBallSteps
 import com.loganmartlew.rangework.shared.model.isBallStep
 import com.loganmartlew.rangework.shared.model.progress
+import com.loganmartlew.rangework.shared.model.toGlyphShape
 import com.loganmartlew.rangework.shared.model.totalBalls
 import com.loganmartlew.rangework.shared.model.typeTallies
 
@@ -104,6 +106,9 @@ internal fun ExecutionBlockPage(
     val captureEnabled = enabledObservationTypes.isNotEmpty()
     val instructionRows = remember(block, steps, completedStepIndices, clubOverrides, enabledClubs) {
         buildInstructionRows(block, steps, completedStepIndices, clubOverrides, enabledClubs)
+    }
+    val currentBallShape = remember(block, steps, completedStepIndices, clubOverrides, enabledClubs) {
+        resolveCurrentBallShape(block, steps, completedStepIndices, clubOverrides, enabledClubs)
     }
 
     Column(
@@ -177,18 +182,19 @@ internal fun ExecutionBlockPage(
             captureSection = if (captureEnabled) {
                 {
                     val readOnly = !block.hasIncompleteBallSteps(steps, completedStepIndices)
-                    ObservationCaptureSection(
-                        enabledTypes = enabledObservationTypes,
-                        tallies = block.typeTallies(steps, completedStepIndices, observationsByStep),
-                        staging = blockStaging,
-                        completedBalls = progress.completedBalls,
-                        successCriterion = block.unit.successCriterion,
-                        arming = arming,
-                        handedness = handedness,
-                        readOnly = readOnly,
-                        onStageChip = onStageChip,
-                        onOpenGrid = onOpenGrid,
-                    )
+                        ObservationCaptureSection(
+                            enabledTypes = enabledObservationTypes,
+                            tallies = block.typeTallies(steps, completedStepIndices, observationsByStep),
+                            staging = blockStaging,
+                            completedBalls = progress.completedBalls,
+                            successCriterion = block.unit.successCriterion,
+                            arming = arming,
+                            handedness = handedness,
+                            clubGlyphShape = currentBallShape,
+                            readOnly = readOnly,
+                            onStageChip = onStageChip,
+                            onOpenGrid = onOpenGrid,
+                        )
                 }
             } else {
                 null
@@ -673,4 +679,19 @@ private fun CollapsibleNotes(
             }
         }
     }
+}
+
+/** Resolve the current-ball [ClubGlyphShape] from the first incomplete Ball Step. */
+private fun resolveCurrentBallShape(
+    block: ExecutionBlock,
+    steps: List<SnapshotStep>,
+    completedStepIndices: Set<Int>,
+    clubOverrides: Map<String, String>,
+    enabledClubs: List<Club>,
+): ClubGlyphShape {
+    val firstIncomplete = block.stepIndices
+        .firstOrNull { steps[it].isBallStep && it !in completedStepIndices }
+        ?: return ClubGlyphShape.IRON
+    val clubCode = clubOverrides[firstIncomplete.toString()] ?: steps[firstIncomplete].club
+    return enabledClubs.firstOrNull { it.code == clubCode }?.category.toGlyphShape()
 }

@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
+import com.loganmartlew.rangework.shared.model.ClubGlyphShape
 import com.loganmartlew.rangework.shared.model.Handedness
 import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.ShapeFlight
@@ -53,10 +54,11 @@ internal fun ObservationGridDialog(
     completedBalls: Int,
     currentValue: String?,
     editingBallNumber: Int?,
+    clubGlyphShape: ClubGlyphShape = ClubGlyphShape.IRON,
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val spec = gridSpec(type, handedness)
+    val spec = gridSpec(type, handedness, clubGlyphShape)
     val maxCount = (tally.valueCounts.values.maxOrNull() ?: 0).coerceAtLeast(1)
 
     Dialog(onDismissRequest = onDismiss) {
@@ -193,7 +195,7 @@ private class GridSpec(
 )
 
 @Composable
-private fun gridSpec(type: ObservationType, handedness: Handedness): GridSpec =
+private fun gridSpec(type: ObservationType, handedness: Handedness, clubGlyphShape: ClubGlyphShape): GridSpec =
     if (type == ObservationType.STRIKE_LOCATION) {
         val columns = strikeDisplayColumns(handedness)
         val rows = StrikeRow.entries.toList()
@@ -202,7 +204,7 @@ private fun gridSpec(type: ObservationType, handedness: Handedness): GridSpec =
             rowHeaders = rows.map { it.label },
             valueAt = { r, c -> StrikeLocation(rows[r], columns[c]).id },
             cellGlyph = { r, c ->
-                ClubfaceGlyph(StrikeLocation(rows[r], columns[c]), handedness, height = 40.dp)
+                ClubfaceGlyph(StrikeLocation(rows[r], columns[c]), clubGlyphShape, handedness, height = 40.dp)
             },
         )
     } else {

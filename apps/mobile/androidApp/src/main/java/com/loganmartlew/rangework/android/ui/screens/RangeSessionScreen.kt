@@ -72,6 +72,7 @@ import com.loganmartlew.rangework.android.ui.components.FinishSummaryContent
 import com.loganmartlew.rangework.android.ui.components.ObservationGridDialog
 import com.loganmartlew.rangework.android.ui.components.RangeSessionProgressHeader
 import com.loganmartlew.rangework.shared.model.Club
+import com.loganmartlew.rangework.shared.model.ClubGlyphShape
 import com.loganmartlew.rangework.shared.model.ExecutionBlock
 import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.canEditObservations
@@ -79,6 +80,7 @@ import com.loganmartlew.rangework.shared.model.enabledObservationTypes
 import com.loganmartlew.rangework.shared.model.executionBlocks
 import com.loganmartlew.rangework.shared.model.isBallStep
 import com.loganmartlew.rangework.shared.model.progress
+import com.loganmartlew.rangework.shared.model.toGlyphShape
 import com.loganmartlew.rangework.shared.model.typeTally
 import kotlinx.coroutines.launch
 
@@ -669,6 +671,18 @@ private fun RangeSessionBody(
                 } else {
                     uiState.stagingByBlock[gridBlockIndex]?.get(gridType.id)
                 }
+                val gridShape = remember(gridType, gridBlock, gridStepIndex, steps, enabledClubs) {
+                    if (gridType != ObservationType.STRIKE_LOCATION) return@remember ClubGlyphShape.IRON
+                    val stepIndex = if (gridStepIndex >= 0) gridStepIndex else {
+                        gridBlock.stepIndices.firstOrNull {
+                            steps[it].isBallStep && it !in uiState.completedStepIndices
+                        } ?: return@remember ClubGlyphShape.IRON
+                    }
+                    if (stepIndex >= steps.size) return@remember ClubGlyphShape.IRON
+                    val clubCode = uiState.rangeSession.clubOverrides[stepIndex.toString()]
+                        ?: steps[stepIndex].club
+                    enabledClubs.firstOrNull { it.code == clubCode }?.category.toGlyphShape()
+                }
                 ObservationGridDialog(
                     type = gridType,
                     handedness = uiState.handedness,
@@ -678,6 +692,7 @@ private fun RangeSessionBody(
                     completedBalls = gridBlock.progress(steps, uiState.completedStepIndices).completedBalls,
                     currentValue = currentValue,
                     editingBallNumber = if (editing) ballOrdinal(gridBlock, steps, gridStepIndex) else null,
+                    clubGlyphShape = gridShape,
                     onPick = { value ->
                         if (editing) {
                             onUpdateBallObservation(gridStepIndex, gridType.id, value)
@@ -699,6 +714,9 @@ private fun RangeSessionBody(
                     enabledTypes = sheetBlock.unit.enabledObservationTypes,
                     observationsByStep = uiState.observationsByStep,
                     handedness = uiState.handedness,
+                    steps = steps,
+                    clubOverrides = uiState.rangeSession.clubOverrides,
+                    enabledClubs = enabledClubs,
                     expandedStepIndex = sheetExpandedStep.takeIf { it >= 0 },
                     enabled = uiState.rangeSession.canEditObservations,
                     onToggleExpand = { step ->

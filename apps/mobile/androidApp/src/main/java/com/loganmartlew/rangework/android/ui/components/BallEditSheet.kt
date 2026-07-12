@@ -19,14 +19,19 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.theme.RangeworkMono
+import com.loganmartlew.rangework.shared.model.Club
+import com.loganmartlew.rangework.shared.model.ClubGlyphShape
 import com.loganmartlew.rangework.shared.model.Handedness
 import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.ObservationType
+import com.loganmartlew.rangework.shared.model.SnapshotStep
+import com.loganmartlew.rangework.shared.model.toGlyphShape
 
 /** One completed Ball Step in the edit sheet: its global step index and 1-based ordinal. */
 internal data class BallEditEntry(val stepIndex: Int, val ballNumber: Int)
@@ -51,6 +56,9 @@ internal fun BallEditSheet(
     enabledTypes: List<ObservationType>,
     observationsByStep: Map<Int, Observation>,
     handedness: Handedness,
+    steps: List<SnapshotStep> = emptyList(),
+    clubOverrides: Map<String, String> = emptyMap(),
+    enabledClubs: List<Club> = emptyList(),
     expandedStepIndex: Int?,
     enabled: Boolean,
     onToggleExpand: (Int) -> Unit,
@@ -110,6 +118,9 @@ internal fun BallEditSheet(
                             observation = observationsByStep[entry.stepIndex],
                             enabledTypes = ordered,
                             handedness = handedness,
+                            steps = steps,
+                            clubOverrides = clubOverrides,
+                            enabledClubs = enabledClubs,
                             onEditChip = onEditChip,
                             onOpenGrid = onOpenGrid,
                         )
@@ -192,9 +203,17 @@ private fun BallEditor(
     observation: Observation?,
     enabledTypes: List<ObservationType>,
     handedness: Handedness,
+    steps: List<SnapshotStep>,
+    clubOverrides: Map<String, String>,
+    enabledClubs: List<Club>,
     onEditChip: (stepIndex: Int, typeId: String, value: String) -> Unit,
     onOpenGrid: (stepIndex: Int, type: ObservationType) -> Unit,
 ) {
+    val ballShape = remember(stepIndex, steps, clubOverrides, enabledClubs) {
+        if (stepIndex >= steps.size) return@remember ClubGlyphShape.IRON
+        val clubCode = clubOverrides[stepIndex.toString()] ?: steps[stepIndex].club
+        enabledClubs.firstOrNull { it.code == clubCode }?.category.toGlyphShape()
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -209,6 +228,7 @@ private fun BallEditor(
                     stagedValue = current,
                     denominatorText = null,
                     handedness = handedness,
+                    clubGlyphShape = ballShape,
                     arming = false,
                     enabled = true,
                     onOpen = { onOpenGrid(stepIndex, type) },
