@@ -1,5 +1,7 @@
 package com.loganmartlew.rangework.shared.model
 
+import kotlin.math.hypot
+
 /**
  * The four club-family faces that replace the single generic [ClubfaceGlyph].
  * Each owns its own outline path, nine impact-dot positions matched to that
@@ -30,13 +32,46 @@ data class LineMark(
     val strokeWidth: Float = 1.8f,
 )
 
-/** Groove lines: y-positions and horizontal extent. */
+/** A single groove line at a given height, with its own horizontal extent so it can taper to match the outline. */
+data class GrooveLine(val xStart: Float, val xEnd: Float, val y: Float)
+
+/** Groove lines drawn across the face. */
 data class Grooves(
-    val yPositions: List<Float>,
-    val xStart: Float,
-    val xEnd: Float,
+    val lines: List<GrooveLine>,
     val strokeWidth: Float = 0.8f,
 )
+
+/**
+ * Builds a straight-edged polygon outline with every corner rounded by
+ * [radius]: each vertex is replaced by a quadratic curve between the two
+ * points `radius` back along its adjacent edges (control point = the
+ * original vertex), clamped so a corner never eats more than half of
+ * either adjacent edge.
+ */
+private fun roundedPolygon(points: List<Pair<Float, Float>>, radius: Float): List<PathSegment> {
+    val n = points.size
+    val segments = mutableListOf<PathSegment>()
+    for (i in points.indices) {
+        val (px, py) = points[(i - 1 + n) % n]
+        val (cx, cy) = points[i]
+        val (nx, ny) = points[(i + 1) % n]
+        val toPrevX = px - cx
+        val toPrevY = py - cy
+        val toNextX = nx - cx
+        val toNextY = ny - cy
+        val dPrev = hypot(toPrevX, toPrevY).let { if (it > 0f) it else 1f }
+        val dNext = hypot(toNextX, toNextY).let { if (it > 0f) it else 1f }
+        val rr = minOf(radius, dPrev / 2f, dNext / 2f).coerceAtLeast(0f)
+        val inX = cx + toPrevX / dPrev * rr
+        val inY = cy + toPrevY / dPrev * rr
+        val outX = cx + toNextX / dNext * rr
+        val outY = cy + toNextY / dNext * rr
+        segments += if (i == 0) PathSegment.MoveTo(inX, inY) else PathSegment.LineTo(inX, inY)
+        segments += PathSegment.QuadraticTo(cx, cy, outX, outY)
+    }
+    segments += PathSegment.Close
+    return segments
+}
 
 /**
  * The platform-neutral geometry for one club-family face. All coordinates are
@@ -59,104 +94,95 @@ data class ClubGlyphGeometry(
 )
 
 fun ClubGlyphShape.geometry(): ClubGlyphGeometry = when (this) {
+    // Straight-edged trapezoid — wide crown, narrower sole — with rounded
+    // corners, ported from a user-supplied reference SVG's true corner
+    // points (their small corner fillets discarded; [roundedPolygon]
+    // reproduces the rounding from the polygon + a radius instead).
     ClubGlyphShape.DRIVER -> ClubGlyphGeometry(
         viewBoxWidth = 48f,
         viewBoxHeight = 34f,
-        outline = listOf(
-            PathSegment.MoveTo(8f, 4f),
-            PathSegment.QuadraticTo(8f, 1f, 18f, 1f),
-            PathSegment.LineTo(36f, 2f),
-            PathSegment.QuadraticTo(44f, 3f, 44f, 8f),
-            PathSegment.LineTo(43f, 23f),
-            PathSegment.QuadraticTo(42f, 30f, 35f, 30f),
-            PathSegment.LineTo(12f, 29f),
-            PathSegment.QuadraticTo(5f, 28f, 6f, 22f),
-            PathSegment.Close,
+        outline = roundedPolygon(
+            points = listOf(5f to 8.4f, 43f to 8.4f, 39.4f to 25.6f, 8.6f to 25.6f),
+            radius = 7f,
         ),
-        dotXs = listOf(14f, 27f, 40f),
-        dotYs = listOf(6f, 16f, 25f),
-        hosel = LineMark(x1 = 9f, y1 = 4f, x2 = 4f, y2 = -1f, strokeWidth = 1.8f),
+        dotXs = listOf(14f, 24.5f, 35f),
+        dotYs = listOf(12f, 17f, 22f),
+        hosel = LineMark(x1 = 7.11f, y1 = 10.11f, x2 = 4.11f, y2 = 4.91f, strokeWidth = 2f),
         sightLine = null,
         grooves = Grooves(
-            yPositions = listOf(9f, 16f, 23f),
-            xStart = 11f,
-            xEnd = 40f,
+            lines = listOf(
+                GrooveLine(13f, 35f, 12.5f),
+                GrooveLine(13f, 35f, 15.5f),
+                GrooveLine(13f, 35f, 18.5f),
+                GrooveLine(13f, 35f, 21.5f),
+            ),
             strokeWidth = 0.8f,
         ),
     )
 
+    // Same trapezoid family as the driver, just much shallower.
     ClubGlyphShape.WOOD -> ClubGlyphGeometry(
         viewBoxWidth = 48f,
         viewBoxHeight = 34f,
-        outline = listOf(
-            PathSegment.MoveTo(10f, 8f),
-            PathSegment.QuadraticTo(10f, 4f, 18f, 3f),
-            PathSegment.LineTo(34f, 4f),
-            PathSegment.QuadraticTo(42f, 5f, 42f, 10f),
-            PathSegment.LineTo(41f, 20f),
-            PathSegment.QuadraticTo(40f, 26f, 34f, 27f),
-            PathSegment.LineTo(14f, 26f),
-            PathSegment.QuadraticTo(8f, 25f, 8f, 20f),
-            PathSegment.Close,
+        outline = roundedPolygon(
+            points = listOf(5f to 12f, 43f to 12f, 40.3f to 25.4f, 7.7f to 25.4f),
+            radius = 7f,
         ),
-        dotXs = listOf(15f, 27f, 38f),
-        dotYs = listOf(8f, 15f, 23f),
-        hosel = LineMark(x1 = 11f, y1 = 7f, x2 = 6f, y2 = 2f, strokeWidth = 1.8f),
+        dotXs = listOf(14f, 24.5f, 35f),
+        dotYs = listOf(15f, 18.7f, 22.5f),
+        hosel = LineMark(x1 = 7.05f, y1 = 13.68f, x2 = 4.05f, y2 = 8.48f, strokeWidth = 2f),
         sightLine = null,
         grooves = Grooves(
-            yPositions = listOf(10f, 16f, 22f),
-            xStart = 12f,
-            xEnd = 38f,
+            lines = listOf(
+                GrooveLine(12f, 36f, 16.2f),
+                GrooveLine(12f, 36f, 18.7f),
+                GrooveLine(12f, 36f, 21.2f),
+            ),
             strokeWidth = 0.8f,
         ),
     )
 
+    // Roughly a triangle: short heel edge, long toe edge (~2.6x the heel),
+    // flat in-line sole, diagonal topline closing toe-top to heel-top.
     ClubGlyphShape.IRON -> ClubGlyphGeometry(
         viewBoxWidth = 48f,
         viewBoxHeight = 34f,
-        outline = listOf(
-            PathSegment.MoveTo(18f, 4f),
-            PathSegment.LineTo(32f, 5f),
-            PathSegment.QuadraticTo(36f, 6f, 35f, 10f),
-            PathSegment.LineTo(34f, 23f),
-            PathSegment.QuadraticTo(33f, 28f, 29f, 28f),
-            PathSegment.LineTo(17f, 27f),
-            PathSegment.QuadraticTo(13f, 26f, 14f, 22f),
-            PathSegment.LineTo(16f, 8f),
-            PathSegment.QuadraticTo(17f, 4f, 18f, 4f),
-            PathSegment.Close,
+        outline = roundedPolygon(
+            points = listOf(10.34f to 21.23f, 11.34f to 29f, 37.67f to 29f, 37.67f to 9f),
+            radius = 6f,
         ),
-        dotXs = listOf(18f, 26f, 33f),
-        dotYs = listOf(8f, 16f, 24f),
-        hosel = LineMark(x1 = 16f, y1 = 4f, x2 = 12f, y2 = -1f, strokeWidth = 1.8f),
+        dotXs = listOf(15f, 24f, 34f),
+        dotYs = listOf(15f, 20f, 25f),
+        hosel = LineMark(x1 = 11.36f, y1 = 21.8f, x2 = 8.36f, y2 = 16.61f, strokeWidth = 2f),
         sightLine = null,
+        // The toe edge (right) sits at a constant x, but the topline tapers
+        // the left boundary in toward the toe as y decreases, so each
+        // higher line starts further right to stay inside the outline.
         grooves = Grooves(
-            yPositions = listOf(10f, 15f, 20f, 25f),
-            xStart = 16f,
-            xEnd = 34f,
+            lines = listOf(
+                GrooveLine(14f, 34f, 25f),
+                GrooveLine(14f, 34f, 22.5f),
+                GrooveLine(18.5f, 34f, 20f),
+                GrooveLine(24f, 34f, 17.5f),
+                GrooveLine(29.5f, 34f, 15f),
+            ),
             strokeWidth = 0.7f,
         ),
     )
 
+    // Simple rounded rectangle; the sight line is a short vertical alignment
+    // tick at face centre rather than a horizontal line (which read as a groove).
     ClubGlyphShape.PUTTER -> ClubGlyphGeometry(
         viewBoxWidth = 48f,
         viewBoxHeight = 34f,
-        outline = listOf(
-            PathSegment.MoveTo(8f, 14f),
-            PathSegment.LineTo(42f, 14f),
-            PathSegment.QuadraticTo(45f, 14f, 45f, 17f),
-            PathSegment.LineTo(45f, 23.5f),
-            PathSegment.QuadraticTo(45f, 26.5f, 42f, 26.5f),
-            PathSegment.LineTo(8f, 26.5f),
-            PathSegment.QuadraticTo(5f, 26.5f, 5f, 23.5f),
-            PathSegment.LineTo(5f, 17f),
-            PathSegment.QuadraticTo(5f, 14f, 8f, 14f),
-            PathSegment.Close,
+        outline = roundedPolygon(
+            points = listOf(5f to 13f, 43f to 13f, 43f to 21.79f, 5f to 21.79f),
+            radius = 3.1f,
         ),
-        dotXs = listOf(11f, 25f, 39f),
-        dotYs = listOf(15.5f, 20.5f, 25f),
-        hosel = null,
-        sightLine = LineMark(x1 = 10f, y1 = 20.5f, x2 = 40f, y2 = 20.5f, strokeWidth = 1.2f),
+        dotXs = listOf(13f, 24f, 35f),
+        dotYs = listOf(15.5f, 17.5f, 19.5f),
+        hosel = LineMark(x1 = 7.05f, y1 = 12.68f, x2 = 4.05f, y2 = 7.48f, strokeWidth = 2f),
+        sightLine = LineMark(x1 = 24f, y1 = 14f, x2 = 24f, y2 = 18.5f, strokeWidth = 1.6f),
         grooves = null,
     )
 }

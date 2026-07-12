@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
@@ -192,7 +193,7 @@ internal fun ClubfaceGlyph(
         drawPath(
             face,
             color = color.copy(alpha = color.alpha * 0.8f),
-            style = Stroke(width = 1.6f * s),
+            style = Stroke(width = 1.6f * s, cap = StrokeCap.Round, join = StrokeJoin.Round),
         )
 
         // Hosel or sight-line mark.
@@ -218,12 +219,13 @@ internal fun ClubfaceGlyph(
         // Grooves.
         geometry.grooves?.let { g ->
             val grooveColor = color.copy(alpha = color.alpha * 0.25f)
-            for (gy in g.yPositions) {
+            for (line in g.lines) {
                 drawLine(
                     grooveColor,
-                    Offset(rx(g.xStart), ry(gy)),
-                    Offset(rx(g.xEnd), ry(gy)),
+                    Offset(rx(line.xStart), ry(line.y)),
+                    Offset(rx(line.xEnd), ry(line.y)),
                     strokeWidth = g.strokeWidth * s,
+                    cap = StrokeCap.Round,
                 )
             }
         }
