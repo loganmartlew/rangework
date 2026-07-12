@@ -82,18 +82,17 @@ class ClubGlyphShapeTest {
     }
 
     @Test
-    fun putter_has_sight_line_no_hosel() {
-        val g = ClubGlyphShape.PUTTER.geometry()
-        assertNotNull(g.sightLine, "Putter should have sight line")
-        assertEquals(null, g.hosel, "Putter should not have hosel")
+    fun every_shape_has_hosel() {
+        for (shape in ClubGlyphShape.entries) {
+            assertNotNull(shape.geometry().hosel, "$shape should have hosel")
+        }
     }
 
     @Test
-    fun non_putters_have_hosel_no_sight_line() {
+    fun only_putter_has_sight_line() {
+        assertNotNull(ClubGlyphShape.PUTTER.geometry().sightLine, "Putter should have sight line")
         for (shape in ClubGlyphShape.entries - ClubGlyphShape.PUTTER) {
-            val g = shape.geometry()
-            assertNotNull(g.hosel, "$shape should have hosel")
-            assertEquals(null, g.sightLine, "$shape should not have sight line")
+            assertEquals(null, shape.geometry().sightLine, "$shape should not have sight line")
         }
     }
 
