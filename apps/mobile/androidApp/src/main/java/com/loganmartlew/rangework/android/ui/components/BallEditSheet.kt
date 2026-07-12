@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -29,19 +31,23 @@ import com.loganmartlew.rangework.shared.model.ObservationType
 /** One completed Ball Step in the edit sheet: its global step index and 1-based ordinal. */
 internal data class BallEditEntry(val stepIndex: Int, val ballNumber: Int)
 
+/** One ball instruction's section within the block-scoped edit sheet. */
+internal data class BallEditGroup(val instructionText: String, val entries: List<BallEditEntry>)
+
 /**
- * The per-ball correction sheet (design "per-ball edit sheet"), scoped to one
- * instruction's completed Ball Steps, newest first. A row shows "Ball N" and the
- * value summary in enabled-type order (`—` per unobserved type, italic "not
- * observed" for an empty ball). Tapping a row expands it (single-expanded
- * accordion) to the same chip/launcher surfaces as capture — pre-selected, no tally
- * counts, no +1/−, no Save: every tap writes through immediately.
+ * The per-ball correction sheet (design "per-ball edit sheet"), scoped to the whole
+ * block's completed Ball Steps, grouped into one section per ball instruction
+ * (newest instruction first; within a section, newest ball first). A row shows
+ * "Ball N" (numbered within its section) and the value summary in enabled-type
+ * order (`—` per unobserved type, italic "not observed" for an empty ball).
+ * Tapping a row expands it (single-expanded accordion, shared across sections) to
+ * the same chip/launcher surfaces as capture — pre-selected, no tally counts, no
+ * +1/−, no Save: every tap writes through immediately.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun BallEditSheet(
-    instructionText: String,
-    entries: List<BallEditEntry>,
+    groups: List<BallEditGroup>,
     enabledTypes: List<ObservationType>,
     observationsByStep: Map<Int, Observation>,
     handedness: Handedness,
@@ -60,11 +66,12 @@ internal fun BallEditSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = instructionText,
+                text = "Recorded balls",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -75,27 +82,38 @@ internal fun BallEditSheet(
                 modifier = Modifier.padding(bottom = 4.dp),
             )
 
-            entries.asReversed().forEachIndexed { index, entry ->
-                if (index > 0) HorizontalDivider()
-                val expanded = expandedStepIndex == entry.stepIndex
-                BallEditRow(
-                    entry = entry,
-                    observation = observationsByStep[entry.stepIndex],
-                    enabledTypes = ordered,
-                    handedness = handedness,
-                    expanded = expanded,
-                    enabled = enabled,
-                    onToggle = { onToggleExpand(entry.stepIndex) },
+            groups.forEachIndexed { groupIndex, group ->
+                if (groupIndex > 0) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                }
+                Text(
+                    text = group.instructionText,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
                 )
-                if (expanded && enabled) {
-                    BallEditor(
-                        stepIndex = entry.stepIndex,
+                group.entries.asReversed().forEachIndexed { index, entry ->
+                    if (index > 0) HorizontalDivider()
+                    val expanded = expandedStepIndex == entry.stepIndex
+                    BallEditRow(
+                        entry = entry,
                         observation = observationsByStep[entry.stepIndex],
                         enabledTypes = ordered,
                         handedness = handedness,
-                        onEditChip = onEditChip,
-                        onOpenGrid = onOpenGrid,
+                        expanded = expanded,
+                        enabled = enabled,
+                        onToggle = { onToggleExpand(entry.stepIndex) },
                     )
+                    if (expanded && enabled) {
+                        BallEditor(
+                            stepIndex = entry.stepIndex,
+                            observation = observationsByStep[entry.stepIndex],
+                            enabledTypes = ordered,
+                            handedness = handedness,
+                            onEditChip = onEditChip,
+                            onOpenGrid = onOpenGrid,
+                        )
+                    }
                 }
             }
         }

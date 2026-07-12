@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GpsFixed
@@ -96,7 +97,7 @@ internal fun ExecutionBlockPage(
     commitSignal: Int = 0,
     onStageChip: (typeId: String, value: String) -> Unit = { _, _ -> },
     onOpenGrid: (ObservationType) -> Unit = {},
-    onOpenBallSheet: (instructionIndex: Int) -> Unit = {},
+    onOpenBallSheet: () -> Unit = {},
 ) {
     val progress = block.progress(steps, completedStepIndices)
     val enabledObservationTypes = if (showDataCapture) block.unit.enabledObservationTypes else emptyList()
@@ -218,11 +219,16 @@ internal fun ExecutionBlockPage(
                         enabledClubs = enabledClubs,
                         onToggleAction = { onToggleActionInstruction(row.instructionIndex) },
                         onSwapClub = { clubCode -> onSwapClub(row.instructionIndex, clubCode) },
-                        editable = captureEnabled && !row.isAction && row.completedBalls > 0,
-                        onOpenBallSheet = { onOpenBallSheet(row.instructionIndex) },
                     )
                 }
             }
+        }
+
+        if (captureEnabled && progress.completedBalls > 0) {
+            RecordedBallsCard(
+                recordedCount = progress.completedBalls,
+                onClick = onOpenBallSheet,
+            )
         }
 
         block.notes?.let { notes ->
@@ -462,8 +468,6 @@ private fun InstructionRow(
     onToggleAction: () -> Unit,
     onSwapClub: (String) -> Unit,
     modifier: Modifier = Modifier,
-    editable: Boolean = false,
-    onOpenBallSheet: () -> Unit = {},
 ) {
     var showClubPicker by remember { mutableStateOf(false) }
     val isDone = row.totalSteps > 0 && row.completedSteps == row.totalSteps
@@ -472,24 +476,18 @@ private fun InstructionRow(
         modifier = modifier
             .fillMaxWidth()
             .let { base ->
-                when {
-                    row.isAction ->
-                        base
-                            .clickable(onClick = onToggleAction)
-                            .semantics {
-                                contentDescription = buildString {
-                                    append(row.text)
-                                    append(if (isDone) ". Done" else ". Not done")
-                                    append(". Tap to toggle")
-                                }
+                if (row.isAction) {
+                    base
+                        .clickable(onClick = onToggleAction)
+                        .semantics {
+                            contentDescription = buildString {
+                                append(row.text)
+                                append(if (isDone) ". Done" else ". Not done")
+                                append(". Tap to toggle")
                             }
-                    editable ->
-                        base
-                            .clickable(onClick = onOpenBallSheet)
-                            .semantics {
-                                contentDescription = "${row.text}. Tap to edit ball observations"
-                            }
-                    else -> base
+                        }
+                } else {
+                    base
                 }
             }
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -568,16 +566,6 @@ private fun InstructionRow(
                 }
             }
         }
-
-        // Edit affordance: a tappable ball instruction opens its correction sheet.
-        if (editable) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-        }
     }
 
     val clubCode = row.clubCode
@@ -591,6 +579,56 @@ private fun InstructionRow(
             },
             onDismiss = { showClubPicker = false },
         )
+    }
+}
+
+/**
+ * The sole entry into the per-ball correction sheet: a dedicated, legible card
+ * (rather than a subtle chevron buried in the instruction list) so the ability to
+ * review/correct recorded balls is easy to spot. Bare count, no judgement framing.
+ */
+@Composable
+private fun RecordedBallsCard(
+    recordedCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .semantics {
+                    contentDescription = "Recorded balls, $recordedCount. Tap to review and correct."
+                },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = "Recorded balls",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "$recordedCount",
+                style = RangeworkMono.small,
+                color = MaterialTheme.colorScheme.secondary,
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 

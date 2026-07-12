@@ -64,6 +64,7 @@ import com.loganmartlew.rangework.android.ui.components.AbandonConfirmDialog
 import com.loganmartlew.rangework.android.ui.components.BlockOverviewContent
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.BallEditEntry
+import com.loganmartlew.rangework.android.ui.components.BallEditGroup
 import com.loganmartlew.rangework.android.ui.components.BallEditSheet
 import com.loganmartlew.rangework.android.ui.components.ExecutionBlockPage
 import com.loganmartlew.rangework.android.ui.components.FinishSessionDialog
@@ -580,7 +581,6 @@ private fun RangeSessionBody(
             var gridBlockIndex by rememberSaveable { mutableIntStateOf(-1) }
             var gridStepIndex by rememberSaveable { mutableIntStateOf(-1) } // -1 = staging mode
             var sheetBlockIndex by rememberSaveable { mutableIntStateOf(-1) }
-            var sheetInstructionIndex by rememberSaveable { mutableIntStateOf(-1) }
             var sheetExpandedStep by rememberSaveable { mutableIntStateOf(-1) }
 
             Column(modifier = modifier) {
@@ -636,9 +636,8 @@ private fun RangeSessionBody(
                                 gridBlockIndex = pageIndex
                                 gridStepIndex = -1
                             },
-                            onOpenBallSheet = { instructionIndex ->
+                            onOpenBallSheet = {
                                 sheetBlockIndex = pageIndex
-                                sheetInstructionIndex = instructionIndex
                                 sheetExpandedStep = -1
                             },
                         )
@@ -693,13 +692,10 @@ private fun RangeSessionBody(
 
             // ── Per-ball edit sheet ──────────────────────────────────────────
             val sheetBlock = blocks.getOrNull(sheetBlockIndex)
-            if (sheetBlock != null && sheetInstructionIndex >= 0) {
-                val entries = ballEditEntries(sheetBlock, steps, uiState.completedStepIndices, sheetInstructionIndex)
-                val instructionText = entries.firstOrNull()
-                    ?.let { steps[it.stepIndex].instructionText } ?: ""
+            if (sheetBlock != null) {
+                val groups = ballEditGroups(sheetBlock, steps, uiState.completedStepIndices)
                 BallEditSheet(
-                    instructionText = instructionText,
-                    entries = entries,
+                    groups = groups,
                     enabledTypes = sheetBlock.unit.enabledObservationTypes,
                     observationsByStep = uiState.observationsByStep,
                     handedness = uiState.handedness,
@@ -722,19 +718,27 @@ private fun RangeSessionBody(
 }
 
 /**
- * A block instruction's Ball Steps as edit-sheet entries: 1-based ordinal by
- * snapshot position among the instruction's Ball Steps, filtered to the completed
- * ones (only committed balls are correctable).
+ * The block's committed Ball Steps as edit-sheet groups, one section per ball
+ * instruction in snapshot order. Within a section, "Ball N" is the 1-based ordinal
+ * by snapshot position among that instruction's Ball Steps, filtered to the
+ * completed ones (only committed balls are correctable). Instructions with zero
+ * committed balls are omitted.
  */
-private fun ballEditEntries(
+private fun ballEditGroups(
     block: ExecutionBlock,
     steps: List<com.loganmartlew.rangework.shared.model.SnapshotStep>,
     completedStepIndices: Set<Int>,
-    instructionIndex: Int,
-): List<BallEditEntry> = block.stepIndices
-    .filter { steps[it].instructionIndex == instructionIndex && steps[it].isBallStep }
-    .mapIndexed { position, stepIndex -> BallEditEntry(stepIndex, position + 1) }
-    .filter { it.stepIndex in completedStepIndices }
+): List<BallEditGroup> = block.stepIndices
+    .filter { steps[it].isBallStep }
+    .groupBy { steps[it].instructionIndex }
+    .toSortedMap()
+    .mapNotNull { (_, stepIndices) ->
+        val entries = stepIndices
+            .mapIndexed { position, stepIndex -> BallEditEntry(stepIndex, position + 1) }
+            .filter { it.stepIndex in completedStepIndices }
+        if (entries.isEmpty()) return@mapNotNull null
+        BallEditGroup(instructionText = steps[stepIndices.first()].instructionText, entries = entries)
+    }
 
 /** The 1-based ordinal of [stepIndex] among its instruction's Ball Steps. */
 private fun ballOrdinal(

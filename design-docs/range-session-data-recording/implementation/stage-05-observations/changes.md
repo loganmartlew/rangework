@@ -67,3 +67,15 @@ Android UI + ViewModel.
 
 - D1 decision-log confirmation in `design-review.md` — needs the physical device build.
 - Field test #2 — post-merge epic gate, not a PR blocker.
+
+## Follow-up: block-level "Recorded balls" card (2026-07-12)
+
+The per-ball edit sheet above shipped exactly as planned, but its entry point (tap a ball
+instruction row) proved too hard to spot in practice — indistinguishable from the club-swap chip
+and action-row toggle. See
+[`recorded-balls-card-plan.md`](./recorded-balls-card-plan.md): the entry moved to a dedicated
+"Recorded balls · N" card below the instruction list, and the sheet became block-scoped
+(one sheet per block, grouped into a section per ball instruction) instead of instruction-scoped.
+Pure UI/wiring change — no `shared/` or ViewModel touch; `RangeSessionViewModelTest` stayed green
+untouched, confirming the sheet's data plumbing (`updateBallObservation`, global step-index keying)
+needed no changes.

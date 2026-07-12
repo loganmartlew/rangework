@@ -135,7 +135,7 @@ A Range Session is in exactly one of three states:
 ### Club management
 
 **Club**:
-A specific type of golf club in the system catalog, identified by a stable Club Code. Has a display name and category (Wood, Hybrid, Iron, Wedge, Putter).
+A specific type of golf club in the system catalog, identified by a stable Club Code. Has a display name and category (Driver, Wood, Hybrid, Iron, Wedge, Putter).
 _Avoid_: club type, equipment
 
 **Club Code**:
