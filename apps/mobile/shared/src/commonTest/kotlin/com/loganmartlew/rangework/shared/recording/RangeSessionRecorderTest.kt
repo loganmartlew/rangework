@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -223,6 +224,26 @@ class RangeSessionRecorderTest {
     }
 
     @Test
+    fun completeRecordingRollsBackCompletionWhenObservationWriteFails() = runTest {
+        val repo = FakeRepo(session(observationTypes = listOf("shape")))
+        repo.failUpsert = true
+        val recorder = DefaultRangeSessionRecorder(repo)
+
+        // The observation write throws after completion — the commit must be
+        // all-or-nothing, so completion is rolled back and the failure propagates.
+        assertFailsWith<RuntimeException> {
+            recorder.completeStepsRecordingObservation(
+                "rs-1",
+                listOf(0, 1),
+                mapOf("shape" to "straight_left"),
+            )
+        }
+
+        assertTrue(repo.session.completedSteps.isEmpty(), "Completion rolled back on observation failure")
+        assertNull(repo.observations[1])
+    }
+
+    @Test
     fun voidRejectedWhenFrozen() = runTest {
         val repo = FakeRepo(session(observationTypes = listOf("shape")).copy(completedAt = started))
         val recorder = DefaultRangeSessionRecorder(repo)
@@ -285,6 +306,9 @@ private class FakeRepo(initial: RangeSession) : RangeSessionRepository {
     var session: RangeSession = initial
     val observations = mutableMapOf<Int, Observation>()
 
+    /** When true, [upsertObservation] throws — simulates a mid-commit write failure. */
+    var failUpsert: Boolean = false
+
     override suspend fun getSession(rangeSessionId: String): RangeSession = session
 
     override suspend fun saveSessionNote(rangeSessionId: String, note: String?): RangeSession {
@@ -303,6 +327,7 @@ private class FakeRepo(initial: RangeSession) : RangeSessionRepository {
         observations.values.sortedBy(Observation::stepIndex)
 
     override suspend fun upsertObservation(rangeSessionId: String, stepIndex: Int, values: Map<String, String>): Observation {
+        if (failUpsert) throw RuntimeException("upsert failed")
         val observation = Observation(stepIndex, values)
         observations[stepIndex] = observation
         return observation

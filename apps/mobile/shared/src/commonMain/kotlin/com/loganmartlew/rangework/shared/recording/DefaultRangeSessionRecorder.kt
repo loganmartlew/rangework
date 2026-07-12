@@ -101,11 +101,19 @@ class DefaultRangeSessionRecorder(
             // Validate before any write, so a rejected value leaves nothing written.
             session.validateObservationWrite(ballStep, values)?.let { return RecordingResult.Rejected(it) }
         }
-        // Completion first: a partial failure afterwards leaves a legal
-        // completed-but-unobserved state, never an observation on an uncompleted step.
+        // Completion first: never an observation on an uncompleted step. If the
+        // observation write then fails, roll the completion back so the commit is
+        // all-or-nothing — a failed observation must not silently leave a counted
+        // ball (the caller reverts its optimistic counter on the thrown failure,
+        // and the repository now agrees).
         val updated = repository.setStepsCompletion(rangeSessionId, stepIndices, completed = true)
         if (values.isNotEmpty() && ballStep != null) {
-            repository.upsertObservation(rangeSessionId, ballStep, values)
+            try {
+                repository.upsertObservation(rangeSessionId, ballStep, values)
+            } catch (throwable: Throwable) {
+                runCatching { repository.setStepsCompletion(rangeSessionId, stepIndices, completed = false) }
+                throw throwable
+            }
         }
         return RecordingResult.Success(updated)
     }

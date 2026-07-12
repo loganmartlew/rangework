@@ -1017,6 +1017,16 @@ class RangeSessionViewModelTest {
 
         assertNull(viewModel.uiState.value.observationsByStep[0])
         assertNull(viewModel.uiState.value.notification)
+
+        // A commit still counts the ball and clears its staging (no leak onto the
+        // next ball) even though the observation can't be written.
+        viewModel.stageObservation(0, "direction", "left")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue("Counter still advances", 0 in state.completedStepIndices)
+        assertTrue("Staging cleared after degraded commit", state.stagingByBlock.isEmpty())
+        assertNull(state.observationsByStep[0])
     }
 
     @Test

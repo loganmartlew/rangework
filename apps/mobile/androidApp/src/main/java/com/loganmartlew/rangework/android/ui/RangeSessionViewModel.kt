@@ -303,7 +303,14 @@ class RangeSessionViewModel(
         }
         val recorder = rangeSessionRecorder ?: run {
             // Misconfigured foundation: keep the counter working, drop observations.
-            _uiState.value = state.copy(armingBlockIndex = null)
+            // Still clear this block's staging and pulse — the ball was counted, so
+            // its staged values must not leak onto the next one.
+            _uiState.value = state.copy(
+                stagingByBlock = state.stagingByBlock - blockIndex,
+                armingBlockIndex = null,
+                commitSignal = state.commitSignal + 1,
+                committedBlockIndex = blockIndex,
+            )
             setStepsCompletion(targets, completed = true)
             return
         }
