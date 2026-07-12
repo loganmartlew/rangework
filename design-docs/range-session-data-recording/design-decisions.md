@@ -2,7 +2,13 @@
 
 **Date:** 2026-07-09
 **Method:** grilling session (question-by-question interview) with inline domain modeling
-**Status:** shared understanding confirmed; implementation planning not yet started
+**Status:** **shipped 2026-07-13.** All seven stages implemented and merged to `main` (see
+`epic-implementation-plan.md` and each `implementation/stage-NN-*/changes.md`); builds green
+across `:shared`, `:androidApp`, and `@rangework/mcp`. What shipped matches this doc; deviations
+are recorded per stage (notably Stage 4 prose auto-saves rather than using Save buttons, and
+Stage 5's ball-edit entry moved to a "Recorded balls" card). Deferred items (§6) tracked as
+follow-up issues. Remaining owner-side gate: field test #2 (a real range session with
+observations enabled on 1–2 blocks) — an ergonomics check, not a code gate.
 **Vocabulary:** all terms below are defined canonically in [`apps/mobile/CONTEXT.md`](../../apps/mobile/CONTEXT.md) (Success Criterion, Observation Type, Observation, Block Result, Session Note). This doc records the decisions and their reasoning; the glossary records the language.
 
 ## 1. Problem
