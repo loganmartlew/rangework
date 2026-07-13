@@ -1095,6 +1095,14 @@ private class FakePlannerRepositories(
             return unit
         }
 
+        override suspend fun setScopedSession(id: String, sessionId: String?): PracticeUnit {
+            val existing = units.first { it.id == id }
+            val updated = existing.copy(scopedToSessionId = sessionId)
+            units.removeAll { unit -> unit.id == id }
+            units += updated
+            return updated
+        }
+
         override suspend fun delete(id: String) {
             deleteUnitException?.let { throw it }
             units.removeAll { unit -> unit.id == id }
@@ -1145,6 +1153,16 @@ private class FakePlannerRepositories(
             sessions.removeAll { it.id == id }
             sessions += updated
             return updated
+        }
+
+        override suspend fun duplicate(id: String): PracticeSession {
+            val source = sessions.first { it.id == id }
+            val copy = source.copy(
+                id = "session-dup-${sessions.size + 1}",
+                archivedAt = null,
+            )
+            sessions += copy
+            return copy
         }
 
         override suspend fun delete(id: String) {

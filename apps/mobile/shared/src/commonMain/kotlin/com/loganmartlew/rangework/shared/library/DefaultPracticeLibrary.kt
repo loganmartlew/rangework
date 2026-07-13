@@ -82,6 +82,11 @@ class DefaultPracticeLibrary(
         return unitRepository.persist(draft.validated(), unit.id)
     }
 
+    override suspend fun promoteUnit(id: String): PracticeUnit =
+        // Unconditional detach: the session keeps referencing the same unit id
+        // (design §7). One-way — no demotion path exists.
+        unitRepository.setScopedSession(id, null)
+
     override suspend fun deleteUnit(id: String) = unitRepository.delete(id)
 
     // ── Sessions ──────────────────────────────────────────────────────
@@ -149,26 +154,12 @@ class DefaultPracticeLibrary(
             }
     }
 
-    override suspend fun duplicateSession(id: String): PracticeSession {
-        val session = sessionRepository.get(id) ?: error("Session $id not found")
-        val draft = PracticeSessionDraft(
-            name = session.name,
-            notes = session.notes,
-            items = session.items.map { item ->
-                PracticeSessionItemDraft(
-                    practiceUnitId = item.practiceUnitId,
-                    order = item.order,
-                    repeatCount = item.repeatCount,
-                    clubCode = item.clubCode,
-                    notes = item.notes,
-                    focusCue = item.focusCue,
-                    observationTypes = item.observationTypes,
-                )
-            },
-            tagIds = session.tags.map(Tag::id),
-        )
-        return sessionRepository.persist(draft.validated(), null)
-    }
+    override suspend fun duplicateSession(id: String): PracticeSession =
+        // Deep copy is the repository's job — inline units are copied and owned
+        // by the new session, atomically with the duplicate (design §6). A
+        // draft rebuild can't express "copy these owned units into new owned
+        // units" without polluting the draft model.
+        sessionRepository.duplicate(id)
 
     override suspend fun restoreSession(session: PracticeSession): PracticeSession {
         val draft = PracticeSessionDraft(

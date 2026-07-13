@@ -156,6 +156,19 @@ class SupabasePracticeSessionRepository(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun duplicate(id: String): PracticeSession {
+        val newId = Uuid.random().toString()
+        val params = DuplicateSessionParams(sourceId = id, newId = newId)
+        client.postgrest.rpc(
+            "duplicate_practice_session",
+            Json.encodeToJsonElement(DuplicateSessionParams.serializer(), params).jsonObject,
+        )
+        return requireNotNull(get(newId)) {
+            "Practice session $newId could not be loaded after duplicate."
+        }
+    }
+
     override suspend fun delete(id: String) {
         val existing = get(id)
             ?: throw NoSuchElementException("Practice session $id does not exist.")
@@ -219,6 +232,12 @@ private data class SessionItemParam(
     @SerialName("notes") val notes: String?,
     @SerialName("focus_cue") val focusCue: String?,
     @SerialName("observation_types") val observationTypes: List<String>,
+)
+
+@Serializable
+private data class DuplicateSessionParams(
+    @SerialName("p_source_id") val sourceId: String,
+    @SerialName("p_new_id") val newId: String,
 )
 
 @Serializable
