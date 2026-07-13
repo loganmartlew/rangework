@@ -21,6 +21,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -28,12 +29,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
+import com.loganmartlew.rangework.android.ui.allUnits
 import com.loganmartlew.rangework.android.ui.findSession
 import com.loganmartlew.rangework.android.ui.observationTypeLabel
 import com.loganmartlew.rangework.android.ui.components.BallCountPill
@@ -63,13 +66,14 @@ internal fun SessionDetailScreen(
     onUnarchiveSession: () -> Unit = {},
     onSessionDetailViewed: () -> Unit = {},
     onOpenRangeSessionHistory: (String) -> Unit = {},
+    onPromoteUnit: (String) -> Unit = {},
 ) {
     LaunchedEffect(sessionId) {
         onSessionDetailViewed()
     }
     val session = plannerUiState.findSession(sessionId)
-    val unitsById = remember(plannerUiState.units) {
-        plannerUiState.units.associateBy(PracticeUnit::id)
+    val unitsById = remember(plannerUiState.allUnits) {
+        plannerUiState.allUnits.associateBy(PracticeUnit::id)
     }
     ScrollableScreen {
         if (session == null) {
@@ -201,6 +205,7 @@ internal fun SessionDetailScreen(
                             position = item.order,
                             clubCatalog = plannerUiState.clubCatalog,
                             unitsById = unitsById,
+                            onPromoteUnit = onPromoteUnit,
                         )
                         if (index != session.items.lastIndex) {
                             HorizontalDivider()
@@ -253,6 +258,7 @@ private fun SessionItemDetailRow(
     position: Int,
     clubCatalog: List<Club>,
     unitsById: Map<String, PracticeUnit>,
+    onPromoteUnit: (String) -> Unit = {},
 ) {
     fun resolveClubName(code: String?): String? = code?.takeIf(String::isNotBlank)?.let { c ->
         clubCatalog.firstOrNull { it.code == c }?.displayName ?: c
@@ -306,6 +312,20 @@ private fun SessionItemDetailRow(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ),
             )
+            if (unit?.isInline == true) {
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(
+                            text = "Inline",
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
+                )
+            }
             overrideClubName?.let { name ->
                 AssistChip(
                     onClick = {},
@@ -326,6 +346,21 @@ private fun SessionItemDetailRow(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ),
                 )
+            }
+        }
+
+        // Promote affordance (design §7): quiet, user-initiated, one-way — a
+        // subordinate text action, never a prompt. Disappears once promoted,
+        // which is the confirmation (the row re-renders without isInline).
+        if (unit?.isInline == true) {
+            TextButton(
+                onClick = { onPromoteUnit(unit.id) },
+                modifier = Modifier.padding(start = 28.dp),
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            ) {
+                Text("Promote to library", style = MaterialTheme.typography.labelMedium)
             }
         }
 

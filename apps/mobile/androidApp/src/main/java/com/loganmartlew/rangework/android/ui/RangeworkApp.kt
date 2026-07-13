@@ -326,6 +326,7 @@ fun RangeworkApp(
                         onRefreshPlanningOnNavigation = plannerViewModel::refreshPlanningOnNavigation,
                         onRestoreUnit = plannerViewModel::restoreUnit,
                         onRestoreSession = plannerViewModel::restoreSession,
+                        onPromoteUnit = plannerViewModel::promoteUnit,
                         onStartRangeSession = plannerViewModel::startRangeSession,
                         onLoadActiveRangeSessions = plannerViewModel::loadActiveRangeSessions,
                         onStartRangeSessionFromPicker = plannerViewModel::startRangeSessionFromPicker,
@@ -518,6 +519,7 @@ private fun AuthenticatedAppShell(
     onRefreshPlanningOnNavigation: () -> Unit,
     onRestoreUnit: (PracticeUnit) -> Unit,
     onRestoreSession: (PracticeSession) -> Unit,
+    onPromoteUnit: (String) -> Unit,
     onStartRangeSession: (String) -> Unit,
     onLoadActiveRangeSessions: () -> Unit,
     onStartRangeSessionFromPicker: (String) -> Unit,
@@ -735,8 +737,8 @@ private fun AuthenticatedAppShell(
     }
 
     if (showSessionPickerDialog) {
-        val unitsById = remember(plannerUiState.units) {
-            plannerUiState.units.associateBy { it.id }
+        val unitsById = remember(plannerUiState.allUnits) {
+            plannerUiState.allUnits.associateBy { it.id }
         }
         SessionPickerDialog(
             sessions = plannerUiState.sessions,
@@ -1219,6 +1221,10 @@ private fun AuthenticatedAppShell(
                                 unitActions.onBeginNew()
                                 shellNavController.navigate(RangeworkRoutes.UnitCreate)
                             },
+                            onEditInlineUnit = { unitId ->
+                                unitActions.onEdit(unitId)
+                                shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
+                            },
                             onToggleTag = sessionActions.onToggleTag,
                             onCreateTag = sessionActions.onCreateTag,
                         )
@@ -1242,6 +1248,7 @@ private fun AuthenticatedAppShell(
                                 onLoadRangeSessionHistory(sessionId)
                             },
                             onOpenRangeSessionHistory = onOpenRangeSessionHistory,
+                            onPromoteUnit = onPromoteUnit,
                         )
                     }
                     composable(RangeworkRoutes.SessionEdit) { backStackEntry ->
@@ -1275,6 +1282,10 @@ private fun AuthenticatedAppShell(
                             onNavigateToCreateUnit = {
                                 unitActions.onBeginNew()
                                 shellNavController.navigate(RangeworkRoutes.UnitCreate)
+                            },
+                            onEditInlineUnit = { unitId ->
+                                unitActions.onEdit(unitId)
+                                shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
                             },
                             onToggleTag = sessionActions.onToggleTag,
                             onCreateTag = sessionActions.onCreateTag,
