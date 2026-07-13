@@ -16,6 +16,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -37,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PracticeSessionItemEditorState
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
+import com.loganmartlew.rangework.android.ui.allUnits
 import com.loganmartlew.rangework.android.ui.ballSummary
 import com.loganmartlew.rangework.android.ui.sessionEditorTotalText
 import com.loganmartlew.rangework.android.ui.components.ClubPickerField
@@ -74,6 +78,7 @@ internal fun SessionEditorScreen(
     onMoveSessionItem: (Int, Int) -> Unit,
     onRemoveSessionItem: (Int) -> Unit,
     onNavigateToCreateUnit: () -> Unit,
+    onEditInlineUnit: (String) -> Unit = {},
     onToggleTag: (String) -> Unit,
     onCreateTag: (String) -> Unit,
 ) {
@@ -82,8 +87,12 @@ internal fun SessionEditorScreen(
     val isCreateMode = editor.sessionId == null
     val hasSessionNotes = editor.notes.isNotBlank()
 
-    val unitsById = remember(plannerUiState.units) {
-        plannerUiState.units.associateBy(PracticeUnit::id)
+    // Library-only for the picker (an inline unit can never be offered as a
+    // slot choice for another session item — design §6); the selected-unit
+    // title/subtotal below resolves over allUnits so an inline item's own
+    // unit still renders correctly.
+    val unitsById = remember(plannerUiState.allUnits) {
+        plannerUiState.allUnits.associateBy(PracticeUnit::id)
     }
 
     val totalBalls = editor.items.sumOf { item ->
@@ -216,6 +225,7 @@ internal fun SessionEditorScreen(
                         onMoveUp = { onMoveSessionItem(index, index - 1) },
                         onMoveDown = { onMoveSessionItem(index, index + 1) },
                         onRemove = { onRemoveSessionItem(index) },
+                        onEditInlineUnit = onEditInlineUnit,
                         canMoveUp = index > 0,
                         canMoveDown = index < editor.items.lastIndex,
                     )
@@ -270,6 +280,7 @@ private fun SessionItemEditorCard(
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onRemove: () -> Unit,
+    onEditInlineUnit: (String) -> Unit = {},
     canMoveUp: Boolean,
     canMoveDown: Boolean,
 ) {
@@ -354,6 +365,33 @@ private fun SessionItemEditorCard(
                                     unitMenuExpanded = false
                                 },
                             )
+                        }
+                    }
+                }
+
+                // Inline marker + edit affordance (design §8): the unit editor is
+                // reused, navigated by unit id — the editor itself needs no
+                // inline-awareness. The chip also appears on session detail (D3)
+                // so either surface tells the user this item is inline.
+                if (hasUnit && selectedUnit?.isInline == true) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        AssistChip(
+                            onClick = {},
+                            label = { Text("Inline", style = MaterialTheme.typography.labelMedium) },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ),
+                        )
+                        TextButton(
+                            onClick = { onEditInlineUnit(selectedUnit.id) },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
+                        ) {
+                            Text("Edit this unit", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }

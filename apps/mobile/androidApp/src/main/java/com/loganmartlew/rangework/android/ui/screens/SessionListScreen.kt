@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PlannerStatus
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
+import com.loganmartlew.rangework.android.ui.allUnits
 import com.loganmartlew.rangework.android.ui.components.BallCountPill
 import com.loganmartlew.rangework.android.ui.components.DeleteConfirmationDialog
 import com.loganmartlew.rangework.android.ui.components.EmptyStateCard
@@ -60,8 +61,8 @@ internal fun SessionListScreen(
     onToggleTagFilter: (String) -> Unit,
     onClearTagFilter: () -> Unit,
 ) {
-    val unitsById = remember(plannerUiState.units) {
-        plannerUiState.units.associateBy(PracticeUnit::id)
+    val unitsById = remember(plannerUiState.allUnits) {
+        plannerUiState.allUnits.associateBy(PracticeUnit::id)
     }
     var pendingDeleteSession by remember { mutableStateOf<PracticeSession?>(null) }
 
@@ -96,7 +97,7 @@ internal fun SessionListScreen(
                 )
             },
             listContent = {
-                if (plannerUiState.units.isEmpty()) {
+                if (plannerUiState.sessions.isEmpty() && plannerUiState.units.isEmpty()) {
                     EmptyStateCard(
                         icon = Icons.AutoMirrored.Rounded.EventNote,
                         title = "Create a unit first",
@@ -208,4 +209,3 @@ internal fun SessionListScreen(
         )
     }
 }
-

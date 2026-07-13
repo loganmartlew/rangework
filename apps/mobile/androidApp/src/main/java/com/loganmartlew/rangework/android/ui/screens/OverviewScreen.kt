@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.AuthUiState
 import com.loganmartlew.rangework.android.ui.PlannerStatus
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
+import com.loganmartlew.rangework.android.ui.allUnits
 import com.loganmartlew.rangework.android.ui.components.ActiveRangeSessionCard
 import com.loganmartlew.rangework.android.ui.components.EmptyStateCard
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
@@ -65,7 +66,9 @@ internal fun OverviewScreen(
     val isFirstRun = plannerUiState.hasLoaded &&
         plannerUiState.units.isEmpty() &&
         plannerUiState.sessions.isEmpty()
-    val unitsById = plannerUiState.units.associateBy(PracticeUnit::id)
+    // allUnits so a recent session's ball total resolves an inline item correctly;
+    // recentItems' own unit entries only ever come from the library list (units).
+    val unitsById = plannerUiState.allUnits.associateBy(PracticeUnit::id)
     val clubsByCode = plannerUiState.clubCatalog.associateBy(Club::code)
 
     ScrollableScreen {

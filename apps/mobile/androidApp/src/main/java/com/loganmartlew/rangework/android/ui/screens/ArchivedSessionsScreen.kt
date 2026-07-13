@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PlannerStatus
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
+import com.loganmartlew.rangework.android.ui.allUnits
 import com.loganmartlew.rangework.android.ui.components.BallCountPill
 import com.loganmartlew.rangework.android.ui.components.DeleteConfirmationDialog
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
@@ -40,8 +41,8 @@ internal fun ArchivedSessionsScreen(
     onDuplicateSession: (String) -> Unit,
     onDeleteSession: (String) -> Unit,
 ) {
-    val unitsById = remember(plannerUiState.units) {
-        plannerUiState.units.associateBy(PracticeUnit::id)
+    val unitsById = remember(plannerUiState.allUnits) {
+        plannerUiState.allUnits.associateBy(PracticeUnit::id)
     }
     var pendingDeleteSession by remember { mutableStateOf<PracticeSession?>(null) }
 
