@@ -12,4 +12,7 @@ data class PracticeSession(
     val tags: List<Tag> = emptyList(),
     val createdAt: Instant,
     val updatedAt: Instant,
-)
+    val archivedAt: Instant? = null,
+) {
+    val isArchived: Boolean get() = archivedAt != null
+}

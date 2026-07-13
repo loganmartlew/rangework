@@ -919,8 +919,10 @@ private class FakePlannerRepositories(
         override suspend fun list(): List<PracticeSession> {
             listSessionsCallCount += 1
             if (listDelayMs > 0) delay(listDelayMs)
-            return sessions.toList()
+            return sessions.filter { !it.isArchived }
         }
+
+        override suspend fun listArchived(): List<PracticeSession> = sessions.filter { it.isArchived }
 
         override suspend fun get(id: String): PracticeSession? = sessions.firstOrNull { it.id == id }
 
@@ -948,6 +950,14 @@ private class FakePlannerRepositories(
             sessions.removeAll { existing -> existing.id == session.id }
             sessions += session
             return session
+        }
+
+        override suspend fun setArchived(id: String, archivedAt: Instant?): PracticeSession {
+            val existing = sessions.first { it.id == id }
+            val updated = existing.copy(archivedAt = archivedAt)
+            sessions.removeAll { it.id == id }
+            sessions += updated
+            return updated
         }
 
         override suspend fun delete(id: String) {

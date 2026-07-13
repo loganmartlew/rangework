@@ -2,10 +2,13 @@ package com.loganmartlew.rangework.shared.repository
 
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
+import kotlinx.datetime.Instant
 
 abstract class PracticeSessionRepository {
     abstract suspend fun persist(validated: PracticeSessionDraft, sessionId: String?): PracticeSession
     abstract suspend fun get(id: String): PracticeSession?
     abstract suspend fun list(): List<PracticeSession>
+    abstract suspend fun listArchived(): List<PracticeSession>
+    abstract suspend fun setArchived(id: String, archivedAt: Instant?): PracticeSession
     abstract suspend fun delete(id: String)
 }

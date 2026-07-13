@@ -8,6 +8,8 @@ import com.loganmartlew.rangework.shared.model.Tag
 import com.loganmartlew.rangework.shared.repository.PracticeSessionRepository
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.PostgrestRequestBuilder
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
@@ -23,9 +25,23 @@ private const val PRACTICE_SESSION_ITEMS_TABLE = "practice_session_items"
 class SupabasePracticeSessionRepository(
     private val client: SupabaseClient,
 ) : PracticeSessionRepository() {
-    override suspend fun list(): List<PracticeSession> {
+    override suspend fun list(): List<PracticeSession> = listSessions {
+        filter {
+            exact("archived_at", null)
+        }
+    }
+
+    override suspend fun listArchived(): List<PracticeSession> = listSessions {
+        filter {
+            filterNot("archived_at", FilterOperator.IS, null)
+        }
+    }
+
+    private suspend fun listSessions(
+        sessionFilter: PostgrestRequestBuilder.() -> Unit,
+    ): List<PracticeSession> {
         val sessionRows = client.postgrest[PRACTICE_SESSIONS_TABLE]
-            .select()
+            .select(request = sessionFilter)
             .decodeList<PracticeSessionRow>()
 
         if (sessionRows.isEmpty()) {
@@ -127,6 +143,19 @@ class SupabasePracticeSessionRepository(
         }
     }
 
+    override suspend fun setArchived(id: String, archivedAt: Instant?): PracticeSession {
+        client.postgrest[PRACTICE_SESSIONS_TABLE].update(
+            ArchivedAtUpdate(archivedAt = archivedAt),
+        ) {
+            filter {
+                eq("id", id)
+            }
+        }
+        return requireNotNull(get(id)) {
+            "Practice session $id could not be loaded after archive-state update."
+        }
+    }
+
     override suspend fun delete(id: String) {
         val existing = get(id)
             ?: throw NoSuchElementException("Practice session $id does not exist.")
@@ -148,6 +177,8 @@ private data class PracticeSessionRow(
     val createdAt: Instant,
     @SerialName("updated_at")
     val updatedAt: Instant,
+    @SerialName("archived_at")
+    val archivedAt: Instant? = null,
 )
 
 @Serializable
@@ -190,6 +221,12 @@ private data class SessionItemParam(
     @SerialName("observation_types") val observationTypes: List<String>,
 )
 
+@Serializable
+private data class ArchivedAtUpdate(
+    @SerialName("archived_at")
+    val archivedAt: Instant?,
+)
+
 private fun PracticeSessionRow.toModel(
     items: List<PracticeSessionItemRow>,
     tags: List<Tag>,
@@ -212,4 +249,5 @@ private fun PracticeSessionRow.toModel(
     tags = tags,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    archivedAt = archivedAt,
 )

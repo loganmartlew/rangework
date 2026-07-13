@@ -14,6 +14,7 @@ import com.loganmartlew.rangework.shared.model.validated
 import com.loganmartlew.rangework.shared.model.validationIssues
 import com.loganmartlew.rangework.shared.repository.PracticeSessionRepository
 import com.loganmartlew.rangework.shared.repository.PracticeUnitRepository
+import kotlinx.datetime.Clock
 
 class DefaultPracticeLibrary(
     private val unitRepository: PracticeUnitRepository,
@@ -87,6 +88,8 @@ class DefaultPracticeLibrary(
 
     override suspend fun listSessions(): List<PracticeSession> = sessionRepository.list()
 
+    override suspend fun listArchivedSessions(): List<PracticeSession> = sessionRepository.listArchived()
+
     override suspend fun getSession(id: String): PracticeSession? = sessionRepository.get(id)
 
     override suspend fun validateSession(draft: PracticeSessionDraft): List<ValidationIssue> =
@@ -97,11 +100,21 @@ class DefaultPracticeLibrary(
         if (issues.isNotEmpty()) {
             return PracticeLibraryResult.Invalid(issues)
         }
+        if (sessionId != null) {
+            val existing = sessionRepository.get(sessionId)
+            if (existing?.archivedAt != null) error("Cannot edit archived session $sessionId; unarchive first")
+        }
         val normalized = draft.validated()
         val resolvedId = sessionId?.trim()?.takeIf(String::isNotEmpty)
         val saved = sessionRepository.persist(normalized, resolvedId)
         return PracticeLibraryResult.Saved(saved)
     }
+
+    override suspend fun archiveSession(id: String): PracticeSession =
+        sessionRepository.setArchived(id, Clock.System.now())
+
+    override suspend fun unarchiveSession(id: String): PracticeSession =
+        sessionRepository.setArchived(id, null)
 
     /**
      * A friendly mirror of the RPC's success-requires-criterion exception: any

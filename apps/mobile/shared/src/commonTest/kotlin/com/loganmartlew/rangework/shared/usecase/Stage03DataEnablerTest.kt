@@ -393,9 +393,15 @@ private class StubPracticeUnitRepository(
 private class StubPracticeSessionRepository : PracticeSessionRepository() {
     override suspend fun list(): List<PracticeSession> = emptyList()
 
+    override suspend fun listArchived(): List<PracticeSession> = emptyList()
+
     override suspend fun get(id: String): PracticeSession? = null
 
     override suspend fun persist(validated: com.loganmartlew.rangework.shared.model.PracticeSessionDraft, sessionId: String?): PracticeSession {
+        error("Not implemented in stub")
+    }
+
+    override suspend fun setArchived(id: String, archivedAt: kotlinx.datetime.Instant?): PracticeSession {
         error("Not implemented in stub")
     }
 

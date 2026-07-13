@@ -4,6 +4,7 @@ import com.loganmartlew.rangework.shared.data.InMemoryPracticeSessionRepository
 import com.loganmartlew.rangework.shared.data.InMemoryPracticeUnitRepository
 import com.loganmartlew.rangework.shared.model.ObservationType
 import com.loganmartlew.rangework.shared.model.PracticeInstructionDraft
+import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSessionItemDraft
 import com.loganmartlew.rangework.shared.model.PracticeUnitDraft
@@ -563,6 +564,143 @@ class PracticeLibraryTest {
         )
 
         assertTrue(issues.none { it.target == ValidationTarget.ItemObservationTypes(0) })
+    }
+
+    // ── Archiving lifecycle ────────────────────────────────────────────
+
+    private suspend fun DefaultPracticeLibrary.saveTestSession(name: String = "Session"): PracticeSession {
+        val unit = (saveUnit(
+            PracticeUnitDraft(
+                title = "Drill",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit")),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+
+        return (saveSession(
+            PracticeSessionDraft(
+                name = name,
+                items = listOf(
+                    PracticeSessionItemDraft(
+                        practiceUnitId = unit.id,
+                        order = 1,
+                        repeatCount = 1,
+                    ),
+                ),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+    }
+
+    @Test
+    fun archiveSessionSetsArchivedState() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+        val saved = library.saveTestSession()
+
+        val archived = library.archiveSession(saved.id)
+
+        assertTrue(archived.archivedAt != null)
+        assertTrue(library.listSessions().none { it.id == saved.id })
+        assertTrue(library.listArchivedSessions().any { it.id == saved.id })
+    }
+
+    @Test
+    fun unarchiveSessionClearsArchivedState() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+        val saved = library.saveTestSession()
+        library.archiveSession(saved.id)
+
+        val unarchived = library.unarchiveSession(saved.id)
+
+        assertEquals(null, unarchived.archivedAt)
+        assertTrue(library.listSessions().any { it.id == saved.id })
+        assertTrue(library.listArchivedSessions().none { it.id == saved.id })
+    }
+
+    @Test
+    fun listSessionsExcludesArchived() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+        val unarchived = library.saveTestSession("Kept")
+        val archived = library.saveTestSession("Tidied")
+        library.archiveSession(archived.id)
+
+        val sessions = library.listSessions()
+
+        assertTrue(sessions.any { it.id == unarchived.id })
+        assertTrue(sessions.none { it.id == archived.id })
+    }
+
+    @Test
+    fun listArchivedSessionsReturnsOnlyArchived() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+        val unarchived = library.saveTestSession("Kept")
+        val archived = library.saveTestSession("Tidied")
+        library.archiveSession(archived.id)
+
+        val archivedSessions = library.listArchivedSessions()
+
+        assertTrue(archivedSessions.any { it.id == archived.id })
+        assertTrue(archivedSessions.none { it.id == unarchived.id })
+    }
+
+    @Test
+    fun getSessionReturnsArchivedSession() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+        val saved = library.saveTestSession()
+        library.archiveSession(saved.id)
+
+        val reloaded = library.getSession(saved.id)
+
+        assertNotNull(reloaded)
+        assertTrue(reloaded.archivedAt != null)
+    }
+
+    @Test
+    fun saveSessionRejectsArchivedEdit() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+        val saved = library.saveTestSession()
+        library.archiveSession(saved.id)
+
+        var caught = false
+        try {
+            library.saveSession(
+                PracticeSessionDraft(name = "Renamed", items = saved.items.map {
+                    PracticeSessionItemDraft(
+                        practiceUnitId = it.practiceUnitId,
+                        order = it.order,
+                        repeatCount = it.repeatCount,
+                    )
+                }),
+                sessionId = saved.id,
+            )
+        } catch (e: Exception) {
+            caught = true
+        }
+        assertTrue(caught, "Expected error editing an archived session")
+
+        val stored = library.getSession(saved.id)
+        assertEquals(saved.name, stored?.name)
+    }
+
+    @Test
+    fun duplicateSessionOfArchivedProducesUnarchivedCopy() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+        val saved = library.saveTestSession()
+        library.archiveSession(saved.id)
+
+        val duplicated = library.duplicateSession(saved.id)
+
+        assertTrue(duplicated.id != saved.id)
+        assertEquals(null, duplicated.archivedAt)
+        assertTrue(library.listSessions().any { it.id == duplicated.id })
+    }
+
+    @Test
+    fun archiveSucceedsRegardlessOfState() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+        val saved = library.saveTestSession()
+
+        val archived = library.archiveSession(saved.id)
+
+        assertTrue(archived.archivedAt != null)
     }
 
     @Test

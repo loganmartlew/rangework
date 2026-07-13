@@ -18,10 +18,13 @@ interface PracticeLibrary {
 
     // ── Practice Sessions ─────────────────────────────────────────────
     suspend fun listSessions(): List<PracticeSession>
+    suspend fun listArchivedSessions(): List<PracticeSession>
     suspend fun getSession(id: String): PracticeSession?
     suspend fun validateSession(draft: PracticeSessionDraft): List<ValidationIssue>
     suspend fun saveSession(draft: PracticeSessionDraft, sessionId: String? = null): PracticeLibraryResult<PracticeSession>
     suspend fun duplicateSession(id: String): PracticeSession
     suspend fun restoreSession(session: PracticeSession): PracticeSession
     suspend fun deleteSession(id: String)
+    suspend fun archiveSession(id: String): PracticeSession
+    suspend fun unarchiveSession(id: String): PracticeSession
 }
