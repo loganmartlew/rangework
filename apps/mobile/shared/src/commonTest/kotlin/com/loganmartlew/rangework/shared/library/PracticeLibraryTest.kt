@@ -877,9 +877,12 @@ class PracticeLibraryTest {
                         order = 1,
                         repeatCount = 3,
                         clubCode = "PW",
+                        notes = "Keep the strike centred",
+                        focusCue = "Finish balanced",
                         observationTypes = listOf(ObservationType.SUCCESS, ObservationType.CONTACT),
                     ),
                 ),
+                tagIds = listOf("tag-a", "tag-b"),
             ),
         ) as PracticeLibraryResult.Saved).value
 
@@ -896,7 +899,10 @@ class PracticeLibraryTest {
         assertEquals(src.order, dup.order)
         assertEquals(src.repeatCount, dup.repeatCount)
         assertEquals(src.clubCode, dup.clubCode)
+        assertEquals(src.notes, dup.notes)
+        assertEquals(src.focusCue, dup.focusCue)
         assertEquals(src.observationTypes, dup.observationTypes)
+        assertEquals(source.tags.map { it.id }, copy.tags.map { it.id })
         assertEquals(unitsBefore, library.listUnits().map { it.id }.toSet(), "No inline units minted")
     }
 

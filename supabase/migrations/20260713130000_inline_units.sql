@@ -25,6 +25,34 @@ alter table public.practice_units
   add column if not exists scoped_to_session_id uuid
     references public.practice_sessions (id) on delete cascade;
 
+-- A scoped unit must be owned by the same user as its owning session. The
+-- existing unit RLS policy only verifies practice_units.owner_id, so the FK
+-- alone would otherwise allow a user to scope their unit to another user's
+-- session and have it deleted with that session.
+create or replace function public.enforce_practice_unit_scope_owner()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.scoped_to_session_id is not null and not exists (
+    select 1
+    from public.practice_sessions
+    where id = new.scoped_to_session_id
+      and owner_id = new.owner_id
+  ) then
+    raise exception 'An inline unit must be scoped to a session owned by the same user';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists enforce_practice_unit_scope_owner on public.practice_units;
+create trigger enforce_practice_unit_scope_owner
+before insert or update of owner_id, scoped_to_session_id on public.practice_units
+for each row
+execute function public.enforce_practice_unit_scope_owner();
+
 -- ============================================================
 -- 2. Partial index for the deep-copy scan and orphan GC
 --
@@ -62,6 +90,8 @@ declare
   v_inline jsonb;
   v_unit_id uuid;
   v_resolved_unit_ids uuid[] := '{}'::uuid[];
+  v_has_inline boolean;
+  v_has_reference boolean;
 begin
   -- 1. Upsert the session row (archived_at preserved per Stage 1 — untouched).
   insert into public.practice_sessions (id, owner_id, name, notes)
@@ -81,7 +111,18 @@ begin
   for v_item in select * from jsonb_array_elements(p_items)
   loop
     v_inline := v_item->'inline_unit';
-    if v_inline is not null and jsonb_typeof(v_inline) = 'object' then
+    v_has_inline := v_inline is not null and jsonb_typeof(v_inline) <> 'null';
+    v_has_reference := nullif(v_item->>'practice_unit_id', '') is not null;
+
+    if v_has_inline = v_has_reference then
+      raise exception 'Each session item must contain exactly one of inline_unit or practice_unit_id';
+    end if;
+
+    if v_has_inline and jsonb_typeof(v_inline) <> 'object' then
+      raise exception 'inline_unit must be an object';
+    end if;
+
+    if v_has_inline then
       v_unit_id := gen_random_uuid();
 
       insert into public.practice_units
@@ -173,6 +214,37 @@ $$;
 
 grant execute on function public.save_practice_session(uuid, text, text, jsonb, uuid[])
   to authenticated;
+
+-- A library unit may appear in any session, but an Inline Unit belongs only to
+-- its owning session. Without this guard, the same user could attach session
+-- A's inline unit to session B; deleting A would then fail on B's protective
+-- item→unit restrict FK and duplication of B would share A's inline content.
+create or replace function public.enforce_practice_session_item_unit_scope()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if not exists (
+    select 1
+    from public.practice_units
+    where id = new.practice_unit_id
+      and (
+        scoped_to_session_id is null
+        or scoped_to_session_id = new.practice_session_id
+      )
+  ) then
+    raise exception 'An inline unit may only be referenced by its owning session';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists enforce_practice_session_item_unit_scope on public.practice_session_items;
+create trigger enforce_practice_session_item_unit_scope
+before insert or update of practice_session_id, practice_unit_id on public.practice_session_items
+for each row
+execute function public.enforce_practice_session_item_unit_scope();
 
 -- ============================================================
 -- 4. duplicate_practice_session — server-side deep copy (D2)

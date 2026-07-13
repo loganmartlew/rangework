@@ -3,6 +3,7 @@ package com.loganmartlew.rangework.shared.data
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeSessionDraft
 import com.loganmartlew.rangework.shared.model.PracticeSessionItem
+import com.loganmartlew.rangework.shared.model.Tag
 import com.loganmartlew.rangework.shared.repository.PracticeSessionRepository
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -47,6 +48,11 @@ class InMemoryPracticeSessionRepository(
                 )
             },
             notes = validated.notes,
+            // The in-memory repository has no tag catalog, but preserving the
+            // draft ids makes duplication parity observable in shared tests.
+            tags = validated.tagIds.map { tagId ->
+                Tag(id = tagId, code = tagId, displayName = tagId, isDefault = false)
+            },
             createdAt = store[resolvedId]?.createdAt ?: now,
             updatedAt = now,
             archivedAt = store[resolvedId]?.archivedAt,
