@@ -194,8 +194,8 @@ internal fun SessionDetailScreen(
                         icon = Icons.AutoMirrored.Rounded.EventNote,
                         title = "No items yet",
                         body = "Add practice units to this session to define what to practice.",
-                        actionLabel = "Edit session",
-                        onAction = onEditSession,
+                        actionLabel = if (session.isArchived) "Unarchive" else "Edit session",
+                        onAction = if (session.isArchived) onUnarchiveSession else onEditSession,
                     )
                 } else {
                     session.items.forEachIndexed { index, item ->

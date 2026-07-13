@@ -372,7 +372,6 @@ class PracticePlannerViewModel(
                     inlineUnits = optimisticInlineUnits,
                     unitEditor = optimisticUnit.toEditorState(),
                     unitEditorBaseline = null,
-                    sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
                     savedUnitId = resolvedUnitId,
                     status = PlannerStatus.Notification("Saved ${draft.title}."),
                 )
@@ -396,7 +395,6 @@ class PracticePlannerViewModel(
                                             archivedSessions = archivedSessions,
                                             inlineUnits = inlineUnits,
                                             unitEditor = _uiState.value.unitEditor.resolveWith(units + inlineUnits),
-                                            sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
                                         )
                                     }
                                 }
@@ -409,7 +407,6 @@ class PracticePlannerViewModel(
                                             unitEditor = PracticeDraftEditor.placeUnitErrors(
                                                 _uiState.value.unitEditor, result.issues,
                                             ),
-                                            sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
                                             status = PlannerStatus.Notification(
                                                 result.issues.joinToString(" ") { it.message },
                                             ),
@@ -424,7 +421,6 @@ class PracticePlannerViewModel(
                                     inlineUnits = previousInlineUnits,
                                     sessions = previousSessions,
                                     unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits + previousInlineUnits),
-                                    sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
                                     status = plannerStatus(exception = exception, fallback = "Unit save failed."),
                                 )
                             }

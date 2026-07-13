@@ -188,20 +188,20 @@ internal fun SessionListScreen(
                             }
                         }
                     }
-                    if (plannerUiState.archivedSessions.isNotEmpty()) {
-                        TextButton(onClick = onNavigateToArchived) {
-                            Icon(
-                                imageVector = Icons.Default.Archive,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Archived · ${plannerUiState.archivedSessions.size}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                }
+                if (plannerUiState.archivedSessions.isNotEmpty()) {
+                    TextButton(onClick = onNavigateToArchived) {
+                        Icon(
+                            imageVector = Icons.Default.Archive,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Archived · ${plannerUiState.archivedSessions.size}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     Spacer(modifier = Modifier.height(96.dp))
                 }

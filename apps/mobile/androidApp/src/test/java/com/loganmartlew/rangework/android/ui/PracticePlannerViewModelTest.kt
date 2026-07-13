@@ -1176,6 +1176,34 @@ class PracticePlannerViewModelTest {
     }
 
     @Test
+    fun saveInlineUnitEditPreservesDirtySessionDraft() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit().copy(id = "unit-inline-1", title = "Inline drill", scopedToSessionId = "session-1")
+        repositories.sessions += sampleSession().copy(
+            items = listOf(
+                PracticeSessionItem(id = "session-item-1", practiceUnitId = "unit-inline-1", order = 1, repeatCount = 1),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.editSession("session-1")
+        viewModel.updateSessionName("Unsaved session name")
+        viewModel.updateSessionNotes("Unsaved session notes")
+        viewModel.editUnit("unit-inline-1")
+        viewModel.updateUnitTitle("Renamed inline drill")
+        viewModel.saveUnit()
+        advanceUntilIdle()
+
+        assertEquals("Unsaved session name", viewModel.uiState.value.sessionEditor.name)
+        assertEquals("Unsaved session notes", viewModel.uiState.value.sessionEditor.notes)
+    }
+
+    @Test
     fun promoteUnitMovesInlineToLibrary() = runTest {
         val repositories = FakePlannerRepositories()
         repositories.units += sampleUnit().copy(id = "unit-inline-1", title = "Inline drill", scopedToSessionId = "session-1")
