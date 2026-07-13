@@ -12,9 +12,21 @@ fun PracticeSession.derivedBallCount(unitsById: Map<String, PracticeUnit>): Int 
     item.derivedBallCount(unitsById[item.practiceUnitId]) ?: 0
 }
 
-// Product assumption: average seconds per ball including setup between shots.
-// Tune SECONDS_PER_BALL if timing data suggests a different value.
-const val SECONDS_PER_BALL = 15
+// Product assumption: average seconds per ball including setup, alignment, and
+// reflection between shots. Tune SECONDS_PER_BALL if timing data suggests a
+// different value.
+const val SECONDS_PER_BALL = 40
+
+/**
+ * Single source of truth for turning a ball count into an estimated practice
+ * duration in minutes. Returns 0 for an empty count; otherwise rounds to the
+ * nearest minute. Callers with a ball total should use this rather than
+ * re-deriving the arithmetic.
+ */
+fun estimateDurationMinutes(totalBalls: Int): Int {
+    if (totalBalls <= 0) return 0
+    return (totalBalls * SECONDS_PER_BALL + 30) / 60
+}
 
 fun sessionsUsingUnit(
     unitId: String,
@@ -23,8 +35,5 @@ fun sessionsUsingUnit(
     session.items.any { it.practiceUnitId == unitId }
 }
 
-fun estimateSessionDurationMinutes(session: PracticeSession, unitsById: Map<String, PracticeUnit>): Int {
-    val totalBalls = session.derivedBallCount(unitsById)
-    if (totalBalls == 0) return 0
-    return (totalBalls * SECONDS_PER_BALL + 30) / 60
-}
+fun estimateSessionDurationMinutes(session: PracticeSession, unitsById: Map<String, PracticeUnit>): Int =
+    estimateDurationMinutes(session.derivedBallCount(unitsById))
