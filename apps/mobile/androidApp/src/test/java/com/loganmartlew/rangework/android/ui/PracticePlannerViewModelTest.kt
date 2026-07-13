@@ -933,6 +933,39 @@ class PracticePlannerViewModelTest {
     }
 
     @Test
+    fun loadArchivedSessionsHydratesInlineUnitsAddedAfterInitialRefresh() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        repositories.units += sampleUnit().copy(
+            id = "unit-inline-1",
+            title = "Archived inline drill",
+            scopedToSessionId = "session-1",
+        )
+        repositories.sessions += sampleSession().copy(
+            archivedAt = Instant.parse("2026-06-16T00:00:00Z"),
+            items = listOf(
+                PracticeSessionItem(
+                    id = "session-item-1",
+                    practiceUnitId = "unit-inline-1",
+                    order = 1,
+                    repeatCount = 1,
+                ),
+            ),
+        )
+
+        viewModel.loadArchivedSessions()
+        advanceUntilIdle()
+
+        assertEquals("Archived inline drill", viewModel.uiState.value.findUnit("unit-inline-1")?.title)
+    }
+
+    @Test
     fun archiveSessionOptimisticallyUpdatesBeforeReconcile() = runTest {
         val repositories = FakePlannerRepositories()
         repositories.units += sampleUnit()

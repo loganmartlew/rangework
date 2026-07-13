@@ -97,7 +97,7 @@ internal fun SessionListScreen(
                 )
             },
             listContent = {
-                if (plannerUiState.units.isEmpty()) {
+                if (plannerUiState.sessions.isEmpty() && plannerUiState.units.isEmpty()) {
                     EmptyStateCard(
                         icon = Icons.AutoMirrored.Rounded.EventNote,
                         title = "Create a unit first",
@@ -209,4 +209,3 @@ internal fun SessionListScreen(
         )
     }
 }
-

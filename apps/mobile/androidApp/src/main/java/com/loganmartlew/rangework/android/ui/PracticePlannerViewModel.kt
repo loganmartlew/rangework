@@ -950,7 +950,16 @@ class PracticePlannerViewModel(
                 try {
                     val archivedSessions = foundation.practiceLibrary.listArchivedSessions()
                     if (userId == activeUserId && token == operationToken) {
-                        _uiState.value = _uiState.value.copy(archivedSessions = archivedSessions)
+                        val currentState = _uiState.value
+                        val inlineUnits = hydrateInlineUnits(
+                            library = foundation.practiceLibrary,
+                            units = currentState.units,
+                            sessions = currentState.sessions + archivedSessions,
+                        )
+                        _uiState.value = currentState.copy(
+                            archivedSessions = archivedSessions,
+                            inlineUnits = inlineUnits,
+                        )
                     }
                 } catch (e: Exception) {
                     // Non-fatal: the archived list/footer count simply won't refresh.

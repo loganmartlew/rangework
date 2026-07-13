@@ -619,14 +619,16 @@ private fun AuthenticatedAppShell(
         }
     }
 
-    // Derive the entity ID when on a detail route (not edit) for app-bar actions
-    val currentUnitId: String? = if (currentRoute.startsWith("units/") && !currentRoute.endsWith("/edit")) {
+    // Keep the edited unit available for the app-bar title too. Inline Units are
+    // absent from the library list, so all lookups below go through `findUnit`.
+    val currentUnitId: String? = if (currentRoute.startsWith("units/")) {
         navBackStackEntry?.arguments?.getString(UnitIdArg)
     } else null
     val currentSessionId: String? = if (currentRoute.startsWith("sessions/") && !currentRoute.endsWith("/edit")) {
         navBackStackEntry?.arguments?.getString(SessionIdArg)
     } else null
-    val isDetailRoute = (currentUnitId != null) || (currentSessionId != null)
+    val isDetailRoute =
+        (currentUnitId != null && !currentRoute.endsWith("/edit")) || (currentSessionId != null)
     val scrollBehavior = if (isDetailRoute) {
         TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     } else {
@@ -817,7 +819,7 @@ private fun AuthenticatedAppShell(
         topBar = {
             val topBarTitle: String = when {
                 currentUnitId != null ->
-                    plannerUiState.units.firstOrNull { it.id == currentUnitId }?.title ?: "Unit"
+                    plannerUiState.findUnit(currentUnitId)?.title ?: "Unit"
                 currentSessionId != null ->
                     plannerUiState.findSession(currentSessionId)?.name ?: "Session"
                 else -> titleForRoute(currentRoute)
@@ -840,28 +842,30 @@ private fun AuthenticatedAppShell(
                 }
             }
             val actionsContent: @Composable RowScope.() -> Unit = {
-                currentUnitId?.let { unitId ->
-                    val unit = plannerUiState.units.firstOrNull { it.id == unitId }
-                    IconButton(
-                        onClick = {
-                            unitActions.onEdit(unitId)
-                            shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit ${unit?.title ?: "unit"}",
-                        )
-                    }
-                    Box {
-                        OverflowMenu(
-                            contentDescription = "More options for ${unit?.title ?: "unit"}",
-                            onDuplicate = { unitActions.onDuplicate(unitId) },
-                            onDelete = {
-                                pendingDeleteUnit = unit
-                                showUnitDeleteDialog = true
+                if (isDetailRoute) currentUnitId?.let { unitId ->
+                    val unit = plannerUiState.findUnit(unitId)
+                    if (unit?.isInline == false) {
+                        IconButton(
+                            onClick = {
+                                unitActions.onEdit(unitId)
+                                shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
                             },
-                        )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit ${unit?.title ?: "unit"}",
+                            )
+                        }
+                        Box {
+                            OverflowMenu(
+                                contentDescription = "More options for ${unit?.title ?: "unit"}",
+                                onDuplicate = { unitActions.onDuplicate(unitId) },
+                                onDelete = {
+                                    pendingDeleteUnit = unit
+                                    showUnitDeleteDialog = true
+                                },
+                            )
+                        }
                     }
                 }
                 currentSessionId?.let { sessionId ->
@@ -1116,8 +1120,15 @@ private fun AuthenticatedAppShell(
                         LaunchedEffect(plannerUiState.savedUnitId) {
                             plannerUiState.savedUnitId?.let { savedUnitId ->
                                 unitActions.onConsumeSavedId()
-                                shellNavController.navigate(RangeworkRoutes.unitDetail(savedUnitId)) {
-                                    popUpTo(RangeworkRoutes.UnitEdit) { inclusive = true }
+                                if (plannerUiState.findUnit(savedUnitId)?.isInline == true) {
+                                    // Inline Units are edited from a session. Returning keeps the
+                                    // user in that session's editor rather than routing to the
+                                    // library-only unit detail destination.
+                                    shellNavController.popBackStack()
+                                } else {
+                                    shellNavController.navigate(RangeworkRoutes.unitDetail(savedUnitId)) {
+                                        popUpTo(RangeworkRoutes.UnitEdit) { inclusive = true }
+                                    }
                                 }
                             }
                         }

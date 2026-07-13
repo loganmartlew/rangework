@@ -349,6 +349,36 @@ private fun SessionItemDetailRow(
             }
         }
 
+        // An Inline Unit has no separate library-detail surface, so echo its
+        // instructions where it is owned and practiced: this session.
+        if (unit?.isInline == true) {
+            Column(
+                modifier = Modifier.padding(start = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "Instructions",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (unit.instructions.isEmpty()) {
+                    Text(
+                        text = "No instructions.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    unit.instructions.sortedBy { it.order }.forEach { instruction ->
+                        Text(
+                            text = "${instruction.order}. ${instruction.text}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
         // Promote affordance (design §7): quiet, user-initiated, one-way — a
         // subordinate text action, never a prompt. Disappears once promoted,
         // which is the confirmation (the row re-renders without isInline).
