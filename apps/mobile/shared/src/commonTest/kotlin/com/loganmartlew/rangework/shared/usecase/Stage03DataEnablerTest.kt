@@ -385,6 +385,13 @@ private class StubPracticeUnitRepository(
         return saved
     }
 
+    override suspend fun setScopedSession(id: String, sessionId: String?): PracticeUnit {
+        val existing = requireNotNull(store[id]) { "Unit $id not found" }
+        val updated = existing.copy(scopedToSessionId = sessionId)
+        store[id] = updated
+        return updated
+    }
+
     override suspend fun delete(id: String) {
         store.remove(id)
     }
@@ -402,6 +409,10 @@ private class StubPracticeSessionRepository : PracticeSessionRepository() {
     }
 
     override suspend fun setArchived(id: String, archivedAt: kotlinx.datetime.Instant?): PracticeSession {
+        error("Not implemented in stub")
+    }
+
+    override suspend fun duplicate(id: String): PracticeSession {
         error("Not implemented in stub")
     }
 

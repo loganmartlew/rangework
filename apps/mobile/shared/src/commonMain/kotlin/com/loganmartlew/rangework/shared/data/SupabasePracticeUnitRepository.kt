@@ -24,7 +24,14 @@ class SupabasePracticeUnitRepository(
 ) : PracticeUnitRepository() {
     override suspend fun list(): List<PracticeUnit> {
         val unitRows = client.postgrest[PRACTICE_UNITS_TABLE]
-            .select()
+            .select {
+                filter {
+                    // Inline Units are session-owned content and must never
+                    // surface in the library. `get` stays unfiltered so a
+                    // session can still load its inline units by id.
+                    exact("scoped_to_session_id", null)
+                }
+            }
             .decodeList<PracticeUnitRow>()
 
         if (unitRows.isEmpty()) {
@@ -126,6 +133,19 @@ class SupabasePracticeUnitRepository(
         }
     }
 
+    override suspend fun setScopedSession(id: String, sessionId: String?): PracticeUnit {
+        client.postgrest[PRACTICE_UNITS_TABLE].update(
+            ScopedSessionUpdate(scopedToSessionId = sessionId),
+        ) {
+            filter {
+                eq("id", id)
+            }
+        }
+        return requireNotNull(get(id)) {
+            "Practice unit $id could not be loaded after scope update."
+        }
+    }
+
     override suspend fun delete(id: String) {
         val existing = get(id)
             ?: throw NoSuchElementException("Practice unit $id does not exist.")
@@ -152,6 +172,14 @@ private data class PracticeUnitRow(
     val createdAt: Instant,
     @SerialName("updated_at")
     val updatedAt: Instant,
+    @SerialName("scoped_to_session_id")
+    val scopedToSessionId: String? = null,
+)
+
+@Serializable
+private data class ScopedSessionUpdate(
+    @SerialName("scoped_to_session_id")
+    val scopedToSessionId: String?,
 )
 
 @Serializable
@@ -213,4 +241,5 @@ private fun PracticeUnitRow.toModel(
     tags = tags,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    scopedToSessionId = scopedToSessionId,
 )

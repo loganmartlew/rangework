@@ -16,6 +16,13 @@ interface PracticeLibrary {
     suspend fun restoreUnit(unit: PracticeUnit): PracticeUnit
     suspend fun deleteUnit(id: String)
 
+    /**
+     * Promote an Inline Unit to an ordinary library unit: ownership is detached
+     * (its owning session is cleared), content and identity unchanged, and the
+     * session keeps referencing the same unit id. One-way — there is no demotion.
+     */
+    suspend fun promoteUnit(id: String): PracticeUnit
+
     // ── Practice Sessions ─────────────────────────────────────────────
     suspend fun listSessions(): List<PracticeSession>
     suspend fun listArchivedSessions(): List<PracticeSession>
