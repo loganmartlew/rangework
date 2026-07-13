@@ -204,6 +204,8 @@ async function main(): Promise<void> {
     'create_unit',
     'create_session',
     'get_coaching_guide',
+    'archive_session',
+    'unarchive_session',
   ];
 
   for (const name of expectedTools) {
@@ -319,6 +321,7 @@ async function main(): Promise<void> {
 
   // ---- create_session (using the created unit) ----
   console.log('\n🎯 create_session');
+  let createdSessionId: string | undefined;
   if (createdUnitId) {
     const newSession = await callTool('create_session', {
       name: `[TEST] Regression session ${timestamp}`,
@@ -346,6 +349,7 @@ async function main(): Promise<void> {
       typeof sessionData.session_id === 'string' &&
       sessionData.session_id.length > 0
     ) {
+      createdSessionId = sessionData.session_id;
       pass(`create_session returned session_id: ${sessionData.session_id}`);
     } else {
       fail('create_session response contains a non-empty "session_id" string');
@@ -381,6 +385,83 @@ async function main(): Promise<void> {
   } else {
     console.log(
       '  ⏭️  Skipping create_session (no unit_id from previous step)',
+    );
+  }
+
+  // ---- archive_session / unarchive_session ----
+  console.log('\n🗄️  archive_session / unarchive_session');
+  if (createdSessionId) {
+    const archived = await callTool('archive_session', {
+      session_id: createdSessionId,
+    });
+    assert(archived.status === 200, 'archive_session returns 200');
+    const archivedData = parseContent(archived.body);
+    assert(
+      archivedData?.session != null &&
+        (archivedData.session as Record<string, unknown>).archived === true,
+      'archive_session returns archived: true',
+    );
+
+    const defaultAfterArchive = await callTool('list_sessions');
+    const defaultAfterArchiveData = parseContent(defaultAfterArchive.body);
+    const defaultSessions =
+      (defaultAfterArchiveData?.sessions as Array<Record<string, unknown>>) ??
+      [];
+    assert(
+      !defaultSessions.some(s => s.id === createdSessionId),
+      'default list_sessions hides the archived session',
+    );
+
+    const includeArchived = await callTool('list_sessions', {
+      include_archived: true,
+    });
+    const includeArchivedData = parseContent(includeArchived.body);
+    const includedSessions =
+      (includeArchivedData?.sessions as Array<Record<string, unknown>>) ?? [];
+    const archivedEntry = includedSessions.find(
+      s => s.id === createdSessionId,
+    );
+    assert(
+      archivedEntry?.archived === true,
+      'list_sessions with include_archived: true returns the session with archived: true',
+    );
+
+    const unarchived = await callTool('unarchive_session', {
+      session_id: createdSessionId,
+    });
+    assert(unarchived.status === 200, 'unarchive_session returns 200');
+    const unarchivedData = parseContent(unarchived.body);
+    assert(
+      unarchivedData?.session != null &&
+        (unarchivedData.session as Record<string, unknown>).archived ===
+          false,
+      'unarchive_session returns archived: false',
+    );
+
+    const defaultAfterUnarchive = await callTool('list_sessions');
+    const defaultAfterUnarchiveData = parseContent(defaultAfterUnarchive.body);
+    const reappearedSessions =
+      (defaultAfterUnarchiveData?.sessions as Array<
+        Record<string, unknown>
+      >) ?? [];
+    assert(
+      reappearedSessions.some(s => s.id === createdSessionId),
+      'default list_sessions shows the session again after unarchive',
+    );
+
+    // A well-formed but nonexistent id must return SESSION_NOT_FOUND.
+    const missingSession = await callTool('archive_session', {
+      session_id: '00000000-0000-0000-0000-000000000000',
+    });
+    const missingSessionData = parseContent(missingSession.body);
+    assert(
+      missingSession.body?.result?.isError === true &&
+        missingSessionData?.code === 'SESSION_NOT_FOUND',
+      'archive_session returns SESSION_NOT_FOUND for a nonexistent id',
+    );
+  } else {
+    console.log(
+      '  ⏭️  Skipping archive_session / unarchive_session (no session_id from previous step)',
     );
   }
 

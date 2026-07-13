@@ -3,8 +3,8 @@
 **Epic:** [`../../epic-implementation-plan.md`](../../epic-implementation-plan.md)
 **Design:** [`../../design-decisions.md`](../../design-decisions.md) (§3–§5)
 **Vocabulary:** [`apps/mobile/CONTEXT.md`](../../../../apps/mobile/CONTEXT.md) — **Archived**
-**Status:** proposed — awaiting owner sign-off on D1 (archive write mechanism), D2 (not-found
-handling / new error code) and D4 (coaching-guide wording). D3 is a recommendation, not a gate.
+**Status:** implemented 2026-07-13 on `feature-archiveinlineunits-3` (D1, D2, D3, D4 all shipped
+as recommended/drafted). See [`changes.md`](changes.md) in this folder.
 
 ## Objective
 
