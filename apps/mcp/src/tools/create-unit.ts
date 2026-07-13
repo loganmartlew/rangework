@@ -3,11 +3,11 @@ import type { UserContext } from '../auth/userContext.js';
 import { z } from 'zod';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { toolError, ErrorCodes } from '../validation/tool-errors.js';
+import { fetchAllClubCodes } from '../validation/club-codes.js';
 import {
-  fetchAllClubCodes,
-  validateClubCode,
-} from '../validation/club-codes.js';
-import { resolveTagCodes } from '../validation/tags.js';
+  validateInlineUnit,
+  buildInlineUnitJsonb,
+} from '../validation/inline-units.js';
 
 /**
  * Tool: `create_unit`
@@ -93,158 +93,25 @@ export function registerCreateUnitTool(
       },
     },
     async (args): Promise<CallToolResult> => {
-      // Validate instructions array length
-      if (!args.instructions || args.instructions.length === 0) {
-        return toolError(
-          ErrorCodes.VALIDATION_ERROR,
-          'at least one instruction is required',
-          {
-            field: 'instructions',
-          },
-        );
-      }
-      if (args.instructions.length > 10) {
-        return toolError(
-          ErrorCodes.VALIDATION_ERROR,
-          'a unit may have at most 10 instructions',
-          {
-            field: 'instructions',
-          },
-        );
-      }
-
-      // Trim and validate title
-      const title = args.title.trim();
-      if (!title) {
-        return toolError(
-          ErrorCodes.VALIDATION_ERROR,
-          'title must not be empty',
-          {
-            field: 'title',
-          },
-        );
-      }
-
-      // Trim and validate instruction texts; check positive integers
-      const instructions = [];
-      for (let idx = 0; idx < args.instructions.length; idx++) {
-        const inst = args.instructions[idx]!;
-        const text = inst.text.trim();
-        if (!text) {
-          return toolError(
-            ErrorCodes.VALIDATION_ERROR,
-            'instruction text must not be empty',
-            { field: `instructions[${idx}].text` },
-          );
-        }
-        if (!Number.isInteger(inst.order) || inst.order < 1) {
-          return toolError(
-            ErrorCodes.VALIDATION_ERROR,
-            'instruction order must be a positive integer',
-            { field: `instructions[${idx}].order` },
-          );
-        }
-        if (
-          inst.ball_count !== undefined &&
-          (!Number.isInteger(inst.ball_count) || inst.ball_count < 0)
-        ) {
-          return toolError(
-            ErrorCodes.VALIDATION_ERROR,
-            'ball_count must not be negative',
-            { field: `instructions[${idx}].ball_count` },
-          );
-        }
-        // Treat a blank per-instruction club_code as "use default" (absent).
-        const clubCode = inst.club_code?.trim() ? inst.club_code.trim() : undefined;
-        instructions.push({ ...inst, text, club_code: clubCode });
-      }
-
-      // Check for duplicate order values
-      const orderValues = instructions.map(i => i.order);
-      const uniqueOrders = new Set(orderValues);
-      if (uniqueOrders.size !== orderValues.length) {
-        return toolError(
-          ErrorCodes.VALIDATION_ERROR,
-          'instruction order values must be unique',
-          { field: 'instructions' },
-        );
-      }
-
-      // Validate every club code provided — the unit default plus any
-      // per-instruction club — against the catalog in a single fetch. This is
-      // the primary guard; the post-RPC FK branch below is a safety net.
-      const clubCodesToValidate: Array<{ code: string; field: string }> = [];
-      if (args.default_club_code) {
-        clubCodesToValidate.push({
-          code: args.default_club_code,
-          field: 'default_club_code',
-        });
-      }
-      instructions.forEach((inst, idx) => {
-        if (inst.club_code) {
-          clubCodesToValidate.push({
-            code: inst.club_code,
-            field: `instructions[${idx}].club_code`,
-          });
-        }
-      });
-
-      if (clubCodesToValidate.length > 0) {
-        let allCodes: string[];
-        try {
-          allCodes = await fetchAllClubCodes(ctx.supabaseClient);
-        } catch {
-          return toolError(
-            ErrorCodes.DATABASE_ERROR,
-            'Failed to validate club code. Please try again.',
-          );
-        }
-        for (const { code, field } of clubCodesToValidate) {
-          const clubError = validateClubCode(code, allCodes, field);
-          if (clubError) return clubError;
-        }
-      }
-
-      // Resolve tag codes to ids (rejects unknown codes; never creates tags)
-      let tagIds: string[] = [];
-      if (args.tag_codes && args.tag_codes.length > 0) {
-        const resolved = await resolveTagCodes(
-          ctx.supabaseClient,
-          args.tag_codes,
-          'tag_codes',
-        );
-        if ('error' in resolved) return resolved.error;
-        tagIds = resolved.ids;
-      }
+      const validated = await validateInlineUnit(ctx, args, '');
+      if ('error' in validated) return validated.error;
+      const unit = validated.unit;
 
       // Generate unit ID
       const unitId = crypto.randomUUID();
 
-      // Build instructions JSONB (omit ball_count / club_code keys if not provided)
-      const instructionsJsonb = instructions.map(inst => {
-        const obj: Record<string, unknown> = {
-          order: inst.order,
-          text: inst.text,
-        };
-        if (inst.ball_count !== undefined) {
-          obj.ball_count = inst.ball_count;
-        }
-        if (inst.club_code !== undefined) {
-          obj.club_code = inst.club_code;
-        }
-        return obj;
-      });
+      const instructionsJsonb = buildInlineUnitJsonb(unit.instructions);
 
       // Call the RPC
       const { error } = await ctx.supabaseClient.rpc('save_practice_unit', {
         p_unit_id: unitId,
-        p_title: title,
-        p_notes: args.notes ?? null,
-        p_focus: args.focus ?? null,
-        p_default_club_code: args.default_club_code ?? null,
+        p_title: unit.title,
+        p_notes: unit.notes ?? null,
+        p_focus: unit.focus ?? null,
+        p_default_club_code: unit.defaultClubCode ?? null,
         p_instructions: instructionsJsonb,
-        p_tag_ids: tagIds,
-        p_success_criterion: args.success_criterion ?? null,
+        p_tag_ids: unit.tagIds,
+        p_success_criterion: unit.successCriterion ?? null,
       });
 
       if (error) {

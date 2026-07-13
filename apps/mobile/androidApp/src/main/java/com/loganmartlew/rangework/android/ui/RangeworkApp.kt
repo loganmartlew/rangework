@@ -79,12 +79,14 @@ import com.loganmartlew.rangework.android.ui.components.DeleteConfirmationDialog
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.OverflowMenu
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.SESSION_INLINE_UNITS_DELETE_WARNING
 import com.loganmartlew.rangework.android.ui.components.SessionPickerDialog
 import com.loganmartlew.rangework.android.ui.components.showUndoSnackbar
 import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.sessionsUsingUnit
 import com.loganmartlew.rangework.android.ui.screens.AiSessionPlansScreen
+import com.loganmartlew.rangework.android.ui.screens.ArchivedSessionsScreen
 import com.loganmartlew.rangework.android.ui.screens.OverviewScreen
 import com.loganmartlew.rangework.android.ui.screens.RangeSessionHistoryScreen
 import com.loganmartlew.rangework.android.ui.screens.RangeSessionScreen
@@ -259,6 +261,9 @@ fun RangeworkApp(
             onEdit = plannerViewModel::editSession,
             onDelete = plannerViewModel::deleteSession,
             onDuplicate = plannerViewModel::duplicateSession,
+            onArchive = plannerViewModel::archiveSession,
+            onUnarchive = plannerViewModel::unarchiveSession,
+            onLoadArchived = plannerViewModel::loadArchivedSessions,
             onConsumeSavedId = plannerViewModel::consumeSavedSessionId,
             onClearDuplicatedId = plannerViewModel::clearDuplicatedSessionId,
             onUpdateName = plannerViewModel::updateSessionName,
@@ -322,6 +327,7 @@ fun RangeworkApp(
                         onRefreshPlanningOnNavigation = plannerViewModel::refreshPlanningOnNavigation,
                         onRestoreUnit = plannerViewModel::restoreUnit,
                         onRestoreSession = plannerViewModel::restoreSession,
+                        onPromoteUnit = plannerViewModel::promoteUnit,
                         onStartRangeSession = plannerViewModel::startRangeSession,
                         onLoadActiveRangeSessions = plannerViewModel::loadActiveRangeSessions,
                         onStartRangeSessionFromPicker = plannerViewModel::startRangeSessionFromPicker,
@@ -352,8 +358,20 @@ fun RangeworkApp(
                         },
                     )
                     val rangeSessionUiState by rangeSessionViewModel.uiState.collectAsStateWithLifecycle()
+                    // Self-hides once the source template is archived, deleted, or absent —
+                    // plannerUiState.sessions already excludes archived rows (D3).
+                    val sourceSessionId = rangeSessionUiState.rangeSession?.sourceSessionId
+                    val onArchiveSession: (() -> Unit)? = if (
+                        sourceSessionId != null &&
+                        plannerUiState.sessions.any { it.id == sourceSessionId }
+                    ) {
+                        { plannerViewModel.archiveSession(sourceSessionId) }
+                    } else {
+                        null
+                    }
                     RangeSessionScreen(
                         uiState = rangeSessionUiState,
+                        onArchiveSession = onArchiveSession,
                         onNavigateToBlock = rangeSessionViewModel::navigateToBlock,
                         onIncrementBlock = rangeSessionViewModel::incrementBlock,
                         onDecrementBlock = rangeSessionViewModel::decrementBlock,
@@ -502,6 +520,7 @@ private fun AuthenticatedAppShell(
     onRefreshPlanningOnNavigation: () -> Unit,
     onRestoreUnit: (PracticeUnit) -> Unit,
     onRestoreSession: (PracticeSession) -> Unit,
+    onPromoteUnit: (String) -> Unit,
     onStartRangeSession: (String) -> Unit,
     onLoadActiveRangeSessions: () -> Unit,
     onStartRangeSessionFromPicker: (String) -> Unit,
@@ -601,14 +620,16 @@ private fun AuthenticatedAppShell(
         }
     }
 
-    // Derive the entity ID when on a detail route (not edit) for app-bar actions
-    val currentUnitId: String? = if (currentRoute.startsWith("units/") && !currentRoute.endsWith("/edit")) {
+    // Keep the edited unit available for the app-bar title too. Inline Units are
+    // absent from the library list, so all lookups below go through `findUnit`.
+    val currentUnitId: String? = if (currentRoute.startsWith("units/")) {
         navBackStackEntry?.arguments?.getString(UnitIdArg)
     } else null
     val currentSessionId: String? = if (currentRoute.startsWith("sessions/") && !currentRoute.endsWith("/edit")) {
         navBackStackEntry?.arguments?.getString(SessionIdArg)
     } else null
-    val isDetailRoute = (currentUnitId != null) || (currentSessionId != null)
+    val isDetailRoute =
+        (currentUnitId != null && !currentRoute.endsWith("/edit")) || (currentSessionId != null)
     val scrollBehavior = if (isDetailRoute) {
         TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     } else {
@@ -670,6 +691,7 @@ private fun AuthenticatedAppShell(
     if (showSessionDeleteDialog) {
         DeleteConfirmationDialog(
             itemName = pendingDeleteSession?.name ?: "session",
+            warning = SESSION_INLINE_UNITS_DELETE_WARNING,
             onConfirm = {
                 showSessionDeleteDialog = false
                 val session = pendingDeleteSession
@@ -677,7 +699,12 @@ private fun AuthenticatedAppShell(
                 if (session != null) {
                     sessionActions.onDelete(session.id)
                     shellNavController.popBackStack()
-                    justDeletedSession = session
+                    if (session.items.none { item ->
+                            plannerUiState.findUnit(item.practiceUnitId)?.isInline == true
+                        }
+                    ) {
+                        justDeletedSession = session
+                    }
                 }
             },
             onDismiss = {
@@ -719,8 +746,8 @@ private fun AuthenticatedAppShell(
     }
 
     if (showSessionPickerDialog) {
-        val unitsById = remember(plannerUiState.units) {
-            plannerUiState.units.associateBy { it.id }
+        val unitsById = remember(plannerUiState.allUnits) {
+            plannerUiState.allUnits.associateBy { it.id }
         }
         SessionPickerDialog(
             sessions = plannerUiState.sessions,
@@ -799,9 +826,9 @@ private fun AuthenticatedAppShell(
         topBar = {
             val topBarTitle: String = when {
                 currentUnitId != null ->
-                    plannerUiState.units.firstOrNull { it.id == currentUnitId }?.title ?: "Unit"
+                    plannerUiState.findUnit(currentUnitId)?.title ?: "Unit"
                 currentSessionId != null ->
-                    plannerUiState.sessions.firstOrNull { it.id == currentSessionId }?.name ?: "Session"
+                    plannerUiState.findSession(currentSessionId)?.name ?: "Session"
                 else -> titleForRoute(currentRoute)
             }
             val titleContent: @Composable () -> Unit = {
@@ -822,47 +849,54 @@ private fun AuthenticatedAppShell(
                 }
             }
             val actionsContent: @Composable RowScope.() -> Unit = {
-                currentUnitId?.let { unitId ->
-                    val unit = plannerUiState.units.firstOrNull { it.id == unitId }
-                    IconButton(
-                        onClick = {
-                            unitActions.onEdit(unitId)
-                            shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit ${unit?.title ?: "unit"}",
-                        )
-                    }
-                    Box {
-                        OverflowMenu(
-                            contentDescription = "More options for ${unit?.title ?: "unit"}",
-                            onDuplicate = { unitActions.onDuplicate(unitId) },
-                            onDelete = {
-                                pendingDeleteUnit = unit
-                                showUnitDeleteDialog = true
+                if (isDetailRoute) currentUnitId?.let { unitId ->
+                    val unit = plannerUiState.findUnit(unitId)
+                    if (unit?.isInline == false) {
+                        IconButton(
+                            onClick = {
+                                unitActions.onEdit(unitId)
+                                shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
                             },
-                        )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit ${unit?.title ?: "unit"}",
+                            )
+                        }
+                        Box {
+                            OverflowMenu(
+                                contentDescription = "More options for ${unit?.title ?: "unit"}",
+                                onDuplicate = { unitActions.onDuplicate(unitId) },
+                                onDelete = {
+                                    pendingDeleteUnit = unit
+                                    showUnitDeleteDialog = true
+                                },
+                            )
+                        }
                     }
                 }
                 currentSessionId?.let { sessionId ->
-                    val session = plannerUiState.sessions.firstOrNull { it.id == sessionId }
-                    IconButton(
-                        onClick = {
-                            sessionActions.onEdit(sessionId)
-                            shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit ${session?.name ?: "session"}",
-                        )
+                    val session = plannerUiState.findSession(sessionId)
+                    val isArchived = session?.isArchived == true
+                    if (!isArchived) {
+                        IconButton(
+                            onClick = {
+                                sessionActions.onEdit(sessionId)
+                                shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit ${session?.name ?: "session"}",
+                            )
+                        }
                     }
                     Box {
                         OverflowMenu(
                             contentDescription = "More options for ${session?.name ?: "session"}",
                             onDuplicate = { sessionActions.onDuplicate(sessionId) },
+                            onArchive = if (!isArchived) { { sessionActions.onArchive(sessionId) } } else null,
+                            onUnarchive = if (isArchived) { { sessionActions.onUnarchive(sessionId) } } else null,
                             onDelete = {
                                 pendingDeleteSession = session
                                 showSessionDeleteDialog = true
@@ -1093,8 +1127,15 @@ private fun AuthenticatedAppShell(
                         LaunchedEffect(plannerUiState.savedUnitId) {
                             plannerUiState.savedUnitId?.let { savedUnitId ->
                                 unitActions.onConsumeSavedId()
-                                shellNavController.navigate(RangeworkRoutes.unitDetail(savedUnitId)) {
-                                    popUpTo(RangeworkRoutes.UnitEdit) { inclusive = true }
+                                if (plannerUiState.findUnit(savedUnitId)?.isInline == true) {
+                                    // Inline Units are edited from a session. Returning keeps the
+                                    // user in that session's editor rather than routing to the
+                                    // library-only unit detail destination.
+                                    shellNavController.popBackStack()
+                                } else {
+                                    shellNavController.navigate(RangeworkRoutes.unitDetail(savedUnitId)) {
+                                        popUpTo(RangeworkRoutes.UnitEdit) { inclusive = true }
+                                    }
                                 }
                             }
                         }
@@ -1120,6 +1161,7 @@ private fun AuthenticatedAppShell(
                         )
                     }
                     composable(RangeworkRoutes.Sessions) {
+                        LaunchedEffect(Unit) { sessionActions.onLoadArchived() }
                         SessionListScreen(
                             plannerUiState = plannerUiState,
                             onRefresh = onRefreshPlanning,
@@ -1136,6 +1178,10 @@ private fun AuthenticatedAppShell(
                             },
                             onDeleteSession = sessionActions.onDelete,
                             onDuplicateSession = sessionActions.onDuplicate,
+                            onArchiveSession = sessionActions.onArchive,
+                            onNavigateToArchived = {
+                                shellNavController.navigate(RangeworkRoutes.SessionsArchived)
+                            },
                             onToggleTagFilter = onToggleSessionTagFilter,
                             onClearTagFilter = onClearSessionTagFilter,
                             onGoToUnits = {
@@ -1147,6 +1193,19 @@ private fun AuthenticatedAppShell(
                                     }
                                 }
                             },
+                        )
+                    }
+                    composable(RangeworkRoutes.SessionsArchived) {
+                        LaunchedEffect(Unit) { sessionActions.onLoadArchived() }
+                        ArchivedSessionsScreen(
+                            plannerUiState = plannerUiState,
+                            onRefresh = sessionActions.onLoadArchived,
+                            onViewSession = { sessionId ->
+                                shellNavController.navigate(RangeworkRoutes.sessionDetail(sessionId))
+                            },
+                            onUnarchiveSession = sessionActions.onUnarchive,
+                            onDuplicateSession = sessionActions.onDuplicate,
+                            onDeleteSession = sessionActions.onDelete,
                         )
                     }
                     composable(RangeworkRoutes.SessionCreate) {
@@ -1180,6 +1239,10 @@ private fun AuthenticatedAppShell(
                                 unitActions.onBeginNew()
                                 shellNavController.navigate(RangeworkRoutes.UnitCreate)
                             },
+                            onEditInlineUnit = { unitId ->
+                                unitActions.onEdit(unitId)
+                                shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
+                            },
                             onToggleTag = sessionActions.onToggleTag,
                             onCreateTag = sessionActions.onCreateTag,
                         )
@@ -1198,10 +1261,12 @@ private fun AuthenticatedAppShell(
                                 shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
                             },
                             onStartSession = { onStartRangeSession(sessionId) },
+                            onUnarchiveSession = { sessionActions.onUnarchive(sessionId) },
                             onSessionDetailViewed = {
                                 onLoadRangeSessionHistory(sessionId)
                             },
                             onOpenRangeSessionHistory = onOpenRangeSessionHistory,
+                            onPromoteUnit = onPromoteUnit,
                         )
                     }
                     composable(RangeworkRoutes.SessionEdit) { backStackEntry ->
@@ -1235,6 +1300,10 @@ private fun AuthenticatedAppShell(
                             onNavigateToCreateUnit = {
                                 unitActions.onBeginNew()
                                 shellNavController.navigate(RangeworkRoutes.UnitCreate)
+                            },
+                            onEditInlineUnit = { unitId ->
+                                unitActions.onEdit(unitId)
+                                shellNavController.navigate(RangeworkRoutes.unitEdit(unitId))
                             },
                             onToggleTag = sessionActions.onToggleTag,
                             onCreateTag = sessionActions.onCreateTag,
@@ -1352,6 +1421,7 @@ internal fun titleForRoute(route: String): String = when {
     route.startsWith("units/") -> "Unit"
     route == RangeworkRoutes.Sessions -> "Sessions"
     route == RangeworkRoutes.SessionCreate -> "New session"
+    route == RangeworkRoutes.SessionsArchived -> "Archived sessions"
     route == RangeworkRoutes.SessionEdit -> "Edit session"
     route == RangeworkRoutes.SessionDetail -> "Session"
     route.startsWith("sessions/") && route.endsWith("/edit") -> "Edit session"

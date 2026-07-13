@@ -22,9 +22,11 @@ internal fun ListEntryCard(
     title: String,
     supportingText: String,
     onClick: () -> Unit,
-    onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onEdit: (() -> Unit)? = null,
     onDuplicate: (() -> Unit)? = null,
+    onArchive: (() -> Unit)? = null,
+    onUnarchive: (() -> Unit)? = null,
     metadataRow: (@Composable () -> Unit)? = null,
     overflowContentDescription: String = "More options",
     modifier: Modifier = Modifier,
@@ -66,6 +68,8 @@ internal fun ListEntryCard(
                     onEdit = onEdit,
                     onDelete = onDelete,
                     onDuplicate = onDuplicate,
+                    onArchive = onArchive,
+                    onUnarchive = onUnarchive,
                 )
             }
         }

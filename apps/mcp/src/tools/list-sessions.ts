@@ -8,10 +8,15 @@ import { z } from 'zod';
  * Returns all of the user's practice sessions, including their item lineup,
  * club overrides, repeat counts, coaching notes, and tags. Call this to
  * understand how the user's existing sessions are structured before creating a
- * new one. Pass `tag_codes` to filter by the session's own goal (OR semantics).
- * A session's tags express its overall intent and are independent of its units'
- * tags. If `has_uncounted_items` is true, one or more units in the session have
- * no ball count on some instructions — treat the total as a partial estimate.
+ * new one. Archived sessions are excluded by default; pass `include_archived:
+ * true` to include them (each session carries an `archived` flag). Pass
+ * `tag_codes` to filter by the session's own goal (OR semantics). A session's
+ * tags express its overall intent and are independent of its units' tags. If
+ * `has_uncounted_items` is true, one or more units in the session have no ball
+ * count on some instructions — treat the total as a partial estimate. Each
+ * item carries an `inline` flag: true when the unit is an Inline Unit owned
+ * by this session (not in the library) — the way to find a unit to hand to
+ * `promote_unit`.
  */
 export function registerListSessionsTool(
   server: McpServer,
@@ -21,7 +26,7 @@ export function registerListSessionsTool(
     'list_sessions',
     {
       description:
-        "Returns all of the user's practice sessions, including their item lineup, club overrides, repeat counts, coaching notes, and tags. Pass `tag_codes` to filter by the session's goal (OR semantics); a session's tags are independent of its units' tags. If `has_uncounted_items` is true, one or more units have no ball count on some instructions — treat the total as a partial estimate.",
+        "Returns all of the user's practice sessions, including their item lineup, club overrides, repeat counts, coaching notes, and tags. Archived sessions are excluded by default; pass `include_archived: true` to include them (each session carries an `archived` flag). Pass `tag_codes` to filter by the session's goal (OR semantics); a session's tags are independent of its units' tags. If `has_uncounted_items` is true, one or more units have no ball count on some instructions — treat the total as a partial estimate. Each item carries an `inline` flag: true when its unit is an Inline Unit owned by this session (not in the library) — find one this way to pass to `promote_unit`.",
       inputSchema: {
         tag_codes: z
           .array(z.string())
@@ -29,14 +34,25 @@ export function registerListSessionsTool(
           .describe(
             'Optional tag codes to filter by, using OR semantics: a session is returned if it carries at least one of these codes. Use codes from `list_tags`.',
           ),
+        include_archived: z
+          .boolean()
+          .optional()
+          .describe(
+            'Set true to also return archived sessions (hidden by default). Each session carries an `archived` flag.',
+          ),
       },
     },
     async args => {
-      // Fetch all practice sessions for the user, ordered by updated_at DESC
-      const { data: sessions, error: sessionsError } = await ctx.supabaseClient
+      // Fetch all practice sessions for the user, ordered by updated_at DESC.
+      // Archived sessions are excluded unless include_archived is set.
+      const baseSessionsQuery = ctx.supabaseClient
         .from('practice_sessions')
-        .select('id, name, notes')
-        .order('updated_at', { ascending: false });
+        .select('id, name, notes, archived_at');
+      const scopedSessionsQuery = args.include_archived
+        ? baseSessionsQuery
+        : baseSessionsQuery.is('archived_at', null);
+      const { data: sessions, error: sessionsError } =
+        await scopedSessionsQuery.order('updated_at', { ascending: false });
 
       if (sessionsError) {
         return {
@@ -99,7 +115,7 @@ export function registerListSessionsTool(
       ] = await Promise.all([
         ctx.supabaseClient
           .from('practice_units')
-          .select('id, title')
+          .select('id, title, scoped_to_session_id')
           .in('id', unitIds),
         ctx.supabaseClient
           .from('practice_unit_instructions')
@@ -137,13 +153,20 @@ export function registerListSessionsTool(
         };
       }
 
-      // Build unit lookup map
+      // Build unit lookup map. `inline` marks an Inline Unit (owned by a
+      // session, never in the library) so the model can find a promotable
+      // drill through the session it lives in — the raw scoped_to_session_id
+      // stays server-side.
       const unitMap = new Map<
         string,
-        { title: string; totalBallCount: number | null }
+        { title: string; totalBallCount: number | null; inline: boolean }
       >();
       for (const unit of units ?? []) {
-        unitMap.set(unit.id, { title: unit.title, totalBallCount: 0 });
+        unitMap.set(unit.id, {
+          title: unit.title,
+          totalBallCount: 0,
+          inline: unit.scoped_to_session_id != null,
+        });
       }
 
       // Compute per-unit ball totals
@@ -233,6 +256,7 @@ export function registerListSessionsTool(
           id: session.id,
           name: session.name,
           notes: session.notes,
+          archived: session.archived_at != null,
           total_ball_count: hasUncountedItems ? null : totalBallCount,
           has_uncounted_items: hasUncountedItems,
           tags: tagsBySession.get(session.id) ?? [],
@@ -242,6 +266,7 @@ export function registerListSessionsTool(
               order: item.sort_order,
               unit_id: item.practice_unit_id,
               unit_title: unit?.title ?? null,
+              inline: unit?.inline ?? false,
               repeat_count: item.repeat_count,
               club_code: item.club_code,
               notes: item.notes,

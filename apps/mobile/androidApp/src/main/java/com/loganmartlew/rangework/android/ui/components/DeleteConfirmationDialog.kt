@@ -18,6 +18,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.theme.RangeworkTheme
 
+internal const val SESSION_INLINE_UNITS_DELETE_WARNING =
+    "Inline Units in this session will be permanently deleted. Promote any you want to keep before deleting."
+
 @Composable
 internal fun DeleteConfirmationDialog(
     itemName: String,

@@ -857,12 +857,465 @@ class PracticePlannerViewModelTest {
         assertEquals(null, item.unitError)
         assertEquals(null, item.withoutErrors().observationTypesError)
     }
+
+    // ── Stage 2: archiving ─────────────────────────────────────────────
+
+    @Test
+    fun archiveSessionMovesSessionToArchivedList() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.archiveSession("session-1")
+        advanceUntilIdle()
+
+        assertTrue(
+            "Session should no longer be in the default list",
+            viewModel.uiState.value.sessions.none { it.id == "session-1" },
+        )
+        val archived = viewModel.uiState.value.archivedSessions.singleOrNull { it.id == "session-1" }
+        assertTrue("Expected the session present in archivedSessions", archived != null)
+        assertEquals(true, archived?.isArchived)
+    }
+
+    @Test
+    fun unarchiveSessionRestoresToDefaultList() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.archiveSession("session-1")
+        advanceUntilIdle()
+        viewModel.unarchiveSession("session-1")
+        advanceUntilIdle()
+
+        assertTrue(
+            "Session should no longer be in archivedSessions",
+            viewModel.uiState.value.archivedSessions.none { it.id == "session-1" },
+        )
+        val restored = viewModel.uiState.value.sessions.singleOrNull { it.id == "session-1" }
+        assertTrue("Expected the session back in the default list", restored != null)
+        assertEquals(false, restored?.isArchived)
+    }
+
+    @Test
+    fun loadArchivedSessionsPopulatesState() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.archivedSessions.isEmpty())
+
+        repositories.sessions[0] = repositories.sessions[0].copy(
+            archivedAt = Instant.parse("2026-06-16T00:00:00Z"),
+        )
+        viewModel.loadArchivedSessions()
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.archivedSessions.size)
+    }
+
+    @Test
+    fun loadArchivedSessionsHydratesInlineUnitsAddedAfterInitialRefresh() = runTest {
+        val repositories = FakePlannerRepositories()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        repositories.units += sampleUnit().copy(
+            id = "unit-inline-1",
+            title = "Archived inline drill",
+            scopedToSessionId = "session-1",
+        )
+        repositories.sessions += sampleSession().copy(
+            archivedAt = Instant.parse("2026-06-16T00:00:00Z"),
+            items = listOf(
+                PracticeSessionItem(
+                    id = "session-item-1",
+                    practiceUnitId = "unit-inline-1",
+                    order = 1,
+                    repeatCount = 1,
+                ),
+            ),
+        )
+
+        viewModel.loadArchivedSessions()
+        advanceUntilIdle()
+
+        assertEquals("Archived inline drill", viewModel.uiState.value.findUnit("unit-inline-1")?.title)
+    }
+
+    @Test
+    fun archiveSessionOptimisticallyUpdatesBeforeReconcile() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.archiveSession("session-1")
+        // Do NOT call advanceUntilIdle — check optimistic state
+
+        assertTrue(
+            "Session should be moved out of the default list immediately",
+            viewModel.uiState.value.sessions.none { it.id == "session-1" },
+        )
+        assertTrue(
+            "Session should appear in archivedSessions immediately",
+            viewModel.uiState.value.archivedSessions.any { it.id == "session-1" },
+        )
+
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun archiveFailureRevertsBothLists() = runTest {
+        val repositories = FakePlannerRepositories(archiveSessionException = RuntimeException("Network error"))
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.archiveSession("session-1")
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.sessions.size)
+        assertTrue(viewModel.uiState.value.archivedSessions.isEmpty())
+        val status = viewModel.uiState.value.status
+        assertTrue(
+            "Expected an archive-failed notification",
+            status is PlannerStatus.Notification && status.text.contains("failed"),
+        )
+    }
+
+    @Test
+    fun findSessionResolvesArchivedSession() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.archiveSession("session-1")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.sessions.none { it.id == "session-1" })
+        val found = viewModel.uiState.value.findSession("session-1")
+        assertTrue("findSession should resolve an archived session", found != null)
+        assertEquals(true, found?.isArchived)
+    }
+
+    @Test
+    fun deleteArchivedSessionRemovesItFromArchivedList() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.sessions += sampleSession().copy(archivedAt = Instant.parse("2026-06-16T00:00:00Z"))
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.deleteSession("session-1")
+        assertTrue(viewModel.uiState.value.archivedSessions.none { it.id == "session-1" })
+
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.sessions.none { it.id == "session-1" })
+        assertTrue(viewModel.uiState.value.archivedSessions.none { it.id == "session-1" })
+        assertTrue(repositories.sessions.none { it.id == "session-1" })
+    }
+
+    @Test
+    fun loadArchivedSessionsDoesNotRestoreDataAfterSignOut() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.sessions += sampleSession().copy(archivedAt = Instant.parse("2026-06-16T00:00:00Z"))
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.loadArchivedSessions()
+        viewModel.onAuthStateChanged(AuthState.SignedOut)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.archivedSessions.isEmpty())
+    }
+
+    // ── Stage 5: inline units ────────────────────────────────────────────
+
+    @Test
+    fun inlineUnitsHydratedForSessionItems() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit().copy(id = "unit-inline-1", scopedToSessionId = "session-1")
+        repositories.sessions += sampleSession().copy(
+            items = listOf(
+                PracticeSessionItem(id = "session-item-1", practiceUnitId = "unit-inline-1", order = 1, repeatCount = 1),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        assertTrue(
+            "Inline unit should be excluded from units",
+            viewModel.uiState.value.units.none { it.id == "unit-inline-1" },
+        )
+        assertEquals(1, viewModel.uiState.value.inlineUnits.size)
+        assertEquals("unit-inline-1", viewModel.uiState.value.inlineUnits.single().id)
+        assertTrue(viewModel.uiState.value.findUnit("unit-inline-1") != null)
+    }
+
+    @Test
+    fun findUnitResolvesInlineAndLibrary() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.units += sampleUnit().copy(id = "unit-inline-1", scopedToSessionId = "session-1")
+        repositories.sessions += sampleSession().copy(
+            items = listOf(
+                PracticeSessionItem(id = "session-item-1", practiceUnitId = "unit-inline-1", order = 1, repeatCount = 1),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        assertEquals("unit-1", viewModel.uiState.value.findUnit("unit-1")?.id)
+        assertEquals("unit-inline-1", viewModel.uiState.value.findUnit("unit-inline-1")?.id)
+        assertEquals(null, viewModel.uiState.value.findUnit("unknown"))
+    }
+
+    @Test
+    fun editInlineUnitOpensEditor() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit().copy(id = "unit-inline-1", title = "Inline drill", scopedToSessionId = "session-1")
+        repositories.sessions += sampleSession().copy(
+            items = listOf(
+                PracticeSessionItem(id = "session-item-1", practiceUnitId = "unit-inline-1", order = 1, repeatCount = 1),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.editUnit("unit-inline-1")
+
+        assertEquals("unit-inline-1", viewModel.uiState.value.unitEditor.unitId)
+        assertEquals("Inline drill", viewModel.uiState.value.unitEditor.title)
+    }
+
+    @Test
+    fun saveInlineUnitEditKeepsItInlineNotLibrary() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit().copy(id = "unit-inline-1", title = "Inline drill", scopedToSessionId = "session-1")
+        repositories.sessions += sampleSession().copy(
+            items = listOf(
+                PracticeSessionItem(id = "session-item-1", practiceUnitId = "unit-inline-1", order = 1, repeatCount = 1),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.editUnit("unit-inline-1")
+        viewModel.updateUnitTitle("Renamed inline drill")
+        viewModel.saveUnit()
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.inlineUnits.size)
+        assertEquals("Renamed inline drill", viewModel.uiState.value.inlineUnits.single().title)
+        assertTrue(viewModel.uiState.value.units.none { it.id == "unit-inline-1" })
+        assertEquals("Renamed inline drill", viewModel.uiState.value.unitEditor.title)
+        assertEquals("unit-inline-1", viewModel.uiState.value.unitEditor.unitId)
+    }
+
+    @Test
+    fun saveInlineUnitEditPreservesDirtySessionDraft() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit().copy(id = "unit-inline-1", title = "Inline drill", scopedToSessionId = "session-1")
+        repositories.sessions += sampleSession().copy(
+            items = listOf(
+                PracticeSessionItem(id = "session-item-1", practiceUnitId = "unit-inline-1", order = 1, repeatCount = 1),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.editSession("session-1")
+        viewModel.updateSessionName("Unsaved session name")
+        viewModel.updateSessionNotes("Unsaved session notes")
+        viewModel.editUnit("unit-inline-1")
+        viewModel.updateUnitTitle("Renamed inline drill")
+        viewModel.saveUnit()
+        advanceUntilIdle()
+
+        assertEquals("Unsaved session name", viewModel.uiState.value.sessionEditor.name)
+        assertEquals("Unsaved session notes", viewModel.uiState.value.sessionEditor.notes)
+    }
+
+    @Test
+    fun promoteUnitMovesInlineToLibrary() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit().copy(id = "unit-inline-1", title = "Inline drill", scopedToSessionId = "session-1")
+        repositories.sessions += sampleSession().copy(
+            items = listOf(
+                PracticeSessionItem(id = "session-item-1", practiceUnitId = "unit-inline-1", order = 1, repeatCount = 1),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.promoteUnit("unit-inline-1")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.inlineUnits.none { it.id == "unit-inline-1" })
+        val promoted = viewModel.uiState.value.units.singleOrNull { it.id == "unit-inline-1" }
+        assertTrue("Promoted unit should be in the library", promoted != null)
+        assertEquals(false, promoted?.isInline)
+        assertTrue(
+            "Session should still reference the promoted unit",
+            viewModel.uiState.value.sessions.single { it.id == "session-1" }.items.any { it.practiceUnitId == "unit-inline-1" },
+        )
+    }
+
+    @Test
+    fun promoteUnitOptimisticThenReconciles() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit().copy(id = "unit-inline-1", scopedToSessionId = "session-1")
+        repositories.sessions += sampleSession().copy(
+            items = listOf(
+                PracticeSessionItem(id = "session-item-1", practiceUnitId = "unit-inline-1", order = 1, repeatCount = 1),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.promoteUnit("unit-inline-1")
+        // Do NOT call advanceUntilIdle — check optimistic state
+
+        assertTrue(viewModel.uiState.value.inlineUnits.none { it.id == "unit-inline-1" })
+        assertTrue(viewModel.uiState.value.units.any { it.id == "unit-inline-1" })
+
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun promoteFailureRevertsBothLists() = runTest {
+        val repositories = FakePlannerRepositories(promoteUnitException = RuntimeException("Network error"))
+        repositories.units += sampleUnit().copy(id = "unit-inline-1", scopedToSessionId = "session-1")
+        repositories.sessions += sampleSession().copy(
+            items = listOf(
+                PracticeSessionItem(id = "session-item-1", practiceUnitId = "unit-inline-1", order = 1, repeatCount = 1),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.promoteUnit("unit-inline-1")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.units.none { it.id == "unit-inline-1" })
+        assertEquals(1, viewModel.uiState.value.inlineUnits.size)
+        val status = viewModel.uiState.value.status
+        assertTrue(
+            "Expected a promote-failed notification",
+            status is PlannerStatus.Notification && status.text.contains("failed"),
+        )
+    }
+
+    @Test
+    fun duplicateSessionWithInlineUnitHydratesCopy() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit().copy(id = "unit-inline-1", scopedToSessionId = "session-1")
+        repositories.sessions += sampleSession().copy(
+            items = listOf(
+                PracticeSessionItem(id = "session-item-1", practiceUnitId = "unit-inline-1", order = 1, repeatCount = 1),
+            ),
+        )
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.duplicateSession("session-1")
+        advanceUntilIdle()
+
+        val duplicatedId = viewModel.uiState.value.duplicatedSessionId
+        assertTrue("Expected duplicatedSessionId to be set", duplicatedId != null)
+        assertEquals(2, viewModel.uiState.value.inlineUnits.size)
+    }
 }
 
 private class FakePlannerRepositories(
     private val listUnitsException: Throwable? = null,
     private val saveUnitException: Throwable? = null,
     private val deleteUnitException: Throwable? = null,
+    private val archiveSessionException: Throwable? = null,
+    private val promoteUnitException: Throwable? = null,
     private val listDelayMs: Long = 0L,
 ) {
     val units = mutableListOf<PracticeUnit>()
@@ -877,7 +1330,9 @@ private class FakePlannerRepositories(
             listUnitsCallCount += 1
             if (listDelayMs > 0) delay(listDelayMs)
             listUnitsException?.let { throw it }
-            return units.toList()
+            // Mirrors Stage 4's repository choke point: Inline Units are excluded
+            // from the library list and reached only by id.
+            return units.filter { it.scopedToSessionId == null }
         }
 
         override suspend fun get(id: String): PracticeUnit? = units.firstOrNull { it.id == id }
@@ -885,6 +1340,9 @@ private class FakePlannerRepositories(
         override suspend fun persist(validated: PracticeUnitDraft, unitId: String?): PracticeUnit {
             saveUnitException?.let { throw it }
             savedUnitDrafts += validated
+            // Stage 4 D5: editing an existing unit preserves its scope — an Inline
+            // Unit being edited stays inline through save.
+            val existingScopedSessionId = unitId?.let { id -> units.firstOrNull { it.id == id }?.scopedToSessionId }
             val unit = PracticeUnit(
                 id = unitId ?: "unit-${units.size + 1}",
                 title = validated.title,
@@ -903,10 +1361,20 @@ private class FakePlannerRepositories(
                 successCriterion = validated.successCriterion,
                 createdAt = Instant.parse("2026-06-15T00:00:00Z"),
                 updatedAt = Instant.parse("2026-06-15T00:00:00Z"),
+                scopedToSessionId = existingScopedSessionId,
             )
             units.removeAll { existing -> existing.id == unit.id }
             units += unit
             return unit
+        }
+
+        override suspend fun setScopedSession(id: String, sessionId: String?): PracticeUnit {
+            promoteUnitException?.let { throw it }
+            val existing = units.first { it.id == id }
+            val updated = existing.copy(scopedToSessionId = sessionId)
+            units.removeAll { unit -> unit.id == id }
+            units += updated
+            return updated
         }
 
         override suspend fun delete(id: String) {
@@ -953,11 +1421,37 @@ private class FakePlannerRepositories(
         }
 
         override suspend fun setArchived(id: String, archivedAt: Instant?): PracticeSession {
+            archiveSessionException?.let { throw it }
             val existing = sessions.first { it.id == id }
             val updated = existing.copy(archivedAt = archivedAt)
             sessions.removeAll { it.id == id }
             sessions += updated
             return updated
+        }
+
+        override suspend fun duplicate(id: String): PracticeSession {
+            val source = sessions.first { it.id == id }
+            val newId = "session-dup-${sessions.size + 1}"
+            // Mirrors Stage 4's deep copy: an item whose unit is an Inline Unit
+            // owned by the source session gets its own clone owned by the copy;
+            // library references are shared, not cloned.
+            val copiedItems = source.items.map { item ->
+                val unit = units.firstOrNull { it.id == item.practiceUnitId }
+                if (unit != null && unit.scopedToSessionId == id) {
+                    val clone = unit.copy(id = "unit-inline-dup-${units.size + 1}", scopedToSessionId = newId)
+                    units += clone
+                    item.copy(id = "session-item-dup-${units.size}", practiceUnitId = clone.id)
+                } else {
+                    item
+                }
+            }
+            val copy = source.copy(
+                id = newId,
+                items = copiedItems,
+                archivedAt = null,
+            )
+            sessions += copy
+            return copy
         }
 
         override suspend fun delete(id: String) {

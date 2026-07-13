@@ -11,7 +11,9 @@ import { z } from 'zod';
  * in a new session. Pass `tag_codes` to find units in a skill area (OR: a unit
  * matches if it carries any of the codes). If `has_uncounted_instructions` is
  * true, some instructions have no ball count — treat `total_ball_count` as a
- * partial estimate.
+ * partial estimate. Pure library listing: Inline Units (session-scoped
+ * one-offs minted via `create_session`'s `inline_unit`) never appear here —
+ * find one through its session's items in `list_sessions`.
  */
 export function registerListUnitsTool(
   server: McpServer,
@@ -21,7 +23,7 @@ export function registerListUnitsTool(
     'list_units',
     {
       description:
-        "Returns all of the user's practice units, including full instruction text, ball counts, club assignment, coaching notes, and tags. Call this before creating new units to avoid duplication and to find units that can be reused in a new session. Pass `tag_codes` to filter by skill area (OR semantics). If `has_uncounted_instructions` is true, some instructions have no ball count — treat `total_ball_count` as a partial estimate.",
+        "Returns all of the user's practice units, including full instruction text, ball counts, club assignment, coaching notes, and tags. Call this before creating new units to avoid duplication and to find units that can be reused in a new session. Pass `tag_codes` to filter by skill area (OR semantics). If `has_uncounted_instructions` is true, some instructions have no ball count — treat `total_ball_count` as a partial estimate. Pure library listing: Inline Units (session-scoped one-offs minted via `create_session`'s `inline_unit`) never appear here — find one through its session's items in `list_sessions`.",
       inputSchema: {
         tag_codes: z
           .array(z.string())
@@ -32,10 +34,14 @@ export function registerListUnitsTool(
       },
     },
     async args => {
-      // Fetch all practice units for the user, ordered by updated_at DESC
+      // Fetch all practice units for the user, ordered by updated_at DESC.
+      // Excludes Inline Units (scoped to a session) — this is a pure library
+      // listing; inline units are reached only through their owning session's
+      // items in list_sessions.
       const { data: units, error: unitsError } = await ctx.supabaseClient
         .from('practice_units')
         .select('id, title, notes, focus, default_club_code')
+        .is('scoped_to_session_id', null)
         .order('updated_at', { ascending: false });
 
       if (unitsError) {

@@ -204,6 +204,9 @@ async function main(): Promise<void> {
     'create_unit',
     'create_session',
     'get_coaching_guide',
+    'archive_session',
+    'unarchive_session',
+    'promote_unit',
   ];
 
   for (const name of expectedTools) {
@@ -319,6 +322,7 @@ async function main(): Promise<void> {
 
   // ---- create_session (using the created unit) ----
   console.log('\n🎯 create_session');
+  let createdSessionId: string | undefined;
   if (createdUnitId) {
     const newSession = await callTool('create_session', {
       name: `[TEST] Regression session ${timestamp}`,
@@ -346,6 +350,7 @@ async function main(): Promise<void> {
       typeof sessionData.session_id === 'string' &&
       sessionData.session_id.length > 0
     ) {
+      createdSessionId = sessionData.session_id;
       pass(`create_session returned session_id: ${sessionData.session_id}`);
     } else {
       fail('create_session response contains a non-empty "session_id" string');
@@ -381,6 +386,184 @@ async function main(): Promise<void> {
   } else {
     console.log(
       '  ⏭️  Skipping create_session (no unit_id from previous step)',
+    );
+  }
+
+  // ---- inline units / promote_unit ----
+  console.log('\n🧩 inline units / promote_unit');
+  const inlineSession = await callTool('create_session', {
+    name: `[TEST] Regression inline session ${timestamp}`,
+    items: [
+      {
+        inline_unit: {
+          title: `[TEST] Regression inline unit ${timestamp}`,
+          instructions: [{ order: 1, text: 'Hit balls at the flag', ball_count: 10 }],
+        },
+        order: 1,
+        repeat_count: 1,
+      },
+    ],
+  });
+  assert(inlineSession.status === 200, 'create_session with inline_unit returns 200');
+  assert(
+    !inlineSession.body?.result?.isError,
+    'create_session with inline_unit is not an error',
+  );
+  const inlineSessionData = parseContent(inlineSession.body);
+  const inlineSessionId = inlineSessionData?.session_id as string | undefined;
+
+  if (inlineSessionId) {
+    const sessionsAfterInline = await callTool('list_sessions');
+    const sessionsAfterInlineData = parseContent(sessionsAfterInline.body);
+    const inlineSessionEntry = (
+      (sessionsAfterInlineData?.sessions as Array<Record<string, unknown>>) ?? []
+    ).find(s => s.id === inlineSessionId);
+    const inlineItems =
+      (inlineSessionEntry?.items as Array<Record<string, unknown>>) ?? [];
+    const inlineItem = inlineItems[0];
+    assert(
+      inlineItem?.inline === true,
+      'list_sessions marks the inline item with inline: true',
+    );
+    const inlineUnitId = inlineItem?.unit_id as string | undefined;
+
+    if (inlineUnitId) {
+      const unitsBeforePromote = await callTool('list_units');
+      const unitsBeforePromoteData = parseContent(unitsBeforePromote.body);
+      const inlineUnitVisibleBeforePromote = (
+        (unitsBeforePromoteData?.units as Array<Record<string, unknown>>) ?? []
+      ).some(u => u.id === inlineUnitId);
+      assert(
+        !inlineUnitVisibleBeforePromote,
+        'the inline unit does not appear in list_units before promotion',
+      );
+
+      const promoted = await callTool('promote_unit', { unit_id: inlineUnitId });
+      assert(promoted.status === 200, 'promote_unit returns 200');
+      const promotedData = parseContent(promoted.body);
+      assert(
+        (promotedData?.unit as Record<string, unknown> | undefined)?.inline === false,
+        'promote_unit returns inline: false',
+      );
+
+      const unitsAfterPromote = await callTool('list_units');
+      const unitsAfterPromoteData = parseContent(unitsAfterPromote.body);
+      const inlineUnitVisibleAfterPromote = (
+        (unitsAfterPromoteData?.units as Array<Record<string, unknown>>) ?? []
+      ).some(u => u.id === inlineUnitId);
+      assert(
+        inlineUnitVisibleAfterPromote,
+        'the promoted unit now appears in list_units',
+      );
+
+      const sessionsAfterPromote = await callTool('list_sessions');
+      const sessionsAfterPromoteData = parseContent(sessionsAfterPromote.body);
+      const sessionAfterPromote = (
+        (sessionsAfterPromoteData?.sessions as Array<Record<string, unknown>>) ?? []
+      ).find(s => s.id === inlineSessionId);
+      const itemAfterPromote = (
+        (sessionAfterPromote?.items as Array<Record<string, unknown>>) ?? []
+      )[0];
+      assert(
+        itemAfterPromote?.unit_id === inlineUnitId,
+        'the session still references the promoted unit',
+      );
+      assert(
+        itemAfterPromote?.inline === false,
+        "the session's item now reports inline: false after promotion",
+      );
+    } else {
+      fail('inline session item carries a unit_id');
+    }
+
+    // A well-formed but nonexistent id must return UNIT_NOT_FOUND.
+    const missingUnit = await callTool('promote_unit', {
+      unit_id: '00000000-0000-0000-0000-000000000000',
+    });
+    const missingUnitData = parseContent(missingUnit.body);
+    assert(
+      missingUnit.body?.result?.isError === true &&
+        missingUnitData?.code === 'UNIT_NOT_FOUND',
+      'promote_unit returns UNIT_NOT_FOUND for a nonexistent id',
+    );
+  } else {
+    fail('create_session with inline_unit returns a non-empty "session_id" string');
+  }
+
+  // ---- archive_session / unarchive_session ----
+  console.log('\n🗄️  archive_session / unarchive_session');
+  if (createdSessionId) {
+    const archived = await callTool('archive_session', {
+      session_id: createdSessionId,
+    });
+    assert(archived.status === 200, 'archive_session returns 200');
+    const archivedData = parseContent(archived.body);
+    assert(
+      archivedData?.session != null &&
+        (archivedData.session as Record<string, unknown>).archived === true,
+      'archive_session returns archived: true',
+    );
+
+    const defaultAfterArchive = await callTool('list_sessions');
+    const defaultAfterArchiveData = parseContent(defaultAfterArchive.body);
+    const defaultSessions =
+      (defaultAfterArchiveData?.sessions as Array<Record<string, unknown>>) ??
+      [];
+    assert(
+      !defaultSessions.some(s => s.id === createdSessionId),
+      'default list_sessions hides the archived session',
+    );
+
+    const includeArchived = await callTool('list_sessions', {
+      include_archived: true,
+    });
+    const includeArchivedData = parseContent(includeArchived.body);
+    const includedSessions =
+      (includeArchivedData?.sessions as Array<Record<string, unknown>>) ?? [];
+    const archivedEntry = includedSessions.find(
+      s => s.id === createdSessionId,
+    );
+    assert(
+      archivedEntry?.archived === true,
+      'list_sessions with include_archived: true returns the session with archived: true',
+    );
+
+    const unarchived = await callTool('unarchive_session', {
+      session_id: createdSessionId,
+    });
+    assert(unarchived.status === 200, 'unarchive_session returns 200');
+    const unarchivedData = parseContent(unarchived.body);
+    assert(
+      unarchivedData?.session != null &&
+        (unarchivedData.session as Record<string, unknown>).archived ===
+          false,
+      'unarchive_session returns archived: false',
+    );
+
+    const defaultAfterUnarchive = await callTool('list_sessions');
+    const defaultAfterUnarchiveData = parseContent(defaultAfterUnarchive.body);
+    const reappearedSessions =
+      (defaultAfterUnarchiveData?.sessions as Array<
+        Record<string, unknown>
+      >) ?? [];
+    assert(
+      reappearedSessions.some(s => s.id === createdSessionId),
+      'default list_sessions shows the session again after unarchive',
+    );
+
+    // A well-formed but nonexistent id must return SESSION_NOT_FOUND.
+    const missingSession = await callTool('archive_session', {
+      session_id: '00000000-0000-0000-0000-000000000000',
+    });
+    const missingSessionData = parseContent(missingSession.body);
+    assert(
+      missingSession.body?.result?.isError === true &&
+        missingSessionData?.code === 'SESSION_NOT_FOUND',
+      'archive_session returns SESSION_NOT_FOUND for a nonexistent id',
+    );
+  } else {
+    console.log(
+      '  ⏭️  Skipping archive_session / unarchive_session (no session_id from previous step)',
     );
   }
 

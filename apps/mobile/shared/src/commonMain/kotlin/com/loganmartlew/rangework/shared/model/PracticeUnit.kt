@@ -16,4 +16,13 @@ data class PracticeUnit(
     val tags: List<Tag> = emptyList(),
     val createdAt: Instant,
     val updatedAt: Instant,
-)
+    /**
+     * The session that owns this unit as an Inline Unit, or null for an ordinary
+     * library unit. Non-null units are excluded from the library and die with
+     * their session (cascade). Promotion detaches ownership by setting this null.
+     */
+    val scopedToSessionId: String? = null,
+) {
+    /** True when this unit is session-owned content, not a library citizen. */
+    val isInline: Boolean get() = scopedToSessionId != null
+}

@@ -16,10 +16,12 @@ import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.material.icons.filled.GolfCourse
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.AssistChip
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -27,12 +29,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
+import com.loganmartlew.rangework.android.ui.allUnits
+import com.loganmartlew.rangework.android.ui.findSession
 import com.loganmartlew.rangework.android.ui.observationTypeLabel
 import com.loganmartlew.rangework.android.ui.components.BallCountPill
 import com.loganmartlew.rangework.android.ui.components.BriefingStat
@@ -58,15 +63,17 @@ internal fun SessionDetailScreen(
     onCreateSession: () -> Unit,
     onEditSession: () -> Unit,
     onStartSession: () -> Unit = {},
+    onUnarchiveSession: () -> Unit = {},
     onSessionDetailViewed: () -> Unit = {},
     onOpenRangeSessionHistory: (String) -> Unit = {},
+    onPromoteUnit: (String) -> Unit = {},
 ) {
     LaunchedEffect(sessionId) {
         onSessionDetailViewed()
     }
-    val session = plannerUiState.sessions.firstOrNull { it.id == sessionId }
-    val unitsById = remember(plannerUiState.units) {
-        plannerUiState.units.associateBy(PracticeUnit::id)
+    val session = plannerUiState.findSession(sessionId)
+    val unitsById = remember(plannerUiState.allUnits) {
+        plannerUiState.allUnits.associateBy(PracticeUnit::id)
     }
     ScrollableScreen {
         if (session == null) {
@@ -116,34 +123,53 @@ internal fun SessionDetailScreen(
         // Tags
         TagChipRow(tags = session.tags)
 
-        // Start session button
-        Button(
-            onClick = onStartSession,
-            enabled = isSessionExecutable,
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    contentDescription = if (startSessionDisabledReason != null) {
-                        "Start session, disabled: $startSessionDisabledReason"
-                    } else {
-                        "Start session"
-                    }
-                },
-        ) {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
+        // Start session button, gated behind unarchiving (design §3/§4)
+        if (session.isArchived) {
+            EntryHighlightCard(
+                title = "Archived",
+                body = "This session is archived. Unarchive to start or edit it.",
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Start session", style = MaterialTheme.typography.labelLarge)
-        }
-        startSessionDisabledReason?.let { reason ->
-            Text(
-                text = reason,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            FilledTonalButton(
+                onClick = onUnarchiveSession,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Unarchive,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Unarchive", style = MaterialTheme.typography.labelLarge)
+            }
+        } else {
+            Button(
+                onClick = onStartSession,
+                enabled = isSessionExecutable,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = if (startSessionDisabledReason != null) {
+                            "Start session, disabled: $startSessionDisabledReason"
+                        } else {
+                            "Start session"
+                        }
+                    },
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Start session", style = MaterialTheme.typography.labelLarge)
+            }
+            startSessionDisabledReason?.let { reason ->
+                Text(
+                    text = reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         // Session notes
@@ -168,8 +194,8 @@ internal fun SessionDetailScreen(
                         icon = Icons.AutoMirrored.Rounded.EventNote,
                         title = "No items yet",
                         body = "Add practice units to this session to define what to practice.",
-                        actionLabel = "Edit session",
-                        onAction = onEditSession,
+                        actionLabel = if (session.isArchived) "Unarchive" else "Edit session",
+                        onAction = if (session.isArchived) onUnarchiveSession else onEditSession,
                     )
                 } else {
                     session.items.forEachIndexed { index, item ->
@@ -179,6 +205,7 @@ internal fun SessionDetailScreen(
                             position = item.order,
                             clubCatalog = plannerUiState.clubCatalog,
                             unitsById = unitsById,
+                            onPromoteUnit = onPromoteUnit,
                         )
                         if (index != session.items.lastIndex) {
                             HorizontalDivider()
@@ -231,6 +258,7 @@ private fun SessionItemDetailRow(
     position: Int,
     clubCatalog: List<Club>,
     unitsById: Map<String, PracticeUnit>,
+    onPromoteUnit: (String) -> Unit = {},
 ) {
     fun resolveClubName(code: String?): String? = code?.takeIf(String::isNotBlank)?.let { c ->
         clubCatalog.firstOrNull { it.code == c }?.displayName ?: c
@@ -284,6 +312,20 @@ private fun SessionItemDetailRow(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ),
             )
+            if (unit?.isInline == true) {
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(
+                            text = "Inline",
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
+                )
+            }
             overrideClubName?.let { name ->
                 AssistChip(
                     onClick = {},
@@ -304,6 +346,51 @@ private fun SessionItemDetailRow(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ),
                 )
+            }
+        }
+
+        // An Inline Unit has no separate library-detail surface, so echo its
+        // instructions where it is owned and practiced: this session.
+        if (unit?.isInline == true) {
+            Column(
+                modifier = Modifier.padding(start = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "Instructions",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (unit.instructions.isEmpty()) {
+                    Text(
+                        text = "No instructions.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    unit.instructions.sortedBy { it.order }.forEach { instruction ->
+                        Text(
+                            text = "${instruction.order}. ${instruction.text}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
+        // Promote affordance (design §7): quiet, user-initiated, one-way — a
+        // subordinate text action, never a prompt. Disappears once promoted,
+        // which is the confirmation (the row re-renders without isInline).
+        if (unit?.isInline == true) {
+            TextButton(
+                onClick = { onPromoteUnit(unit.id) },
+                modifier = Modifier.padding(start = 28.dp),
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            ) {
+                Text("Promote to library", style = MaterialTheme.typography.labelMedium)
             }
         }
 

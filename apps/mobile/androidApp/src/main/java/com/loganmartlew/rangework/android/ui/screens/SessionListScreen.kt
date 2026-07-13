@@ -6,13 +6,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.EventNote
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PlannerStatus
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
+import com.loganmartlew.rangework.android.ui.allUnits
 import com.loganmartlew.rangework.android.ui.components.BallCountPill
 import com.loganmartlew.rangework.android.ui.components.DeleteConfirmationDialog
 import com.loganmartlew.rangework.android.ui.components.EmptyStateCard
@@ -32,6 +38,7 @@ import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.ListEntryCard
 import com.loganmartlew.rangework.android.ui.components.PlanningListContent
 import com.loganmartlew.rangework.android.ui.components.RefreshableScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.SESSION_INLINE_UNITS_DELETE_WARNING
 import com.loganmartlew.rangework.android.ui.components.SwipeActionBackground
 import com.loganmartlew.rangework.android.ui.components.TagChipRow
 import com.loganmartlew.rangework.android.ui.components.TagFilterBar
@@ -49,18 +56,21 @@ internal fun SessionListScreen(
     onEditSession: (String) -> Unit,
     onDeleteSession: (String) -> Unit,
     onDuplicateSession: (String) -> Unit,
+    onArchiveSession: (String) -> Unit,
+    onNavigateToArchived: () -> Unit,
     onGoToUnits: () -> Unit,
     onToggleTagFilter: (String) -> Unit,
     onClearTagFilter: () -> Unit,
 ) {
-    val unitsById = remember(plannerUiState.units) {
-        plannerUiState.units.associateBy(PracticeUnit::id)
+    val unitsById = remember(plannerUiState.allUnits) {
+        plannerUiState.allUnits.associateBy(PracticeUnit::id)
     }
     var pendingDeleteSession by remember { mutableStateOf<PracticeSession?>(null) }
 
     pendingDeleteSession?.let { session ->
         DeleteConfirmationDialog(
             itemName = session.name,
+            warning = SESSION_INLINE_UNITS_DELETE_WARNING,
             onConfirm = {
                 onDeleteSession(session.id)
                 pendingDeleteSession = null
@@ -89,7 +99,7 @@ internal fun SessionListScreen(
                 )
             },
             listContent = {
-                if (plannerUiState.units.isEmpty()) {
+                if (plannerUiState.sessions.isEmpty() && plannerUiState.units.isEmpty()) {
                     EmptyStateCard(
                         icon = Icons.AutoMirrored.Rounded.EventNote,
                         title = "Create a unit first",
@@ -174,10 +184,26 @@ internal fun SessionListScreen(
                                     onEdit = { onEditSession(session.id) },
                                     onDelete = { pendingDeleteSession = session },
                                     onDuplicate = { onDuplicateSession(session.id) },
+                                    onArchive = { onArchiveSession(session.id) },
                                     overflowContentDescription = "More options for ${session.name}",
                                 )
                             }
                         }
+                    }
+                }
+                if (plannerUiState.archivedSessions.isNotEmpty()) {
+                    TextButton(onClick = onNavigateToArchived) {
+                        Icon(
+                            imageVector = Icons.Default.Archive,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Archived · ${plannerUiState.archivedSessions.size}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     Spacer(modifier = Modifier.height(96.dp))
                 }
@@ -185,4 +211,3 @@ internal fun SessionListScreen(
         )
     }
 }
-

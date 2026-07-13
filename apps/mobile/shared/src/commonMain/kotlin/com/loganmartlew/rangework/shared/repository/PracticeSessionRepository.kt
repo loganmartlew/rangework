@@ -10,5 +10,12 @@ abstract class PracticeSessionRepository {
     abstract suspend fun list(): List<PracticeSession>
     abstract suspend fun listArchived(): List<PracticeSession>
     abstract suspend fun setArchived(id: String, archivedAt: Instant?): PracticeSession
+
+    /**
+     * Deep-copy a session into a new one: inline units are copied and owned by
+     * the copy, library references are shared, and the copy is always
+     * unarchived. Returns the new session.
+     */
+    abstract suspend fun duplicate(id: String): PracticeSession
     abstract suspend fun delete(id: String)
 }

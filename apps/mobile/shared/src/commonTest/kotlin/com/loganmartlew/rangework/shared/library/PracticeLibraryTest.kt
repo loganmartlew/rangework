@@ -19,7 +19,9 @@ class PracticeLibraryTest {
 
     private fun createLibrary(): Pair<DefaultPracticeLibrary, InMemoryPracticeUnitRepository> {
         val unitRepo = InMemoryPracticeUnitRepository()
-        val sessionRepo = InMemoryPracticeSessionRepository()
+        // Share the unit repo so the in-memory session repo can deep-copy and
+        // cascade-delete Inline Units, matching the server-side behaviour.
+        val sessionRepo = InMemoryPracticeSessionRepository(unitRepo)
         val library = DefaultPracticeLibrary(unitRepo, sessionRepo)
         return library to unitRepo
     }
@@ -732,5 +734,253 @@ class PracticeLibraryTest {
         library.deleteSession(saved.id)
 
         assertTrue(library.listSessions().isEmpty())
+    }
+
+    // ── Inline Units ───────────────────────────────────────────────────
+
+    /**
+     * Builds a session with one library item and one Inline Unit (a unit scoped
+     * to the session), returning (session, library unit id, inline unit id).
+     * Inline units have no in-app creation path yet, so the fixture mints one by
+     * saving a unit then scoping it to the session it belongs to.
+     */
+    private suspend fun DefaultPracticeLibrary.saveInlineFixture(
+        unitRepo: InMemoryPracticeUnitRepository,
+    ): Triple<PracticeSession, String, String> {
+        val libraryUnit = (saveUnit(
+            PracticeUnitDraft(
+                title = "Library drill",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit")),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+
+        val inlineUnit = (saveUnit(
+            PracticeUnitDraft(
+                title = "One-off drill",
+                successCriterion = "lands soft",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Chip", ballCount = 8)),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+
+        val session = (saveSession(
+            PracticeSessionDraft(
+                name = "Mixed session",
+                items = listOf(
+                    PracticeSessionItemDraft(practiceUnitId = libraryUnit.id, order = 1, repeatCount = 1),
+                    PracticeSessionItemDraft(practiceUnitId = inlineUnit.id, order = 2, repeatCount = 1),
+                ),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+
+        unitRepo.setScopedSession(inlineUnit.id, session.id)
+        return Triple(session, libraryUnit.id, inlineUnit.id)
+    }
+
+    @Test
+    fun listUnitsExcludesInlineUnits() = kotlinx.coroutines.test.runTest {
+        val (library, unitRepo) = createLibrary()
+        val (_, libraryUnitId, inlineUnitId) = library.saveInlineFixture(unitRepo)
+
+        val listed = library.listUnits().map { it.id }
+        assertTrue(libraryUnitId in listed, "Library unit stays in the library")
+        assertTrue(inlineUnitId !in listed, "Inline unit is excluded from the library")
+        // …but is still reachable by id (session detail, promotion, duplication).
+        assertNotNull(library.getUnit(inlineUnitId))
+    }
+
+    @Test
+    fun promoteUnitDetachesOwnership() = kotlinx.coroutines.test.runTest {
+        val (library, unitRepo) = createLibrary()
+        val (session, _, inlineUnitId) = library.saveInlineFixture(unitRepo)
+
+        val promoted = library.promoteUnit(inlineUnitId)
+
+        assertEquals(null, promoted.scopedToSessionId)
+        assertTrue(library.listUnits().any { it.id == inlineUnitId }, "Promoted unit joins the library")
+        // The session keeps referencing the same unit id.
+        val reloaded = assertNotNull(library.getSession(session.id))
+        assertTrue(reloaded.items.any { it.practiceUnitId == inlineUnitId })
+    }
+
+    @Test
+    fun promoteIsOneWayContentUnchanged() = kotlinx.coroutines.test.runTest {
+        val (library, unitRepo) = createLibrary()
+        val (_, _, inlineUnitId) = library.saveInlineFixture(unitRepo)
+        val before = assertNotNull(library.getUnit(inlineUnitId))
+
+        val after = library.promoteUnit(inlineUnitId)
+
+        // Identity and content unchanged — only ownership detaches.
+        assertEquals(before.id, after.id)
+        assertEquals(before.title, after.title)
+        assertEquals(before.successCriterion, after.successCriterion)
+        assertEquals(
+            before.instructions.map { it.text to it.ballCount },
+            after.instructions.map { it.text to it.ballCount },
+        )
+        // No demotion path exists — promoteUnit is the only scope-changing API.
+    }
+
+    @Test
+    fun duplicateSessionDeepCopiesInlineUnits() = kotlinx.coroutines.test.runTest {
+        val (library, unitRepo) = createLibrary()
+        val (session, libraryUnitId, inlineUnitId) = library.saveInlineFixture(unitRepo)
+
+        val copy = library.duplicateSession(session.id)
+
+        assertTrue(copy.id != session.id)
+        // The library item is shared (same id); the inline item points at a new unit.
+        assertTrue(copy.items.any { it.practiceUnitId == libraryUnitId })
+        val copiedInlineId = copy.items.map { it.practiceUnitId }
+            .single { it != libraryUnitId }
+        assertTrue(copiedInlineId != inlineUnitId, "Duplicate mints a new inline unit id")
+
+        val sourceInline = assertNotNull(library.getUnit(inlineUnitId))
+        val copiedInline = assertNotNull(library.getUnit(copiedInlineId))
+        assertEquals(copy.id, copiedInline.scopedToSessionId)
+        assertEquals("One-off drill", copiedInline.title)
+
+        // Editing the copy's inline unit leaves the source's untouched.
+        library.saveUnit(
+            PracticeUnitDraft(
+                title = "Edited copy",
+                successCriterion = "lands soft",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Chip", ballCount = 8)),
+            ),
+            unitId = copiedInlineId,
+        )
+        assertEquals("One-off drill", assertNotNull(library.getUnit(inlineUnitId)).title)
+        assertEquals("Edited copy", assertNotNull(library.getUnit(copiedInlineId)).title)
+        // The edit preserved the copy's scope (D5).
+        assertEquals(copy.id, assertNotNull(library.getUnit(copiedInlineId)).scopedToSessionId)
+    }
+
+    @Test
+    fun duplicateSessionOfLibraryOnlyIsIdentical() = kotlinx.coroutines.test.runTest {
+        val (library, _) = createLibrary()
+
+        val unit = (library.saveUnit(
+            PracticeUnitDraft(
+                title = "Putting",
+                successCriterion = "inside 3ft",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit 5ft putts")),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+
+        val source = (library.saveSession(
+            PracticeSessionDraft(
+                name = "Library-only block",
+                notes = "keep it clean",
+                items = listOf(
+                    PracticeSessionItemDraft(
+                        practiceUnitId = unit.id,
+                        order = 1,
+                        repeatCount = 3,
+                        clubCode = "PW",
+                        notes = "Keep the strike centred",
+                        focusCue = "Finish balanced",
+                        observationTypes = listOf(ObservationType.SUCCESS, ObservationType.CONTACT),
+                    ),
+                ),
+                tagIds = listOf("tag-a", "tag-b"),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+
+        val unitsBefore = library.listUnits().map { it.id }.toSet()
+        val copy = library.duplicateSession(source.id)
+
+        assertTrue(copy.id != source.id)
+        assertEquals(null, copy.archivedAt)
+        // Identical item projection; the library reference is shared (no new units).
+        assertEquals(source.items.size, copy.items.size)
+        val src = source.items.single()
+        val dup = copy.items.single()
+        assertEquals(src.practiceUnitId, dup.practiceUnitId)
+        assertEquals(src.order, dup.order)
+        assertEquals(src.repeatCount, dup.repeatCount)
+        assertEquals(src.clubCode, dup.clubCode)
+        assertEquals(src.notes, dup.notes)
+        assertEquals(src.focusCue, dup.focusCue)
+        assertEquals(src.observationTypes, dup.observationTypes)
+        assertEquals(source.tags.map { it.id }, copy.tags.map { it.id })
+        assertEquals(unitsBefore, library.listUnits().map { it.id }.toSet(), "No inline units minted")
+    }
+
+    @Test
+    fun deleteSessionCascadesInlineUnits() = kotlinx.coroutines.test.runTest {
+        val (library, unitRepo) = createLibrary()
+        val (session, libraryUnitId, inlineUnitId) = library.saveInlineFixture(unitRepo)
+
+        library.deleteSession(session.id)
+
+        assertEquals(null, library.getUnit(inlineUnitId), "Inline unit dies with its session")
+        assertNotNull(library.getUnit(libraryUnitId), "Library unit survives")
+    }
+
+    @Test
+    fun editDroppingInlineUnitReapsOrphan() = kotlinx.coroutines.test.runTest {
+        val (library, unitRepo) = createLibrary()
+
+        val libraryUnit = (library.saveUnit(
+            PracticeUnitDraft(
+                title = "Library drill",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Hit")),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+        val inlineUnit = (library.saveUnit(
+            PracticeUnitDraft(
+                title = "Doomed inline",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Chip")),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+        val promotedUnit = (library.saveUnit(
+            PracticeUnitDraft(
+                title = "Kept via promotion",
+                instructions = listOf(PracticeInstructionDraft(order = 1, text = "Pitch")),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+
+        val session = (library.saveSession(
+            PracticeSessionDraft(
+                name = "Session",
+                items = listOf(
+                    PracticeSessionItemDraft(practiceUnitId = libraryUnit.id, order = 1, repeatCount = 1),
+                    PracticeSessionItemDraft(practiceUnitId = inlineUnit.id, order = 2, repeatCount = 1),
+                    PracticeSessionItemDraft(practiceUnitId = promotedUnit.id, order = 3, repeatCount = 1),
+                ),
+            ),
+        ) as PracticeLibraryResult.Saved).value
+
+        unitRepo.setScopedSession(inlineUnit.id, session.id)
+        unitRepo.setScopedSession(promotedUnit.id, session.id)
+        // Promote one before the edit — its scope is now null.
+        library.promoteUnit(promotedUnit.id)
+
+        // Re-save the session with only the library item.
+        library.saveSession(
+            PracticeSessionDraft(
+                name = "Session",
+                items = listOf(
+                    PracticeSessionItemDraft(practiceUnitId = libraryUnit.id, order = 1, repeatCount = 1),
+                ),
+            ),
+            sessionId = session.id,
+        )
+
+        assertEquals(null, library.getUnit(inlineUnit.id), "Dropped inline unit is reaped")
+        assertNotNull(library.getUnit(promotedUnit.id), "Promoted unit survives (scope already null)")
+        assertTrue(library.listUnits().any { it.id == promotedUnit.id })
+    }
+
+    @Test
+    fun inlineUnitDormantWhenArchived() = kotlinx.coroutines.test.runTest {
+        val (library, unitRepo) = createLibrary()
+        val (session, _, inlineUnitId) = library.saveInlineFixture(unitRepo)
+
+        library.archiveSession(session.id)
+
+        // Dormancy is derived from the owner — no extra state on the unit.
+        assertTrue(library.listUnits().none { it.id == inlineUnitId }, "Still absent from the library")
+        assertNotNull(library.getUnit(inlineUnitId), "Still reachable by id")
     }
 }
