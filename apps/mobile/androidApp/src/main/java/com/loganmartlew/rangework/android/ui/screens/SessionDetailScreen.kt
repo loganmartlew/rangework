@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.material.icons.filled.GolfCourse
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.AssistChip
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.AssistChipDefaults
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.loganmartlew.rangework.android.ui.PracticePlannerUiState
+import com.loganmartlew.rangework.android.ui.findSession
 import com.loganmartlew.rangework.android.ui.observationTypeLabel
 import com.loganmartlew.rangework.android.ui.components.BallCountPill
 import com.loganmartlew.rangework.android.ui.components.BriefingStat
@@ -58,13 +60,14 @@ internal fun SessionDetailScreen(
     onCreateSession: () -> Unit,
     onEditSession: () -> Unit,
     onStartSession: () -> Unit = {},
+    onUnarchiveSession: () -> Unit = {},
     onSessionDetailViewed: () -> Unit = {},
     onOpenRangeSessionHistory: (String) -> Unit = {},
 ) {
     LaunchedEffect(sessionId) {
         onSessionDetailViewed()
     }
-    val session = plannerUiState.sessions.firstOrNull { it.id == sessionId }
+    val session = plannerUiState.findSession(sessionId)
     val unitsById = remember(plannerUiState.units) {
         plannerUiState.units.associateBy(PracticeUnit::id)
     }
@@ -116,34 +119,53 @@ internal fun SessionDetailScreen(
         // Tags
         TagChipRow(tags = session.tags)
 
-        // Start session button
-        Button(
-            onClick = onStartSession,
-            enabled = isSessionExecutable,
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    contentDescription = if (startSessionDisabledReason != null) {
-                        "Start session, disabled: $startSessionDisabledReason"
-                    } else {
-                        "Start session"
-                    }
-                },
-        ) {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
+        // Start session button, gated behind unarchiving (design §3/§4)
+        if (session.isArchived) {
+            EntryHighlightCard(
+                title = "Archived",
+                body = "This session is archived. Unarchive to start or edit it.",
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Start session", style = MaterialTheme.typography.labelLarge)
-        }
-        startSessionDisabledReason?.let { reason ->
-            Text(
-                text = reason,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            FilledTonalButton(
+                onClick = onUnarchiveSession,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Unarchive,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Unarchive", style = MaterialTheme.typography.labelLarge)
+            }
+        } else {
+            Button(
+                onClick = onStartSession,
+                enabled = isSessionExecutable,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = if (startSessionDisabledReason != null) {
+                            "Start session, disabled: $startSessionDisabledReason"
+                        } else {
+                            "Start session"
+                        }
+                    },
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Start session", style = MaterialTheme.typography.labelLarge)
+            }
+            startSessionDisabledReason?.let { reason ->
+                Text(
+                    text = reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         // Session notes

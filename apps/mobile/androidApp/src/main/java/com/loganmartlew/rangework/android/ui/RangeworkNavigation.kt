@@ -29,6 +29,7 @@ internal object RangeworkRoutes {
     const val UnitEdit = "units/{unitId}/edit"
     const val Sessions = "sessions"
     const val SessionCreate = "sessions/create"
+    const val SessionsArchived = "sessions/archived"
     const val SessionDetail = "sessions/{sessionId}"
     const val SessionEdit = "sessions/{sessionId}/edit"
     const val Settings = "settings"

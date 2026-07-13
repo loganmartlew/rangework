@@ -93,6 +93,7 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun RangeSessionScreen(
     uiState: RangeSessionUiState,
+    onArchiveSession: (() -> Unit)? = null,
     onNavigateToBlock: (Int) -> Unit,
     onIncrementBlock: (Int) -> Unit,
     onDecrementBlock: (Int) -> Unit,
@@ -196,6 +197,7 @@ internal fun RangeSessionScreen(
                 savedSessionNote = uiState.rangeSession?.sessionNote,
                 isSavingSessionNote = uiState.isSavingSessionNote,
                 onSaveSessionNote = onSaveSessionNote,
+                onArchiveSession = onArchiveSession,
                 modifier = Modifier.padding(innerPadding),
             )
         }

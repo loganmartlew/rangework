@@ -85,6 +85,7 @@ import com.loganmartlew.rangework.shared.model.PracticeSession
 import com.loganmartlew.rangework.shared.model.PracticeUnit
 import com.loganmartlew.rangework.shared.model.sessionsUsingUnit
 import com.loganmartlew.rangework.android.ui.screens.AiSessionPlansScreen
+import com.loganmartlew.rangework.android.ui.screens.ArchivedSessionsScreen
 import com.loganmartlew.rangework.android.ui.screens.OverviewScreen
 import com.loganmartlew.rangework.android.ui.screens.RangeSessionHistoryScreen
 import com.loganmartlew.rangework.android.ui.screens.RangeSessionScreen
@@ -259,6 +260,9 @@ fun RangeworkApp(
             onEdit = plannerViewModel::editSession,
             onDelete = plannerViewModel::deleteSession,
             onDuplicate = plannerViewModel::duplicateSession,
+            onArchive = plannerViewModel::archiveSession,
+            onUnarchive = plannerViewModel::unarchiveSession,
+            onLoadArchived = plannerViewModel::loadArchivedSessions,
             onConsumeSavedId = plannerViewModel::consumeSavedSessionId,
             onClearDuplicatedId = plannerViewModel::clearDuplicatedSessionId,
             onUpdateName = plannerViewModel::updateSessionName,
@@ -352,8 +356,20 @@ fun RangeworkApp(
                         },
                     )
                     val rangeSessionUiState by rangeSessionViewModel.uiState.collectAsStateWithLifecycle()
+                    // Self-hides once the source template is archived, deleted, or absent —
+                    // plannerUiState.sessions already excludes archived rows (D3).
+                    val sourceSessionId = rangeSessionUiState.rangeSession?.sourceSessionId
+                    val onArchiveSession: (() -> Unit)? = if (
+                        sourceSessionId != null &&
+                        plannerUiState.sessions.any { it.id == sourceSessionId }
+                    ) {
+                        { plannerViewModel.archiveSession(sourceSessionId) }
+                    } else {
+                        null
+                    }
                     RangeSessionScreen(
                         uiState = rangeSessionUiState,
+                        onArchiveSession = onArchiveSession,
                         onNavigateToBlock = rangeSessionViewModel::navigateToBlock,
                         onIncrementBlock = rangeSessionViewModel::incrementBlock,
                         onDecrementBlock = rangeSessionViewModel::decrementBlock,
@@ -801,7 +817,7 @@ private fun AuthenticatedAppShell(
                 currentUnitId != null ->
                     plannerUiState.units.firstOrNull { it.id == currentUnitId }?.title ?: "Unit"
                 currentSessionId != null ->
-                    plannerUiState.sessions.firstOrNull { it.id == currentSessionId }?.name ?: "Session"
+                    plannerUiState.findSession(currentSessionId)?.name ?: "Session"
                 else -> titleForRoute(currentRoute)
             }
             val titleContent: @Composable () -> Unit = {
@@ -847,22 +863,27 @@ private fun AuthenticatedAppShell(
                     }
                 }
                 currentSessionId?.let { sessionId ->
-                    val session = plannerUiState.sessions.firstOrNull { it.id == sessionId }
-                    IconButton(
-                        onClick = {
-                            sessionActions.onEdit(sessionId)
-                            shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit ${session?.name ?: "session"}",
-                        )
+                    val session = plannerUiState.findSession(sessionId)
+                    val isArchived = session?.isArchived == true
+                    if (!isArchived) {
+                        IconButton(
+                            onClick = {
+                                sessionActions.onEdit(sessionId)
+                                shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit ${session?.name ?: "session"}",
+                            )
+                        }
                     }
                     Box {
                         OverflowMenu(
                             contentDescription = "More options for ${session?.name ?: "session"}",
                             onDuplicate = { sessionActions.onDuplicate(sessionId) },
+                            onArchive = if (!isArchived) { { sessionActions.onArchive(sessionId) } } else null,
+                            onUnarchive = if (isArchived) { { sessionActions.onUnarchive(sessionId) } } else null,
                             onDelete = {
                                 pendingDeleteSession = session
                                 showSessionDeleteDialog = true
@@ -1120,6 +1141,7 @@ private fun AuthenticatedAppShell(
                         )
                     }
                     composable(RangeworkRoutes.Sessions) {
+                        LaunchedEffect(Unit) { sessionActions.onLoadArchived() }
                         SessionListScreen(
                             plannerUiState = plannerUiState,
                             onRefresh = onRefreshPlanning,
@@ -1136,6 +1158,10 @@ private fun AuthenticatedAppShell(
                             },
                             onDeleteSession = sessionActions.onDelete,
                             onDuplicateSession = sessionActions.onDuplicate,
+                            onArchiveSession = sessionActions.onArchive,
+                            onNavigateToArchived = {
+                                shellNavController.navigate(RangeworkRoutes.SessionsArchived)
+                            },
                             onToggleTagFilter = onToggleSessionTagFilter,
                             onClearTagFilter = onClearSessionTagFilter,
                             onGoToUnits = {
@@ -1147,6 +1173,19 @@ private fun AuthenticatedAppShell(
                                     }
                                 }
                             },
+                        )
+                    }
+                    composable(RangeworkRoutes.SessionsArchived) {
+                        LaunchedEffect(Unit) { sessionActions.onLoadArchived() }
+                        ArchivedSessionsScreen(
+                            plannerUiState = plannerUiState,
+                            onRefresh = sessionActions.onLoadArchived,
+                            onViewSession = { sessionId ->
+                                shellNavController.navigate(RangeworkRoutes.sessionDetail(sessionId))
+                            },
+                            onUnarchiveSession = sessionActions.onUnarchive,
+                            onDuplicateSession = sessionActions.onDuplicate,
+                            onDeleteSession = sessionActions.onDelete,
                         )
                     }
                     composable(RangeworkRoutes.SessionCreate) {
@@ -1198,6 +1237,7 @@ private fun AuthenticatedAppShell(
                                 shellNavController.navigate(RangeworkRoutes.sessionEdit(sessionId))
                             },
                             onStartSession = { onStartRangeSession(sessionId) },
+                            onUnarchiveSession = { sessionActions.onUnarchive(sessionId) },
                             onSessionDetailViewed = {
                                 onLoadRangeSessionHistory(sessionId)
                             },
@@ -1352,6 +1392,7 @@ internal fun titleForRoute(route: String): String = when {
     route.startsWith("units/") -> "Unit"
     route == RangeworkRoutes.Sessions -> "Sessions"
     route == RangeworkRoutes.SessionCreate -> "New session"
+    route == RangeworkRoutes.SessionsArchived -> "Archived sessions"
     route == RangeworkRoutes.SessionEdit -> "Edit session"
     route == RangeworkRoutes.SessionDetail -> "Session"
     route.startsWith("sessions/") && route.endsWith("/edit") -> "Edit session"
