@@ -913,14 +913,19 @@ class PracticePlannerViewModelTest {
     @Test
     fun loadArchivedSessionsPopulatesState() = runTest {
         val repositories = FakePlannerRepositories()
-        repositories.sessions += sampleSession().copy(archivedAt = Instant.parse("2026-06-16T00:00:00Z"))
+        repositories.sessions += sampleSession()
         val viewModel = PracticePlannerViewModel(
             environment = baselineEnvironment(),
             dataFoundation = repositories.toDataFoundation(),
         )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.archivedSessions.isEmpty())
 
+        repositories.sessions[0] = repositories.sessions[0].copy(
+            archivedAt = Instant.parse("2026-06-16T00:00:00Z"),
+        )
         viewModel.loadArchivedSessions()
         advanceUntilIdle()
 
@@ -997,6 +1002,45 @@ class PracticePlannerViewModelTest {
         val found = viewModel.uiState.value.findSession("session-1")
         assertTrue("findSession should resolve an archived session", found != null)
         assertEquals(true, found?.isArchived)
+    }
+
+    @Test
+    fun deleteArchivedSessionRemovesItFromArchivedList() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.sessions += sampleSession().copy(archivedAt = Instant.parse("2026-06-16T00:00:00Z"))
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.deleteSession("session-1")
+        assertTrue(viewModel.uiState.value.archivedSessions.none { it.id == "session-1" })
+
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.sessions.none { it.id == "session-1" })
+        assertTrue(viewModel.uiState.value.archivedSessions.none { it.id == "session-1" })
+        assertTrue(repositories.sessions.none { it.id == "session-1" })
+    }
+
+    @Test
+    fun loadArchivedSessionsDoesNotRestoreDataAfterSignOut() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.sessions += sampleSession().copy(archivedAt = Instant.parse("2026-06-16T00:00:00Z"))
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.loadArchivedSessions()
+        viewModel.onAuthStateChanged(AuthState.SignedOut)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.archivedSessions.isEmpty())
     }
 }
 

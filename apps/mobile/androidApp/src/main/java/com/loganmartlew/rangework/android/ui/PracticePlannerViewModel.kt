@@ -676,11 +676,14 @@ class PracticePlannerViewModel(
 
         val previousUnits = _uiState.value.units
         val previousSessions = _uiState.value.sessions
-        val name = previousSessions.firstOrNull { it.id == sessionId }?.name ?: "session"
+        val previousArchived = _uiState.value.archivedSessions
+        val name = (previousSessions + previousArchived).firstOrNull { it.id == sessionId }?.name ?: "session"
         val optimisticSessions = previousSessions.filter { it.id != sessionId }
+        val optimisticArchived = previousArchived.filter { it.id != sessionId }
 
         _uiState.value = _uiState.value.copy(
             sessions = optimisticSessions,
+            archivedSessions = optimisticArchived,
             savedSessionId = null,
             unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
             sessionEditor = if (_uiState.value.sessionEditor.sessionId == sessionId) {
@@ -699,11 +702,13 @@ class PracticePlannerViewModel(
                     library.deleteSession(sessionId)
                     val units = library.listUnits()
                     val sessions = library.listSessions()
+                    val archivedSessions = library.listArchivedSessions()
                     if (token == operationToken) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             units = units,
                             sessions = sessions,
+                            archivedSessions = archivedSessions,
                             unitEditor = _uiState.value.unitEditor.resolveWith(units),
                             sessionEditor = _uiState.value.sessionEditor.resolveWith(sessions),
                         )
@@ -713,6 +718,7 @@ class PracticePlannerViewModel(
                         _uiState.value = _uiState.value.copy(
                             units = previousUnits,
                             sessions = previousSessions,
+                            archivedSessions = previousArchived,
                             unitEditor = _uiState.value.unitEditor.resolveWith(previousUnits),
                             sessionEditor = _uiState.value.sessionEditor.resolveWith(previousSessions),
                             status = plannerStatus(exception = exception, fallback = "Session delete failed."),
@@ -832,12 +838,18 @@ class PracticePlannerViewModel(
 
     fun loadArchivedSessions() {
         val foundation = dataFoundation ?: return
+        val userId = activeUserId ?: return
+        val token = operationToken
         viewModelScope.launch {
-            try {
-                val archivedSessions = foundation.practiceLibrary.listArchivedSessions()
-                _uiState.value = _uiState.value.copy(archivedSessions = archivedSessions)
-            } catch (e: Exception) {
-                // Non-fatal: the archived list/footer count simply won't refresh.
+            operationMutex.withLock {
+                try {
+                    val archivedSessions = foundation.practiceLibrary.listArchivedSessions()
+                    if (userId == activeUserId && token == operationToken) {
+                        _uiState.value = _uiState.value.copy(archivedSessions = archivedSessions)
+                    }
+                } catch (e: Exception) {
+                    // Non-fatal: the archived list/footer count simply won't refresh.
+                }
             }
         }
     }
