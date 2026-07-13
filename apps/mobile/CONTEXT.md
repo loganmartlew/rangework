@@ -18,6 +18,18 @@ _Avoid_: step (reserved for execution Steps), task
 A reusable template that assembles Practice Units into a complete practice plan. Contains an ordered list of Session Items.
 _Avoid_: session template, workout, program, plan
 
+**Archived**:
+A reversible dormant state for a Practice Session that is no longer in rotation. An Archived session is excluded from default session listings but remains fully viewable and duplicable, and its Range Session history is untouched; it cannot be edited or used to start a Range Session until unarchived. Archiving a session whose Range Session is still Active is allowed — the Snapshot makes the running session immune. The unarchived state deliberately has no special name (never "Active", which belongs to the Range Session lifecycle). Archive sits before delete, not in place of it.
+_Avoid_: deleted, hidden, inactive, active (for the unarchived state)
+
+**Inline Unit**:
+A Practice Unit owned by exactly one Practice Session, minted during planning (currently only by the Coaching context) to fill a slot in that specific session. It never appears in the unit library and can never be referenced by another session. Its lifecycle follows its owner: it goes dormant when the session is Archived, is deleted when the session is deleted, and is deep-copied (a new Inline Unit owned by the new session) when the session is duplicated. The only way out of ownership is Promotion.
+_Avoid_: one-off unit, scoped unit, session-local unit, private unit
+
+**Promotion**:
+The one-way, user-initiated act of converting an Inline Unit into an ordinary library Practice Unit. Promotion detaches the unit from its owning session without changing its content or identity; the session keeps referencing the same unit. It happens only at the user's request — via an affordance on the unit within its session, or conversationally through the Coaching context — never silently. There is no demotion.
+_Avoid_: publish, save to library, demote
+
 **Session Item**:
 A slot in a Practice Session that references a Practice Unit and carries session-level overrides: Repeat Count, Club, notes, and Focus Cue.
 _Avoid_: session unit, practice item
