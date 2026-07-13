@@ -14,6 +14,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +38,7 @@ internal fun FinishSummaryContent(
     savedSessionNote: String? = null,
     isSavingSessionNote: Boolean = false,
     onSaveSessionNote: (note: String?, onComplete: () -> Unit) -> Unit = { _, done -> done() },
+    onArchiveSession: (() -> Unit)? = null,
 ) {
     // The note draft lives here (not inside SessionNoteCard) so the Done button
     // can flush a dirty unsaved note before navigating (P2). The session is
@@ -140,6 +142,16 @@ internal fun FinishSummaryContent(
                 .semantics { contentDescription = "Done, return to previous screen" },
         ) {
             Text("Done", style = MaterialTheme.typography.labelLarge)
+        }
+
+        if (onArchiveSession != null) {
+            TextButton(onClick = onArchiveSession) {
+                Text(
+                    text = "Archive this session",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

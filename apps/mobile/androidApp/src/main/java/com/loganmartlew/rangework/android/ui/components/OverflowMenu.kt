@@ -1,8 +1,10 @@
 package com.loganmartlew.rangework.android.ui.components
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -24,6 +26,8 @@ internal fun OverflowMenu(
     onDelete: () -> Unit,
     onEdit: (() -> Unit)? = null,
     onDuplicate: (() -> Unit)? = null,
+    onArchive: (() -> Unit)? = null,
+    onUnarchive: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -57,6 +61,30 @@ internal fun OverflowMenu(
                 onClick = {
                     expanded = false
                     onDuplicate()
+                },
+            )
+        }
+        if (onArchive != null) {
+            DropdownMenuItem(
+                text = { Text("Archive") },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Default.Archive, contentDescription = null)
+                },
+                onClick = {
+                    expanded = false
+                    onArchive()
+                },
+            )
+        }
+        if (onUnarchive != null) {
+            DropdownMenuItem(
+                text = { Text("Unarchive") },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Default.Unarchive, contentDescription = null)
+                },
+                onClick = {
+                    expanded = false
+                    onUnarchive()
                 },
             )
         }

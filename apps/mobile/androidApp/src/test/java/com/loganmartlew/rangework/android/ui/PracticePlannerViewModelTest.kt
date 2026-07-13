@@ -857,12 +857,198 @@ class PracticePlannerViewModelTest {
         assertEquals(null, item.unitError)
         assertEquals(null, item.withoutErrors().observationTypesError)
     }
+
+    // ── Stage 2: archiving ─────────────────────────────────────────────
+
+    @Test
+    fun archiveSessionMovesSessionToArchivedList() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.archiveSession("session-1")
+        advanceUntilIdle()
+
+        assertTrue(
+            "Session should no longer be in the default list",
+            viewModel.uiState.value.sessions.none { it.id == "session-1" },
+        )
+        val archived = viewModel.uiState.value.archivedSessions.singleOrNull { it.id == "session-1" }
+        assertTrue("Expected the session present in archivedSessions", archived != null)
+        assertEquals(true, archived?.isArchived)
+    }
+
+    @Test
+    fun unarchiveSessionRestoresToDefaultList() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.archiveSession("session-1")
+        advanceUntilIdle()
+        viewModel.unarchiveSession("session-1")
+        advanceUntilIdle()
+
+        assertTrue(
+            "Session should no longer be in archivedSessions",
+            viewModel.uiState.value.archivedSessions.none { it.id == "session-1" },
+        )
+        val restored = viewModel.uiState.value.sessions.singleOrNull { it.id == "session-1" }
+        assertTrue("Expected the session back in the default list", restored != null)
+        assertEquals(false, restored?.isArchived)
+    }
+
+    @Test
+    fun loadArchivedSessionsPopulatesState() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.archivedSessions.isEmpty())
+
+        repositories.sessions[0] = repositories.sessions[0].copy(
+            archivedAt = Instant.parse("2026-06-16T00:00:00Z"),
+        )
+        viewModel.loadArchivedSessions()
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.archivedSessions.size)
+    }
+
+    @Test
+    fun archiveSessionOptimisticallyUpdatesBeforeReconcile() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.archiveSession("session-1")
+        // Do NOT call advanceUntilIdle — check optimistic state
+
+        assertTrue(
+            "Session should be moved out of the default list immediately",
+            viewModel.uiState.value.sessions.none { it.id == "session-1" },
+        )
+        assertTrue(
+            "Session should appear in archivedSessions immediately",
+            viewModel.uiState.value.archivedSessions.any { it.id == "session-1" },
+        )
+
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun archiveFailureRevertsBothLists() = runTest {
+        val repositories = FakePlannerRepositories(archiveSessionException = RuntimeException("Network error"))
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.archiveSession("session-1")
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.sessions.size)
+        assertTrue(viewModel.uiState.value.archivedSessions.isEmpty())
+        val status = viewModel.uiState.value.status
+        assertTrue(
+            "Expected an archive-failed notification",
+            status is PlannerStatus.Notification && status.text.contains("failed"),
+        )
+    }
+
+    @Test
+    fun findSessionResolvesArchivedSession() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.units += sampleUnit()
+        repositories.sessions += sampleSession()
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.archiveSession("session-1")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.sessions.none { it.id == "session-1" })
+        val found = viewModel.uiState.value.findSession("session-1")
+        assertTrue("findSession should resolve an archived session", found != null)
+        assertEquals(true, found?.isArchived)
+    }
+
+    @Test
+    fun deleteArchivedSessionRemovesItFromArchivedList() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.sessions += sampleSession().copy(archivedAt = Instant.parse("2026-06-16T00:00:00Z"))
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.deleteSession("session-1")
+        assertTrue(viewModel.uiState.value.archivedSessions.none { it.id == "session-1" })
+
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.sessions.none { it.id == "session-1" })
+        assertTrue(viewModel.uiState.value.archivedSessions.none { it.id == "session-1" })
+        assertTrue(repositories.sessions.none { it.id == "session-1" })
+    }
+
+    @Test
+    fun loadArchivedSessionsDoesNotRestoreDataAfterSignOut() = runTest {
+        val repositories = FakePlannerRepositories()
+        repositories.sessions += sampleSession().copy(archivedAt = Instant.parse("2026-06-16T00:00:00Z"))
+        val viewModel = PracticePlannerViewModel(
+            environment = baselineEnvironment(),
+            dataFoundation = repositories.toDataFoundation(),
+        )
+        viewModel.onAuthStateChanged(AuthState.SignedIn(userId = "user-1", userEmail = "logan@example.com"))
+        advanceUntilIdle()
+
+        viewModel.loadArchivedSessions()
+        viewModel.onAuthStateChanged(AuthState.SignedOut)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.archivedSessions.isEmpty())
+    }
 }
 
 private class FakePlannerRepositories(
     private val listUnitsException: Throwable? = null,
     private val saveUnitException: Throwable? = null,
     private val deleteUnitException: Throwable? = null,
+    private val archiveSessionException: Throwable? = null,
     private val listDelayMs: Long = 0L,
 ) {
     val units = mutableListOf<PracticeUnit>()
@@ -953,6 +1139,7 @@ private class FakePlannerRepositories(
         }
 
         override suspend fun setArchived(id: String, archivedAt: Instant?): PracticeSession {
+            archiveSessionException?.let { throw it }
             val existing = sessions.first { it.id == id }
             val updated = existing.copy(archivedAt = archivedAt)
             sessions.removeAll { it.id == id }
