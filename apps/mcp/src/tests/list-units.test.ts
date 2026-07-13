@@ -12,17 +12,19 @@ describe('list_units tool', () => {
         if (table === 'practice_units') {
           return {
             select: () => ({
-              order: async () => ({
-                data: [
-                  {
-                    id: 'unit-1',
-                    title: 'Gate Drill',
-                    notes: 'Use alignment stick',
-                    focus: 'Square face',
-                    default_club_code: 'seven_iron',
-                  },
-                ],
-                error: null,
+              is: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      id: 'unit-1',
+                      title: 'Gate Drill',
+                      notes: 'Use alignment stick',
+                      focus: 'Square face',
+                      default_club_code: 'seven_iron',
+                    },
+                  ],
+                  error: null,
+                }),
               }),
             }),
           };
@@ -105,17 +107,19 @@ describe('list_units tool', () => {
         if (table === 'practice_units') {
           return {
             select: () => ({
-              order: async () => ({
-                data: [
-                  {
-                    id: 'unit-1',
-                    title: 'Drill',
-                    notes: null,
-                    focus: null,
-                    default_club_code: null,
-                  },
-                ],
-                error: null,
+              is: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      id: 'unit-1',
+                      title: 'Drill',
+                      notes: null,
+                      focus: null,
+                      default_club_code: null,
+                    },
+                  ],
+                  error: null,
+                }),
               }),
             }),
           };
@@ -185,17 +189,19 @@ describe('list_units tool', () => {
         if (table === 'practice_units') {
           return {
             select: () => ({
-              order: async () => ({
-                data: [
-                  {
-                    id: 'unit-1',
-                    title: 'Feel work',
-                    notes: null,
-                    focus: null,
-                    default_club_code: null,
-                  },
-                ],
-                error: null,
+              is: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      id: 'unit-1',
+                      title: 'Feel work',
+                      notes: null,
+                      focus: null,
+                      default_club_code: null,
+                    },
+                  ],
+                  error: null,
+                }),
               }),
             }),
           };
@@ -263,7 +269,9 @@ describe('list_units tool', () => {
     const mockSupabaseClient = {
       from: () => ({
         select: () => ({
-          order: async () => ({ data: [], error: null }),
+          is: () => ({
+            order: async () => ({ data: [], error: null }),
+          }),
         }),
       }),
     } as unknown as UserContext['supabaseClient'];
@@ -290,5 +298,76 @@ describe('list_units tool', () => {
 
     const parsed = JSON.parse(result.content[0]?.text ?? '{}');
     expect(parsed.units).toEqual([]);
+  });
+
+  it('excludes inline units by filtering on scoped_to_session_id is null', async () => {
+    let isArgs: [string, unknown] | null = null;
+    const mockSupabaseClient = {
+      from: (table: string) => {
+        if (table === 'practice_units') {
+          return {
+            select: () => ({
+              is: (column: string, value: unknown) => {
+                isArgs = [column, value];
+                return {
+                  order: async () => ({
+                    data: [
+                      {
+                        id: 'unit-1',
+                        title: 'Library Drill',
+                        notes: null,
+                        focus: null,
+                        default_club_code: null,
+                      },
+                    ],
+                    error: null,
+                  }),
+                };
+              },
+            }),
+          };
+        }
+        if (table === 'practice_unit_instructions') {
+          return {
+            select: () => ({
+              in: () => ({
+                order: async () => ({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            order: async () => ({ data: [], error: null }),
+            in: async () => ({ data: [], error: null }),
+          }),
+        };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'list_units',
+      arguments: {},
+    })) as { content: Array<{ type: string; text?: string }> };
+
+    expect(isArgs).toEqual(['scoped_to_session_id', null]);
+    const parsed = JSON.parse(result.content[0]?.text ?? '{}');
+    expect(parsed.units).toHaveLength(1);
+    expect(parsed.units[0].id).toBe('unit-1');
   });
 });

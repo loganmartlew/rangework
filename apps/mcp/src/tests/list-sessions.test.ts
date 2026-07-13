@@ -54,7 +54,13 @@ describe('list_sessions tool', () => {
           return {
             select: () => ({
               in: async () => ({
-                data: [{ id: 'unit-1', title: 'Gate Drill' }],
+                data: [
+                  {
+                    id: 'unit-1',
+                    title: 'Gate Drill',
+                    scoped_to_session_id: null,
+                  },
+                ],
                 error: null,
               }),
             }),
@@ -117,12 +123,122 @@ describe('list_sessions tool', () => {
         order: 1,
         unit_id: 'unit-1',
         unit_title: 'Gate Drill',
+        inline: false,
         repeat_count: 2,
         club_code: 'seven_iron',
         notes: null,
         focus_cue: 'Smooth tempo',
       },
     ]);
+  });
+
+  it('marks an item inline when its unit is scoped to a session', async () => {
+    const mockSupabaseClient = {
+      from: (table: string) => {
+        if (table === 'practice_sessions') {
+          return {
+            select: () => ({
+              is: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      id: 'session-1',
+                      name: 'Morning Practice',
+                      notes: null,
+                      archived_at: null,
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'practice_session_items') {
+          return {
+            select: () => ({
+              in: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      practice_session_id: 'session-1',
+                      practice_unit_id: 'unit-1',
+                      sort_order: 1,
+                      repeat_count: 1,
+                      club_code: null,
+                      notes: null,
+                      focus_cue: null,
+                    },
+                    {
+                      practice_session_id: 'session-1',
+                      practice_unit_id: 'unit-2',
+                      sort_order: 2,
+                      repeat_count: 1,
+                      club_code: null,
+                      notes: null,
+                      focus_cue: null,
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'practice_units') {
+          return {
+            select: () => ({
+              in: async () => ({
+                data: [
+                  {
+                    id: 'unit-1',
+                    title: 'Library Drill',
+                    scoped_to_session_id: null,
+                  },
+                  {
+                    id: 'unit-2',
+                    title: 'One-off Drill',
+                    scoped_to_session_id: 'session-1',
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            order: async () => ({ data: [], error: null }),
+            in: async () => ({ data: [], error: null }),
+          }),
+        };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'list_sessions',
+      arguments: {},
+    })) as { content: Array<{ type: string; text?: string }> };
+
+    const parsed = JSON.parse(result.content[0]?.text ?? '{}');
+    const items = parsed.sessions[0].items as Array<Record<string, unknown>>;
+    expect(items.find(i => i.unit_id === 'unit-1')?.inline).toBe(false);
+    expect(items.find(i => i.unit_id === 'unit-2')?.inline).toBe(true);
   });
 
   it('sets total_ball_count to null when any unit has uncounted instructions', async () => {

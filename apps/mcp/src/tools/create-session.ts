@@ -9,15 +9,85 @@ import {
 } from '../validation/club-codes.js';
 import { resolveTagCodes } from '../validation/tags.js';
 import { validateObservationTypes } from '../validation/observation-types.js';
+import {
+  validateInlineUnit,
+  buildInlineUnitJsonb,
+  type ValidatedInlineUnit,
+} from '../validation/inline-units.js';
+
+const inlineUnitInputShape = {
+  title: z
+    .string()
+    .describe(
+      'Short name for the drill (e.g. "Gate drill", "Draw shot tracer").',
+    ),
+  instructions: z
+    .array(
+      z.object({
+        order: z
+          .number()
+          .describe(
+            'Step number, starting at 1. Must be a positive integer.',
+          ),
+        text: z.string().describe('Instruction text.'),
+        ball_count: z
+          .number()
+          .optional()
+          .describe(
+            "Number of balls for this step. A nonnegative integer: a positive count is N balls, and 0 is a deliberate no-ball step. Omit the field entirely to leave the count uncounted — omitting is not the same as 0.",
+          ),
+        club_code: z
+          .string()
+          .optional()
+          .describe(
+            'Optional club for this specific step. Use the `code` from `get_user_clubs`. When omitted, the step falls back to the unit `default_club_code`.',
+          ),
+      }),
+    )
+    .describe(
+      'Ordered list of steps. Each step needs `order` (starting at 1), `text`, and an optional `ball_count`. Must have 1-10 items.',
+    ),
+  focus: z
+    .string()
+    .optional()
+    .describe(
+      'Optional single-sentence coaching cue or swing thought (e.g. "Keep the club face square through impact").',
+    ),
+  notes: z
+    .string()
+    .optional()
+    .describe(
+      'Optional context or reminders for the user (e.g. "Use an alignment stick").',
+    ),
+  success_criterion: z
+    .string()
+    .optional()
+    .describe(
+      'Optional short, player-judged success rubric for this drill (e.g. "inside 5m of the 60m flag"). Required before this item can enable the `success` observation.',
+    ),
+  default_club_code: z
+    .string()
+    .optional()
+    .describe(
+      'Optional default club for this drill. Use the `code` from `get_user_clubs`.',
+    ),
+  tag_codes: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'Optional existing tag codes to classify this drill. Use codes from `list_tags`. Unknown codes are rejected. At most 8.',
+    ),
+};
 
 /**
  * Tool: `create_session`
  *
  * Creates a new practice session in the user's account. A session is an ordered
  * list of practice units with optional per-item club overrides, coaching cues,
- * and repeat counts. Call `list_units` or `create_unit` first to get unit ids.
- * Returns the new session's id. Each item's `practice_unit_id` must be a unit
- * that belongs to this user.
+ * and repeat counts. Each item is either a reference to an existing library unit
+ * (`practice_unit_id`, from `list_units` / `create_unit`) or an `inline_unit` —
+ * a one-off drill minted and owned by this session, never added to the library
+ * (exactly one of the two per item). Returns the new session's id.
  */
 export function registerCreateSessionTool(
   server: McpServer,
@@ -27,7 +97,7 @@ export function registerCreateSessionTool(
     'create_session',
     {
       description:
-        "Creates a new practice session in the user's account. A session is an ordered list of practice units with optional per-item club overrides, coaching cues, repeat counts, and optional per-item `observation_types` (what to record per ball). Call `list_units` or `create_unit` first to get unit ids. Returns the new session's id. Each item's `practice_unit_id` must be a unit that belongs to this user.",
+        "Creates a new practice session in the user's account. A session is an ordered list of practice units with optional per-item club overrides, coaching cues, repeat counts, and optional per-item `observation_types` (what to record per ball). Each item is either a reference to an existing library unit (`practice_unit_id` from `list_units`/`create_unit`) or an `inline_unit` — a one-off drill created and owned by this session, never added to the library — exactly one of the two. Use `inline_unit` for a drill built just to fill a slot in this session; use `practice_unit_id` for a reusable drill the player will want again. An `inline_unit` uses the same shape as `create_unit`'s input. Returns the new session's id.",
       inputSchema: {
         name: z
           .string()
@@ -39,8 +109,15 @@ export function registerCreateSessionTool(
             z.object({
               practice_unit_id: z
                 .string()
+                .optional()
                 .describe(
-                  'The `id` of a practice unit returned by `list_units` or `create_unit`.',
+                  'The `id` of an existing library unit from `list_units` or `create_unit`. Provide this OR `inline_unit`, not both.',
+                ),
+              inline_unit: z
+                .object(inlineUnitInputShape)
+                .optional()
+                .describe(
+                  "A one-off drill definition minted and owned by this session — never added to the library. Same shape as `create_unit`'s input. Provide this OR `practice_unit_id`, not both.",
                 ),
               order: z
                 .number()
@@ -79,7 +156,7 @@ export function registerCreateSessionTool(
             }),
           )
           .describe(
-            'Ordered list of practice units. Each item needs `practice_unit_id`, `order` (starting at 1), `repeat_count`, and optionally a `club_code`, `notes`, and `focus_cue`. Must have at least 1 item.',
+            'Ordered list of practice units. Each item needs exactly one of `practice_unit_id` (reference an existing library unit) or `inline_unit` (mint a one-off drill owned by this session), plus `order` (starting at 1), `repeat_count`, and optionally a `club_code`, `notes`, and `focus_cue`. Must have at least 1 item.',
           ),
         notes: z
           .string()
@@ -148,11 +225,29 @@ export function registerCreateSessionTool(
         );
       }
 
-      // Pre-fetch the user's units with their base values, so per-item
-      // overrides that merely copy the unit can be stripped below.
+      // Exactly one of practice_unit_id / inline_unit per item (D1).
+      for (let idx = 0; idx < args.items.length; idx++) {
+        const item = args.items[idx]!;
+        const hasReference = item.practice_unit_id !== undefined;
+        const hasInline = item.inline_unit !== undefined;
+        if (hasReference === hasInline) {
+          return toolError(
+            ErrorCodes.VALIDATION_ERROR,
+            'each item must have exactly one of practice_unit_id or inline_unit',
+            { field: `items[${idx}]` },
+          );
+        }
+      }
+
+      // Pre-fetch the user's library units with their base values, so
+      // per-item overrides that merely copy the unit can be stripped below.
+      // Excludes Inline Units (D4/D5): an inline unit's id can't be smuggled
+      // in as a practice_unit_id cross-session reference — it simply falls
+      // out of the owned set and resolves to UNIT_NOT_FOUND below.
       const { data: ownedUnits, error: unitsError } = await ctx.supabaseClient
         .from('practice_units')
-        .select('id, notes, focus, default_club_code, success_criterion');
+        .select('id, notes, focus, default_club_code, success_criterion')
+        .is('scoped_to_session_id', null);
 
       if (unitsError) {
         return toolError(
@@ -164,9 +259,10 @@ export function registerCreateSessionTool(
       const unitsById = new Map((ownedUnits ?? []).map(u => [u.id, u]));
       const ownedUnitIds = new Set(unitsById.keys());
 
-      // Validate all practice_unit_ids
+      // Validate all practice_unit_id references (inline items have none)
       const invalidUnitIds = args.items
-        .map(i => i.practice_unit_id)
+        .filter(i => i.practice_unit_id !== undefined)
+        .map(i => i.practice_unit_id!)
         .filter(id => !ownedUnitIds.has(id));
 
       if (invalidUnitIds.length > 0) {
@@ -177,9 +273,26 @@ export function registerCreateSessionTool(
         );
       }
 
+      // Validate each embedded inline_unit definition (D1.3), sharing the
+      // exact rules create_unit applies to its own input.
+      const inlineUnitsByIndex = new Map<number, ValidatedInlineUnit>();
+      for (let idx = 0; idx < args.items.length; idx++) {
+        const item = args.items[idx]!;
+        if (!item.inline_unit) continue;
+        const validated = await validateInlineUnit(
+          ctx,
+          item.inline_unit,
+          `items[${idx}].inline_unit`,
+        );
+        if ('error' in validated) return validated.error;
+        inlineUnitsByIndex.set(idx, validated.unit);
+      }
+
       // Validate per-item observation_types against the fixed vocabulary and
       // pre-enforce the success-requires-criterion rule (the friendly,
       // field-scoped half of the two-layer rule; the RPC is the backstop).
+      // The criterion comes from the referenced library unit, or from the
+      // item's own embedded inline_unit.
       const observationTypesByIndex: string[][] = [];
       for (let idx = 0; idx < args.items.length; idx++) {
         const item = args.items[idx]!;
@@ -190,12 +303,13 @@ export function registerCreateSessionTool(
         if ('error' in validated) return validated.error;
 
         if (validated.types.includes('success')) {
-          const unit = unitsById.get(item.practice_unit_id);
-          const criterion = unit?.success_criterion;
+          const criterion = item.practice_unit_id
+            ? unitsById.get(item.practice_unit_id)?.success_criterion
+            : inlineUnitsByIndex.get(idx)?.successCriterion;
           if (criterion == null || criterion.trim() === '') {
             return toolError(
               ErrorCodes.VALIDATION_ERROR,
-              "the 'success' observation requires the unit to have a success_criterion; set one with create_unit first",
+              "the 'success' observation requires the unit to have a success_criterion; set one with create_unit first, or on this item's inline_unit",
               { field: `items[${idx}].observation_types` },
             );
           }
@@ -260,12 +374,29 @@ export function registerCreateSessionTool(
         override.trim() === base.trim();
 
       const itemsJsonb = args.items.map((item, idx) => {
-        const unit = unitsById.get(item.practice_unit_id);
+        const unit = item.practice_unit_id
+          ? unitsById.get(item.practice_unit_id)
+          : undefined;
+        const inlineUnit = item.inline_unit
+          ? inlineUnitsByIndex.get(idx)!
+          : undefined;
         const obj: Record<string, unknown> = {
-          practice_unit_id: item.practice_unit_id,
           order: item.order,
           repeat_count: item.repeat_count,
         };
+        if (item.practice_unit_id) {
+          obj.practice_unit_id = item.practice_unit_id;
+        } else {
+          obj.inline_unit = {
+            title: inlineUnit!.title,
+            instructions: buildInlineUnitJsonb(inlineUnit!.instructions),
+            notes: inlineUnit!.notes ?? null,
+            focus: inlineUnit!.focus ?? null,
+            default_club_code: inlineUnit!.defaultClubCode ?? null,
+            success_criterion: inlineUnit!.successCriterion ?? null,
+            tag_ids: inlineUnit!.tagIds,
+          };
+        }
         // Omit the key entirely when no types are enabled — the RPC coalesces a
         // missing key to an empty array (same as "no per-ball capture").
         const observationTypes = observationTypesByIndex[idx] ?? [];
@@ -274,16 +405,22 @@ export function registerCreateSessionTool(
         }
         if (
           item.club_code !== undefined &&
-          !sameAsBase(item.club_code, unit?.default_club_code)
+          !sameAsBase(
+            item.club_code,
+            unit?.default_club_code ?? inlineUnit?.defaultClubCode,
+          )
         ) {
           obj.club_code = item.club_code;
         }
-        if (item.notes !== undefined && !sameAsBase(item.notes, unit?.notes)) {
+        if (
+          item.notes !== undefined &&
+          !sameAsBase(item.notes, unit?.notes ?? inlineUnit?.notes)
+        ) {
           obj.notes = item.notes;
         }
         if (
           item.focus_cue !== undefined &&
-          !sameAsBase(item.focus_cue, unit?.focus)
+          !sameAsBase(item.focus_cue, unit?.focus ?? inlineUnit?.focus)
         ) {
           obj.focus_cue = item.focus_cue;
         }
