@@ -12,15 +12,18 @@ describe('list_sessions tool', () => {
         if (table === 'practice_sessions') {
           return {
             select: () => ({
-              order: async () => ({
-                data: [
-                  {
-                    id: 'session-1',
-                    name: 'Morning Practice',
-                    notes: 'Focus on irons',
-                  },
-                ],
-                error: null,
+              is: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      id: 'session-1',
+                      name: 'Morning Practice',
+                      notes: 'Focus on irons',
+                      archived_at: null,
+                    },
+                  ],
+                  error: null,
+                }),
               }),
             }),
           };
@@ -105,6 +108,7 @@ describe('list_sessions tool', () => {
       id: 'session-1',
       name: 'Morning Practice',
       notes: 'Focus on irons',
+      archived: false,
       total_ball_count: 30, // 2 repeats * 15 balls per unit
       has_uncounted_items: false,
     });
@@ -127,9 +131,18 @@ describe('list_sessions tool', () => {
         if (table === 'practice_sessions') {
           return {
             select: () => ({
-              order: async () => ({
-                data: [{ id: 'session-1', name: 'Session', notes: null }],
-                error: null,
+              is: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      id: 'session-1',
+                      name: 'Session',
+                      notes: null,
+                      archived_at: null,
+                    },
+                  ],
+                  error: null,
+                }),
               }),
             }),
           };
@@ -219,9 +232,18 @@ describe('list_sessions tool', () => {
         if (table === 'practice_sessions') {
           return {
             select: () => ({
-              order: async () => ({
-                data: [{ id: 'session-1', name: 'Session', notes: null }],
-                error: null,
+              is: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      id: 'session-1',
+                      name: 'Session',
+                      notes: null,
+                      archived_at: null,
+                    },
+                  ],
+                  error: null,
+                }),
               }),
             }),
           };
@@ -309,7 +331,9 @@ describe('list_sessions tool', () => {
     const mockSupabaseClient = {
       from: () => ({
         select: () => ({
-          order: async () => ({ data: [], error: null }),
+          is: () => ({
+            order: async () => ({ data: [], error: null }),
+          }),
         }),
       }),
     } as unknown as UserContext['supabaseClient'];
@@ -336,5 +360,137 @@ describe('list_sessions tool', () => {
 
     const parsed = JSON.parse(result.content[0]?.text ?? '{}');
     expect(parsed.sessions).toEqual([]);
+  });
+
+  it('excludes archived sessions by default', async () => {
+    let isArgs: [string, unknown] | null = null;
+    const mockSupabaseClient = {
+      from: (table: string) => {
+        if (table === 'practice_sessions') {
+          return {
+            select: () => ({
+              is: (column: string, value: unknown) => {
+                isArgs = [column, value];
+                return {
+                  order: async () => ({
+                    data: [
+                      {
+                        id: 'session-1',
+                        name: 'Active Session',
+                        notes: null,
+                        archived_at: null,
+                      },
+                    ],
+                    error: null,
+                  }),
+                };
+              },
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            order: async () => ({ data: [], error: null }),
+            in: () => ({
+              order: async () => ({ data: [], error: null }),
+            }),
+          }),
+        };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'list_sessions',
+      arguments: {},
+    })) as { content: Array<{ type: string; text?: string }> };
+
+    expect(isArgs).toEqual(['archived_at', null]);
+    const parsed = JSON.parse(result.content[0]?.text ?? '{}');
+    expect(parsed.sessions).toHaveLength(1);
+    expect(parsed.sessions[0].archived).toBe(false);
+  });
+
+  it('includes archived sessions with an archived flag when include_archived is true', async () => {
+    const mockSupabaseClient = {
+      from: (table: string) => {
+        if (table === 'practice_sessions') {
+          return {
+            select: () => ({
+              is: () => {
+                throw new Error(
+                  'is() should not be called when include_archived is true',
+                );
+              },
+              order: async () => ({
+                data: [
+                  {
+                    id: 'session-1',
+                    name: 'Active Session',
+                    notes: null,
+                    archived_at: null,
+                  },
+                  {
+                    id: 'session-2',
+                    name: 'Old Session',
+                    notes: null,
+                    archived_at: '2026-07-01T00:00:00Z',
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            order: async () => ({ data: [], error: null }),
+            in: () => ({
+              order: async () => ({ data: [], error: null }),
+            }),
+          }),
+        };
+      },
+    } as unknown as UserContext['supabaseClient'];
+
+    const userContext: UserContext = {
+      userId: 'test-user',
+      supabaseClient: mockSupabaseClient,
+    };
+
+    const server = createServer(userContext, mockR2Bucket());
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = (await client.callTool({
+      name: 'list_sessions',
+      arguments: { include_archived: true },
+    })) as { content: Array<{ type: string; text?: string }> };
+
+    const parsed = JSON.parse(result.content[0]?.text ?? '{}');
+    expect(parsed.sessions).toHaveLength(2);
+    const sessions = parsed.sessions as Array<Record<string, unknown>>;
+    expect(sessions.find(s => s.id === 'session-1')?.archived).toBe(false);
+    expect(sessions.find(s => s.id === 'session-2')?.archived).toBe(true);
   });
 });
