@@ -79,6 +79,7 @@ import com.loganmartlew.rangework.android.ui.components.DeleteConfirmationDialog
 import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.OverflowMenu
 import com.loganmartlew.rangework.android.ui.components.ScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.SESSION_INLINE_UNITS_DELETE_WARNING
 import com.loganmartlew.rangework.android.ui.components.SessionPickerDialog
 import com.loganmartlew.rangework.android.ui.components.showUndoSnackbar
 import com.loganmartlew.rangework.shared.model.PracticeSession
@@ -690,6 +691,7 @@ private fun AuthenticatedAppShell(
     if (showSessionDeleteDialog) {
         DeleteConfirmationDialog(
             itemName = pendingDeleteSession?.name ?: "session",
+            warning = SESSION_INLINE_UNITS_DELETE_WARNING,
             onConfirm = {
                 showSessionDeleteDialog = false
                 val session = pendingDeleteSession
@@ -697,7 +699,12 @@ private fun AuthenticatedAppShell(
                 if (session != null) {
                     sessionActions.onDelete(session.id)
                     shellNavController.popBackStack()
-                    justDeletedSession = session
+                    if (session.items.none { item ->
+                            plannerUiState.findUnit(item.practiceUnitId)?.isInline == true
+                        }
+                    ) {
+                        justDeletedSession = session
+                    }
                 }
             },
             onDismiss = {

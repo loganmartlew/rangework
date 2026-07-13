@@ -38,6 +38,7 @@ import com.loganmartlew.rangework.android.ui.components.EntryHighlightCard
 import com.loganmartlew.rangework.android.ui.components.ListEntryCard
 import com.loganmartlew.rangework.android.ui.components.PlanningListContent
 import com.loganmartlew.rangework.android.ui.components.RefreshableScrollableScreen
+import com.loganmartlew.rangework.android.ui.components.SESSION_INLINE_UNITS_DELETE_WARNING
 import com.loganmartlew.rangework.android.ui.components.SwipeActionBackground
 import com.loganmartlew.rangework.android.ui.components.TagChipRow
 import com.loganmartlew.rangework.android.ui.components.TagFilterBar
@@ -69,6 +70,7 @@ internal fun SessionListScreen(
     pendingDeleteSession?.let { session ->
         DeleteConfirmationDialog(
             itemName = session.name,
+            warning = SESSION_INLINE_UNITS_DELETE_WARNING,
             onConfirm = {
                 onDeleteSession(session.id)
                 pendingDeleteSession = null
