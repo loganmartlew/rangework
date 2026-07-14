@@ -201,6 +201,23 @@ internal fun ExecutionBlockPage(
             },
         )
 
+        // The aggregate success tally, with the capture surface rather than the
+        // note: only for items that set a criterion but left the Success type off
+        // (with it on, the per-ball chips above already derive the count).
+        if (showDataCapture) {
+            val manualCountEligible = block.unit.successCriterion != null &&
+                ObservationType.SUCCESS !in block.unit.enabledObservationTypes &&
+                block.totalBalls(steps) > 0
+            if (manualCountEligible) {
+                BlockSuccessTallySection(
+                    criterion = block.unit.successCriterion,
+                    count = blockResult?.manualCount,
+                    totalBalls = block.totalBalls(steps),
+                    onSetCount = onSetManualCount,
+                )
+            }
+        }
+
         if (isSessionComplete) {
             Button(
                 onClick = onFinish,
@@ -241,20 +258,12 @@ internal fun ExecutionBlockPage(
             CollapsibleNotes(notes = notes)
         }
 
-        // Passive per-block capture (v3 only): note always; manual count only when
-        // the unit has a criterion and did not enable the Success Observation Type.
+        // Passive per-block reflection (v3 only): a free-text note on every block.
         if (showDataCapture) {
-            val manualCountEligible = block.unit.successCriterion != null &&
-                ObservationType.SUCCESS !in block.unit.enabledObservationTypes &&
-                block.totalBalls(steps) > 0
             BlockResultSection(
                 blockResult = blockResult,
                 isSavingNote = isSavingBlockNote,
                 onSaveNote = onSaveBlockNote,
-                manualCountEligible = manualCountEligible,
-                successCriterion = block.unit.successCriterion,
-                totalBalls = block.totalBalls(steps),
-                onSetManualCount = onSetManualCount,
             )
         }
 
