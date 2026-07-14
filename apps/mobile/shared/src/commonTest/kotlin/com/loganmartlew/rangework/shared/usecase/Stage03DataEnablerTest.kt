@@ -75,26 +75,26 @@ class Stage03DataEnablerTest {
 
     @Test
     fun estimateDurationRoundsToNearestMinuteForSmallBallCount() {
-        // Unit with 4 balls; session repeats it once → 4 balls × 15s = 60s = 1 min
+        // Unit with 4 balls; session repeats it once → 4 balls × 40s = 160s ≈ 3 min
         val unit = makeUnit(
             instructions = listOf(PracticeInstruction(id = "i1", order = 1, text = "Hit", ballCount = 4)),
         )
         val session = makeSession(
             items = listOf(makeSessionItem(unitId = unit.id, repeatCount = 1)),
         )
-        assertEquals(1, estimateSessionDurationMinutes(session, mapOf(unit.id to unit)))
+        assertEquals(3, estimateSessionDurationMinutes(session, mapOf(unit.id to unit)))
     }
 
     @Test
     fun estimateDurationScalesCorrectlyForLargeBallCount() {
-        // Unit with 60 balls; session repeats it 3x → 180 balls × 15s = 2700s = 45 min
+        // Unit with 60 balls; session repeats it 3x → 180 balls × 40s = 7200s = 120 min
         val unit = makeUnit(
             instructions = listOf(PracticeInstruction(id = "i1", order = 1, text = "Hit", ballCount = 60)),
         )
         val session = makeSession(
             items = listOf(makeSessionItem(unitId = unit.id, repeatCount = 3)),
         )
-        assertEquals(45, estimateSessionDurationMinutes(session, mapOf(unit.id to unit)))
+        assertEquals(120, estimateSessionDurationMinutes(session, mapOf(unit.id to unit)))
     }
 
     @Test

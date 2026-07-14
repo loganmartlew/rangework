@@ -1,7 +1,7 @@
 package com.loganmartlew.rangework.android.ui
 
 import com.loganmartlew.rangework.shared.model.ObservationType
-import com.loganmartlew.rangework.shared.model.SECONDS_PER_BALL
+import com.loganmartlew.rangework.shared.model.estimateDurationMinutes
 
 /**
  * Presentation labels for the Observation Type vocabulary. Storage/ids live in
@@ -26,6 +26,6 @@ internal fun ballSummary(ballCount: Int?): String = when (ballCount) {
 
 internal fun sessionEditorTotalText(totalBalls: Int): String {
     if (totalBalls == 0) return ballSummary(0)
-    val durationMinutes = (totalBalls * SECONDS_PER_BALL + 30) / 60
+    val durationMinutes = estimateDurationMinutes(totalBalls)
     return "${ballSummary(totalBalls)} · ~${durationMinutes}min"
 }
