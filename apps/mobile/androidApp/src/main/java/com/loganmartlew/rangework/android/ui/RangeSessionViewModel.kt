@@ -100,6 +100,13 @@ class RangeSessionViewModel(
     private var sessionNoteSaveJob: Job? = null
     private val blockNoteSaveJobs = mutableMapOf<Int, Job>()
 
+    /**
+     * One ordered writer per manual-count block. A cancelled coroutine cannot
+     * recall a request that has reached Supabase, so unlike note saves these
+     * writes must be serialized rather than treated as latest-wins.
+     */
+    private val manualCountSaves = mutableMapOf<Int, ManualCountSave>()
+
     init {
         loadSession()
     }
@@ -497,9 +504,8 @@ class RangeSessionViewModel(
     // cancels the in-flight one for the same target (latest wins) and no-ops when
     // the normalized value already matches the saved model, so a debounce racing a
     // dispose-flush can't double-write. The manual count writes on each stepper
-    // commit, optimistically, reverting on failure (same pattern as step
-    // completion). All no-op when the recorder is absent (misconfigured
-    // foundation) — the affordances still render.
+    // tap, optimistically, through a per-block ordered writer. All no-op when the
+    // recorder is absent (misconfigured foundation) — the affordances still render.
 
     /**
      * Saves the session-level note. [onComplete] runs after a successful (or
@@ -572,8 +578,14 @@ class RangeSessionViewModel(
 
     /**
      * Sets (or clears, with [count] `null`) one block's manual success count.
-     * Writes immediately, optimistically; a failure reverts to the pre-tap
-     * session and surfaces the snackbar.
+     * Writes immediately, optimistically.
+     *
+     * Rapid taps update the UI immediately, while one per-block writer persists
+     * each requested value in order. This keeps an earlier request that is
+     * already in flight from landing after a newer value at the backend.
+     *
+     * A failure reverts only this block's count, not the whole pre-tap session,
+     * which may carry other in-flight optimistic edits.
      */
     fun saveManualCount(blockIndex: Int, count: Int?) {
         val session = _uiState.value.rangeSession ?: return
@@ -581,7 +593,12 @@ class RangeSessionViewModel(
         val block = session.snapshot.executionBlocks().getOrNull(blockIndex) ?: return
         val unitIndex = block.unitIndex
         val key = unitIndex.toString()
-        val merged = (session.blockResults[key] ?: BlockResult()).copy(manualCount = count)
+        val previous = session.blockResults[key]
+        // No-op when the count already matches (a tap settling back on the value
+        // already shown) — the note paths guard the same way.
+        if (previous?.manualCount == count) return
+
+        val merged = (previous ?: BlockResult()).copy(manualCount = count)
         val optimisticResults = if (merged.isEmpty) {
             session.blockResults - key
         } else {
@@ -590,18 +607,56 @@ class RangeSessionViewModel(
         _uiState.value = _uiState.value.copy(
             rangeSession = session.copy(blockResults = optimisticResults),
         )
+
+        val save = manualCountSaves.getOrPut(unitIndex) {
+            ManualCountSave(persistedCount = previous?.manualCount, requestedCount = count)
+        }
+        save.requestedCount = count
+        if (save.isWriting) return
+
+        save.isWriting = true
         viewModelScope.launch {
-            val result = runRecording { recorder.saveManualCount(rangeSessionId, unitIndex, count) }
-            if (result is RecordingResult.Success) {
-                _uiState.value = _uiState.value.copy(rangeSession = result.value)
-            } else {
-                _uiState.value = _uiState.value.copy(
-                    rangeSession = session,
-                    notification = "Couldn't save count. Please try again.",
-                )
+            while (true) {
+                val requestedCount = save.requestedCount
+                val result = runRecording {
+                    recorder.saveManualCount(rangeSessionId, unitIndex, requestedCount)
+                }
+                if (result is RecordingResult.Success) {
+                    save.persistedCount = requestedCount
+                } else if (save.requestedCount == requestedCount) {
+                    // Revert only the field this write owns. A note can have been
+                    // saved while this request was in flight, so restoring the
+                    // complete pre-tap BlockResult would erase that note.
+                    revertManualCount(unitIndex, save.persistedCount)
+                    _uiState.value = _uiState.value.copy(
+                        notification = "Couldn't save count. Please try again.",
+                    )
+                }
+
+                if (save.requestedCount == requestedCount) {
+                    save.isWriting = false
+                    manualCountSaves.remove(unitIndex, save)
+                    return@launch
+                }
             }
         }
     }
+
+    /** Replaces only [BlockResult.manualCount], retaining a concurrently saved note. */
+    private fun revertManualCount(unitIndex: Int, count: Int?) {
+        val state = _uiState.value
+        val session = state.rangeSession ?: return
+        val key = unitIndex.toString()
+        val merged = (session.blockResults[key] ?: BlockResult()).copy(manualCount = count)
+        val results = if (merged.isEmpty) session.blockResults - key else session.blockResults + (key to merged)
+        _uiState.value = state.copy(rangeSession = session.copy(blockResults = results))
+    }
+
+    private class ManualCountSave(
+        var persistedCount: Int?,
+        var requestedCount: Int?,
+        var isWriting: Boolean = false,
+    )
 
     /**
      * Runs a recorder call, folding a thrown exception into a null (treated as
