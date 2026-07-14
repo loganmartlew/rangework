@@ -418,6 +418,29 @@ class RangeSessionViewModelTest {
     }
 
     @Test
+    fun finishWaitsForInFlightFinalBallAndSummarizesPersistedCompletion() = runTest {
+        val session = v3CaptureSession(
+            observationTypes = emptyList(),
+            completedStepIndices = setOf(0, 1),
+        )
+        val repo = FakeRangeSessionRepo(
+            sessions = mutableListOf(session),
+            completionDelaysMillis = mutableListOf(100L),
+        )
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        viewModel.incrementBlock(0)
+        runCurrent() // final-ball write is now in flight
+        viewModel.requestFinish()
+        advanceUntilIdle()
+
+        assertEquals(setOf(0, 1, 2), repo.getSession(session.id)?.completedSteps?.map { it.stepIndex }?.toSet())
+        assertEquals(3, viewModel.uiState.value.finishSummary?.completedBalls)
+        assertEquals(1.0, viewModel.uiState.value.finishSummary?.completionPercentage ?: 0.0, 0.0)
+    }
+
+    @Test
     fun dismissFinishDialogHidesDialog() = runTest {
         val session = twoBlockSession()
         val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
@@ -945,6 +968,41 @@ class RangeSessionViewModelTest {
     }
 
     @Test
+    fun rapidBallCaptureSerializesWritesSoEveryOptimisticBallPersists() = runTest {
+        val session = v3CaptureSession(observationTypes = emptyList())
+        val repo = FakeRangeSessionRepo(
+            sessions = mutableListOf(session),
+            completionDelaysMillis = mutableListOf(100L, 1L),
+            simulateCompletionReadBeforeDelay = true,
+        )
+        val viewModel = captureViewModel(session, repo)
+        advanceUntilIdle()
+
+        viewModel.incrementBlock(0)
+        // Start the slow first request, then capture another ball while it is in flight.
+        runCurrent()
+        viewModel.incrementBlock(0)
+
+        assertEquals(
+            "Both taps remain visible optimistically",
+            setOf(0, 1),
+            viewModel.uiState.value.completedStepIndices,
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(
+            "Both taps reach durable state even when the first network call is slower",
+            setOf(0, 1),
+            repo.getSession(session.id)?.completedSteps?.map { it.stepIndex }?.toSet(),
+        )
+        assertEquals(
+            listOf(listOf(0), listOf(1)),
+            repo.completionInvocations.map { it.second },
+        )
+    }
+
+    @Test
     fun inputIsIgnoredDuringArmWindow() = runTest {
         val session = v3CaptureSession(observationTypes = listOf("direction"))
         val repo = FakeRangeSessionRepo(sessions = mutableListOf(session))
@@ -1267,6 +1325,13 @@ private open class FakeRangeSessionRepo(
     var getElapsedSecondsResult: Long = 0L,
     var shouldFailOnSessionNote: Boolean = false,
     var shouldFailOnBlockResult: Boolean = false,
+    /** Per-call completion latency, used to exercise overlapping counter taps. */
+    val completionDelaysMillis: MutableList<Long> = mutableListOf(),
+    /**
+     * Models the former Supabase SELECT-then-UPDATE behavior by retaining the
+     * value read before network delay instead of merging against latest state.
+     */
+    val simulateCompletionReadBeforeDelay: Boolean = false,
     /**
      * Per-call latency for [saveBlockResult], consumed in invocation order
      * (missing/exhausted entries are instant). Lets a test land two writes out of
@@ -1298,9 +1363,15 @@ private open class FakeRangeSessionRepo(
         stepIndices: List<Int>,
         completed: Boolean,
     ): RangeSession {
-        if (shouldFailOnCompletion) throw RuntimeException("Simulated network error")
         completionInvocations.add(Triple(rangeSessionId, stepIndices, completed))
-        val session = sessions.firstOrNull { it.id == rangeSessionId } ?: error("Session not found")
+        val staleRead = sessions.firstOrNull { it.id == rangeSessionId } ?: error("Session not found")
+        completionDelaysMillis.removeFirstOrNull()?.let { delay(it) }
+        if (shouldFailOnCompletion) throw RuntimeException("Simulated network error")
+        val session = if (simulateCompletionReadBeforeDelay) {
+            staleRead
+        } else {
+            sessions.firstOrNull { it.id == rangeSessionId } ?: error("Session not found")
+        }
         val updatedCompletedSteps = if (completed) {
             val already = session.completedSteps.map { it.stepIndex }.toSet()
             session.completedSteps + stepIndices

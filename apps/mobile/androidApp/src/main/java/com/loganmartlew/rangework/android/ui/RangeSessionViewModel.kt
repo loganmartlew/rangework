@@ -32,6 +32,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
@@ -106,6 +108,14 @@ class RangeSessionViewModel(
      * writes must be serialized rather than treated as latest-wins.
      */
     private val manualCountSaves = mutableMapOf<Int, ManualCountSave>()
+
+    /**
+     * The UI stays optimistic, but completion persistence is ordered. Besides
+     * reducing backend contention, this prevents older app/backend versions with
+     * read-merge-write storage from losing rapid taps. The database RPC remains
+     * the cross-client source of atomicity.
+     */
+    private val completionWriteMutex = Mutex()
 
     init {
         loadSession()
@@ -228,7 +238,9 @@ class RangeSessionViewModel(
             observationsByStep = state.observationsByStep - targetSet,
         )
         viewModelScope.launch {
-            val result = runRecording { recorder.uncompleteStepsVoidingObservations(rangeSessionId, targets) }
+            val result = completionWriteMutex.withLock {
+                runRecording { recorder.uncompleteStepsVoidingObservations(rangeSessionId, targets) }
+            }
             if (result is RecordingResult.Success) {
                 _uiState.value = _uiState.value.copy(rangeSession = result.value)
             } else {
@@ -341,8 +353,10 @@ class RangeSessionViewModel(
         )
 
         viewModelScope.launch {
-            val result = runRecording {
-                recorder.completeStepsRecordingObservation(rangeSessionId, targets, staging)
+            val result = completionWriteMutex.withLock {
+                runRecording {
+                    recorder.completeStepsRecordingObservation(rangeSessionId, targets, staging)
+                }
             }
             if (result is RecordingResult.Success) {
                 _uiState.value = _uiState.value.copy(rangeSession = result.value)
@@ -472,11 +486,13 @@ class RangeSessionViewModel(
 
         viewModelScope.launch {
             try {
-                val updatedSession = repository.setStepsCompletion(
-                    rangeSessionId = rangeSessionId,
-                    stepIndices = stepIndices,
-                    completed = completed,
-                )
+                val updatedSession = completionWriteMutex.withLock {
+                    repository.setStepsCompletion(
+                        rangeSessionId = rangeSessionId,
+                        stepIndices = stepIndices,
+                        completed = completed,
+                    )
+                }
                 _uiState.value = _uiState.value.copy(rangeSession = updatedSession)
             } catch (_: Exception) {
                 val current = _uiState.value
@@ -728,25 +744,28 @@ class RangeSessionViewModel(
                 } catch (_: Exception) { }
             }
             try {
-                var latestSession = session
-                if (completeRemaining) {
-                    val remaining = session.snapshot.steps.indices
-                        .filter { it !in _uiState.value.completedStepIndices }
-                    if (remaining.isNotEmpty()) {
-                        // One write, one shared timestamp — self-evidently a
-                        // finish-time batch in the data.
-                        latestSession = repository.setStepsCompletion(
-                            rangeSessionId = rangeSessionId,
-                            stepIndices = remaining,
-                            completed = true,
-                        )
-                        _uiState.value = _uiState.value.copy(
-                            completedStepIndices = latestSession.completedSteps
-                                .map { it.stepIndex }.toSet(),
-                        )
+                val latestSession = completionWriteMutex.withLock {
+                    if (completeRemaining) {
+                        val remaining = session.snapshot.steps.indices
+                            .filter { it !in _uiState.value.completedStepIndices }
+                        if (remaining.isNotEmpty()) {
+                            // One write, one shared timestamp — self-evidently a
+                            // finish-time batch in the data.
+                            val completedSession = repository.setStepsCompletion(
+                                rangeSessionId = rangeSessionId,
+                                stepIndices = remaining,
+                                completed = true,
+                            )
+                            _uiState.value = _uiState.value.copy(
+                                completedStepIndices = completedSession.completedSteps
+                                    .map { it.stepIndex }.toSet(),
+                            )
+                        }
                     }
+                    // Wait for any optimistic final-ball write before freezing,
+                    // and summarize the exact row returned by the finish update.
+                    repository.finishSession(rangeSessionId)
                 }
-                repository.finishSession(rangeSessionId)
                 val summary = FinishSummaryData(
                     sessionName = latestSession.sessionName,
                     totalBalls = latestSession.totalBalls(),

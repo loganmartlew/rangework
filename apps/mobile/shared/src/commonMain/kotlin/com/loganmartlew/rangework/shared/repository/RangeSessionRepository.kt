@@ -13,10 +13,11 @@ interface RangeSessionRepository {
     suspend fun listActiveSessions(): List<ActiveRangeSessionSummary>
     suspend fun listCompletedSessions(sessionId: String): List<CompletedRangeSessionSummary>
     /**
-     * Marks the given steps complete or incomplete in one write. Steps
+     * Atomically marks the given steps complete or incomplete in one write. Steps
      * completed together share a single completion timestamp (a counter tap
      * sweeping Action Steps, or a finish-time batch completion, is
-     * self-evidently a batch in the data).
+     * self-evidently a batch in the data). Concurrent calls must merge against
+     * the latest stored value rather than replacing another call's progress.
      */
     suspend fun setStepsCompletion(rangeSessionId: String, stepIndices: List<Int>, completed: Boolean): RangeSession
 

@@ -3,7 +3,6 @@ package com.loganmartlew.rangework.shared.data
 import com.loganmartlew.rangework.shared.model.ActiveRangeSessionSummary
 import com.loganmartlew.rangework.shared.model.BlockResult
 import com.loganmartlew.rangework.shared.model.CompletedRangeSessionSummary
-import com.loganmartlew.rangework.shared.model.CompletedStep
 import com.loganmartlew.rangework.shared.model.Observation
 import com.loganmartlew.rangework.shared.model.RangeSession
 import com.loganmartlew.rangework.shared.model.completedBalls
@@ -124,28 +123,20 @@ class SupabaseRangeSessionRepository(
         stepIndices: List<Int>,
         completed: Boolean,
     ): RangeSession {
-        val session = requireNotNull(getSession(rangeSessionId)) {
-            "Range session $rangeSessionId not found."
-        }
-        val updatedSteps = if (completed) {
-            val alreadyCompleted = session.completedSteps.map { it.stepIndex }.toSet()
-            // One shared timestamp for the whole batch.
-            val completedAt = Clock.System.now()
-            session.completedSteps + stepIndices
-                .filter { it !in alreadyCompleted }
-                .map { CompletedStep(stepIndex = it, completedAt = completedAt) }
-        } else {
-            val toRemove = stepIndices.toSet()
-            session.completedSteps.filter { it.stepIndex !in toRemove }
-        }
-        client.postgrest[RANGE_SESSIONS_TABLE].update(
-            CompletedStepsUpdate(completedSteps = updatedSteps),
-        ) {
-            filter { eq("id", rangeSessionId) }
-        }
-        return requireNotNull(getSession(rangeSessionId)) {
-            "Range session $rangeSessionId could not be loaded after step completion update."
-        }
+        val params = SetRangeSessionStepsCompletionParams(
+            rangeSessionId = rangeSessionId,
+            stepIndices = stepIndices,
+            completed = completed,
+        )
+        // The RPC locks the row and merges completed_steps in the database.
+        // Returning that exact updated row also avoids a follow-up SELECT racing
+        // with a newer counter tap.
+        return client.postgrest
+            .rpc(
+                "set_range_session_steps_completion",
+                Json.encodeToJsonElement(SetRangeSessionStepsCompletionParams.serializer(), params).jsonObject,
+            )
+            .decodeAs<RangeSession>()
     }
 
     override suspend fun overrideStepClubs(
@@ -318,13 +309,14 @@ private data class StartRangeSessionParams(
     @SerialName("p_session_id") val sessionId: String,
 )
 
-// ── Partial update DTOs ───────────────────────────────────────────────────────
-
 @Serializable
-private data class CompletedStepsUpdate(
-    @SerialName("completed_steps")
-    val completedSteps: List<CompletedStep>,
+private data class SetRangeSessionStepsCompletionParams(
+    @SerialName("p_range_session_id") val rangeSessionId: String,
+    @SerialName("p_step_indices") val stepIndices: List<Int>,
+    @SerialName("p_completed") val completed: Boolean,
 )
+
+// ── Partial update DTOs ───────────────────────────────────────────────────────
 
 @Serializable
 private data class ClubOverridesUpdate(
