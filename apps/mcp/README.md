@@ -319,15 +319,17 @@ All tool errors set `isError: true` on the MCP content block and return a struct
 ### One-time setup
 
 1. **Custom domain** — add a DNS CNAME record for `mcp.rangework.app` on the `rangework.app` Cloudflare zone pointing at the Workers target. Verify with `dig mcp.rangework.app` before acceptance.
-2. **GitHub Actions secrets** — add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub Actions secrets (ready for future deploy automation).
+2. **GitHub Actions secrets** — add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub Actions secrets (used by the deploy workflow).
 
-### Deploy command
+### Deploying
+
+Deploys go through the `MCP Deploy` GitHub Actions workflow (`.github/workflows/mcp-deploy.yml`), triggered manually:
 
 ```powershell
-pnpm --filter @rangework/mcp deploy
+gh workflow run "MCP Deploy"
 ```
 
-Or run `wrangler deploy` directly from `apps/mcp`. Requires `wrangler login` or `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` environment variables set locally.
+The workflow typechecks, lints, and tests, then uploads `methodology/coaching-guide.md` to R2 and deploys the Worker. Do not run `wrangler deploy` by hand — it skips the R2 methodology upload, shipping Worker code without the matching coaching-guide update.
 
 ### Verify deployment
 
@@ -406,26 +408,7 @@ pnpm --filter @rangework/mcp dev
 ### Updating the methodology
 
 1. Edit `methodology/coaching-guide.md`.
-2. Deploy: `pnpm --filter @rangework/mcp deploy` (uploads to R2, then deploys the Worker).
+2. Deploy via the `MCP Deploy` workflow: `gh workflow run "MCP Deploy"` — it uploads the guide to R2, then deploys the Worker.
 3. The new content is picked up as Worker isolates are evicted (typically seconds to minutes).
 
-## Deployment
-
-### One-time setup
-
-1. **Custom domain** — add a DNS CNAME record for `mcp.rangework.app` on the `rangework.app` Cloudflare zone pointing at the Workers target. Verify with `dig mcp.rangework.app` before acceptance.
-2. **GitHub Actions secrets** — add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub Actions secrets (ready for future deploy automation).
-3. **R2 bucket** — the `rangework` R2 bucket must exist in the Cloudflare account. The deploy script uploads the methodology to it automatically.
-
-### Deploy command
-
-```powershell
-pnpm --filter @rangework/mcp deploy
-```
-
-This runs two steps:
-
-1. `wrangler r2 object put rangework/mcp/coaching-guide.md --file methodology/coaching-guide.md` — uploads the latest methodology to R2.
-2. `wrangler deploy` — deploys the Worker.
-
-Requires `wrangler login` or `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` environment variables set locally.
+The `rangework` R2 bucket must exist in the Cloudflare account; the workflow uploads the methodology to it automatically. See [Deployment](#deployment) above for the full workflow details.

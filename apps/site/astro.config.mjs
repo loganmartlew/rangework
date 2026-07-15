@@ -13,8 +13,8 @@ import tailwindcss from '@tailwindcss/vite';
 const brandDir = fileURLToPath(
   new URL('../../packages/design/generated/brand', import.meta.url),
 );
-const brandAssets = ['favicon.svg', 'favicon.ico', 'rangework-mark.svg', 'rangework-mark-mono.svg'];
-const contentTypes = { '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+const brandAssets = ['favicon.svg', 'favicon.ico', 'rangework-mark.svg', 'rangework-mark-mono.svg', 'og-card.png'];
+const contentTypes = { '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.png': 'image/png' };
 
 /** @returns {import('astro').AstroIntegration} */
 function brandAssets_() {

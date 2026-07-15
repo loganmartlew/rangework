@@ -8,7 +8,6 @@
   },
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
     "dev:seed": "wrangler r2 object put rangework/mcp/coaching-guide.md --file methodology/coaching-guide.md --content-type text/markdown --local",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

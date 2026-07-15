@@ -85,11 +85,13 @@ Requires `SUPABASE_URL` env var for the JWKS integration test. Copy `.dev.vars.e
 
 ## Deployment
 
+Deploys go through the `MCP Deploy` GitHub Actions workflow (`.github/workflows/mcp-deploy.yml`), which uploads `coaching-guide.md` to R2 and then deploys the Worker. Trigger it with:
+
 ```powershell
-pnpm --filter @rangework/mcp deploy   # uploads coaching-guide.md to R2 then wrangler deploy
+gh workflow run "MCP Deploy"
 ```
 
-Requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (via env or `wrangler login`).
+There is no local deploy script — a bare `wrangler deploy` would skip the R2 methodology upload and drift the tool/guide versions.
 
 ## Conventions
 

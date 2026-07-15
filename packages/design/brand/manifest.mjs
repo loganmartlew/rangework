@@ -78,6 +78,23 @@ export const variants = [
     raster: { format: 'png', size: 512 },
     outputs: [`${BRAND}/play-icon-512.png`],
   },
+  {
+    name: 'og-card',
+    target: 'og-card',
+    colors: { band: fixedOnDarkBand, rod: rodDark },
+    background: { token: 'neutral.88' },
+    text: {
+      title: { text: 'Rangework', fontFamily: 'DM Sans Medium', fontSize: 72, color: fixed('neutral.20') },
+      subtitle: {
+        text: 'Practice with purpose',
+        fontFamily: 'DM Sans',
+        fontSize: 34,
+        letterSpacing: 0.3,
+        color: fixedOnDarkBand,
+      },
+    },
+    outputs: [`${BRAND}/og-card.png`],
+  },
 
   // ── Android vector marks ───────────────────────────────────────────────
   {

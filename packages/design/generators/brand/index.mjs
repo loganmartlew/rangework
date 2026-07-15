@@ -5,6 +5,7 @@ import { variants } from '../../brand/manifest.mjs';
 import { composeWebSvg } from './emit-web-svg.mjs';
 import { emitAndroidVector } from './emit-android-vector.mjs';
 import { emitRaster } from './emit-raster.mjs';
+import { emitOgCard } from './emit-og-card.mjs';
 
 async function writeOutput(packageDir, relPath, data) {
   const abs = path.join(packageDir, relPath);
@@ -34,6 +35,9 @@ export function brandGenerator() {
             break;
           case 'raster':
             payload = await emitRaster(model, variant, ctx.tokens);
+            break;
+          case 'og-card':
+            payload = await emitOgCard(model, variant, ctx.tokens, ctx.packageDir);
             break;
           default:
             throw new Error(`unknown target '${variant.target}' for variant '${variant.name}'`);

@@ -7,7 +7,7 @@ const {
   title = 'Rangework - Practice with purpose',
   description = 'Build drills, plan sessions, and execute them at the range. Rangework helps golfers make every ball count.',
   canonical = 'https://rangework.app',
-  ogImage = 'https://rangework.app/favicon.svg',
+  ogImage = 'https://rangework.app/og-card.png',
 } = Astro.props;
 
 const themeInitScript = `(function () {
@@ -35,6 +35,12 @@ const themeInitScript = `(function () {
 		<meta property="og:type" content="website" />
 		<meta property="og:url" content={canonical} />
 		<meta property="og:image" content={ogImage} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImage} />
 		<meta name="generator" content={Astro.generator} />
 		<script is:inline set:html={themeInitScript}></script>
 		<title>{title}</title>
