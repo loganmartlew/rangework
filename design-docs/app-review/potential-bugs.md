@@ -146,7 +146,11 @@ The list-index → instruction-index mapping subtracts a magic count of precedin
 `item {}` blocks. Adding or removing any header item silently shifts every drag by one with no
 compile-time signal. Derive the offset or use segmented lists/stable keys.
 
-### B10 — Local MCP `deploy` script silently skips the R2 methodology upload
+### B10 — Local MCP `deploy` script silently skips the R2 methodology upload — RESOLVED 2026-07-15
+
+Resolved by removing the local `deploy` script entirely; the `MCP Deploy` GitHub Actions
+workflow is the only deploy path, and `apps/mcp/README.md` / `.agents/instructions/mcp.md`
+now document it as such.
 
 `apps/mcp/package.json:11`
 
@@ -157,12 +161,17 @@ two-step upload-then-deploy — the two-step sequence exists only in
 matching coaching-guide update, exactly the tool/guide drift the guide-versioning scheme was
 designed to prevent.
 
-### B11 — Site: og:image is an SVG; social previews break
+### B11 — Site: og:image is an SVG; social previews break — RESOLVED 2026-07-15
 
-`apps/site/src/layouts/Layout.astro:10`, `index.astro:30`
-
-Facebook, X, LinkedIn, Slack, and iMessage do not render SVG `og:image`. Shared links show no
-preview. Needs a ~1200×630 raster card.
+Resolved by extending the `@rangework/design` brand pipeline with a new `og-card` raster
+target (`packages/design/generators/brand/emit-og-card.mjs`), declared in
+`packages/design/brand/manifest.mjs` and rendered via the existing resvg raster path. It
+composes the brand mark plus "Rangework" / "Practice with purpose" text (DM Sans, loaded by
+family name from `assets/fonts/`, since resvg matches font-table family names rather than the
+web's `@font-face` alias) onto a 1200×630 card, gitignored like the other generated brand
+assets. `apps/site/astro.config.mjs` now serves/copies `og-card.png` alongside the other brand
+assets; `Layout.astro`'s `ogImage` default points at it (with `og:image:width/height` and
+`twitter:card` meta added), and the stale per-page override in `index.astro` was removed.
 
 ### B12 — Site: every store CTA points at the Play Store homepage
 
