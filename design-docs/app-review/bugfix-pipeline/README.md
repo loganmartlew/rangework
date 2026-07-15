@@ -10,7 +10,7 @@ by [Sandcastle](https://github.com/mattpocock/sandcastle) with a custom host pro
 | ---------------------------- | --------------------------------------------------------------- |
 | [plan.md](plan.md)           | To-do checklist: setup tasks, open decisions, execution phases   |
 | [batches.md](batches.md)     | Batch composition, per-batch status, per-bug dispositions        |
-| `specs/` (created in setup)  | Per-bug spec files fed to the agents — one file per pipeline bug |
+| [specs/](specs/README.md)    | Per-bug spec files fed to the agents — one file per pipeline bug |
 
 ## Pipeline shape
 
@@ -34,7 +34,10 @@ without a human.
 
 - **Definition of done is deterministic per bug**: new failing test passes + existing
   suites green + lint green + explicit scope boundary. No done-criteria → no fix attempt.
-- **Can't reproduce → dismiss with reason.** Never fix speculatively.
+- **Can't reproduce → dismiss with reason.** Never fix speculatively. **Exception:** the
+  supabase-schema and shared-repo batches confirm by static evidence, not by a failing test —
+  they have no test surface at all (see [specs/README.md](specs/README.md)). Lack of a test is
+  never a dismissal reason there; only evidence contradicting the finding is.
 - **No automatic retry loops.** One attempt per stage (plus the single bounded review
   retry). Anything unresolved → checkpoint, comment on the batch issue, label
   `needs-info`, stop.
@@ -58,4 +61,4 @@ without a human.
 | D7 | Batch composition | **Decided** (2026-07-15) | Batches as proposed in [batches.md](batches.md). Sub-decisions: B3 spec covers only `closeTimeEntry` hardening (lifecycle/rotation items split out at spec-writing time); shared-repo batch carries its own guarded-RPC migrations (client change + RPC in one PR); B9 may be confirmed via a unit test on the index mapping, or dismissed to tech-debt if there's no good testing surface |
 | D8 | Pre-emptive dismissals | **Decided** (2026-07-15) | None — all 16 pipeline bugs get a verify run |
 | D9 | Batch ordering / scheduling | **Decided** (2026-07-15) | Overnight-unattended, cheap batches (mcp, supabase-schema) first as rig shakedown, then the Kotlin batches |
-| D10 | Spec format sign-off | **Decided** (2026-07-15) | Template in plan.md approved as-is |
+| D10 | Spec format sign-off | **Decided** (2026-07-15) | Template in plan.md approved as-is. Amended at spec-writing time (2026-07-15): the template's "no failing test → DISMISS" rule applies only to the mcp, shared-validation and android-ui batches. supabase-schema and shared-repo have no test surface — no pgTAP, no `supabase/tests/`, no fake Supabase client in `:shared`, and no Docker per D2 — so they confirm by static evidence, with the review stage and human PR review as the only anti-gaming guards |

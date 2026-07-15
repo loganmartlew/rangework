@@ -73,7 +73,48 @@ Existing guard pattern to mirror: isStartingRangeSession in RangeworkApp.kt:566,
       `in-progress`, `ready-for-human`, `needs-info` — `ready-for-agent` already existed;
       the other four created. Also applied `needs-info` to the Phase 2 deferred issues
       (#44, #45, #46), which are blocked on a human decision.
-- [ ] Write all per-bug specs into `specs/` per the approved template
+- [x] Write all per-bug specs into `specs/` per the approved template — 16 specs +
+      [specs/README.md](specs/README.md) index. Deviated from the template on two points
+      (D10 amended, see README decision log); actions arising are listed below.
+
+### Follow-ups from spec writing (2026-07-15)
+
+**The one thing to know:** the D10 template's "confirmed = a committed failing test,
+otherwise DISMISS" rule only works for 3 of the 5 batches. **supabase-schema** and
+**shared-repo** have no test surface at all — no pgTAP, no `supabase/tests/`, no fake
+Supabase client in `:shared`, and no Docker per D2. They confirm by **static evidence**
+instead (agreed 2026-07-15), which means those two batches have no mechanical "test went
+green" signal and lean entirely on the review stage plus the human PR review.
+
+- [ ] **Blocks Phase 4:** the verify and review prompt templates must branch on the batch's
+      confirmation method. For supabase-schema and shared-repo they must require quoted proof
+      lines, and must **not** treat "no failing test" as grounds to dismiss — that wording
+      would auto-dismiss 8 bugs, including the 3 high-severity data-loss ones (B1, B3, B7).
+      Also duplicated on the Phase 4 prompt-template item below.
+- [ ] **Blocks Phase 5:** update the five batch issue bodies (#47–#51). Each still reads
+      "Per-bug specs (to be written per plan.md Phase 3)" with glob placeholders — point them
+      at the real files now that they exist. While there: the bodies use repo-relative links
+      (`../potential-bugs.md`, `../bugfix-pipeline/batches.md`) which do **not** resolve from
+      a GitHub issue; they need full blob URLs.
+- [ ] **Before Phase 6:** file issues for the three sub-items D7 split out of B3's spec, or
+      they'll vanish at close-out — (a) process death leaves an unclosed time entry,
+      (b) rotation churn fires exit+enter per configuration change (both are android-ui
+      lifecycle bugs in `RangeSessionScreen.kt` / `RangeSessionViewModel.kt`, neither fixable
+      from the repo layer), (c) the two divergent duration computations — an investigation,
+      not a defect.
+- [ ] **After B6 and B14 land:** file the divergence issue. Both specs deliberately fix only
+      their own layer, so MCP will reject free-text lengths the DB and app still accept (B6),
+      and `:shared` will reject ball/repeat counts MCP and the DB still accept (B14). Each
+      spec requires the gap to be named in its PR body — collect them into one follow-up.
+- [ ] **Optional, revisit at D4/close-out:** tech-debt issue for the missing Supabase test
+      harness. It's the root cause of the static-evidence deviation above; a fake postgrest
+      client in `:shared` would make B1/B3/B7 mechanically verifiable. Considered and
+      rejected as in-batch work (too big for an unattended agent) — worth doing deliberately
+      if the rig outlives this bug list.
+
+Noted, no action needed: **B18** sits in the android-ui batch but its code and tests are in
+`:shared` (`PracticeDraftEditor.kt`); its spec runs both suites. Expect a `:shared` diff in
+that batch's PR.
 
 ## Phase 4 — Orchestrator build
 
@@ -85,7 +126,11 @@ Existing guard pattern to mirror: isStartingRangeSession in RangeworkApp.kt:566,
       under the provider's spawn (shell/quoting) inside a worktree — this is the expected
       first-hour-of-debugging item
 - [ ] Write the three stage prompt templates (verify / fix / review) with structured
-      JSON output schemas
+      JSON output schemas. **The verify and review prompts must branch on the batch's
+      confirmation method** — failing-test for mcp / shared-validation / android-ui, static
+      evidence for supabase-schema / shared-repo. A single "no failing test → dismiss" prompt
+      auto-dismisses 8 bugs. See the Phase 3 follow-ups above and
+      [specs/README.md](specs/README.md)
 - [ ] Implement the stage chain: verify → gate on verdicts → fix → review →
       `gh pr create` + issue label/comment updates
 - [ ] Implement guards: per-bug commit enforcement, additions-only check on existing

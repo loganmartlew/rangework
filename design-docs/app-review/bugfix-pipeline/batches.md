@@ -55,6 +55,11 @@ Issue: [#50](https://github.com/loganmartlew/rangework/issues/50) (`needs-verifi
 guarded-RPC pattern (mirror `set_range_session_steps_completion`); may include a
 migration — coordinate with supabase-schema batch ordering.
 
+Confirmation is by **static evidence**, as for supabase-schema: `:shared` has no fake
+Supabase client and this repository has no test coverage, so no failing test is possible
+without building a postgrest fake (considered and rejected as out of scope, 2026-07-15).
+Never dismiss a bug in this batch for lack of a test.
+
 | Bug | Summary | Status | Disposition / fix log |
 | --- | ------- | ------ | --------------------- |
 | B1 | `finishSession`/`abandonSession` unguarded — abandon-after-finish destroys history | pending | — |
@@ -103,3 +108,17 @@ fresh Claude window / full Codex headroom.
 - B9: confirmation via a unit test on the index-mapping function is acceptable; if
   there's no good testing surface, dismiss to tech-debt rather than forcing a Compose
   UI test.
+
+## Spec-writing notes (2026-07-15)
+
+- **B18 sits in android-ui but its code and tests are in `:shared`** — `PracticeDraftEditor.kt`
+  is a shared-module file with tests in `:shared` commonTest. Left in android-ui (the defect is
+  UI error surfacing); its spec runs both suites. Worth knowing when the batch's worktree
+  diff is reviewed.
+- **B3 lost three sub-items to follow-ups**, per D7: the divergent duration computations, the
+  process-death unclosed entry, and the rotation churn are all out of B3's spec. The last two
+  are android-ui lifecycle bugs. No issues filed for them yet.
+- **B6 is MCP-only**: the finding's DB check-constraint half is excluded (it would be a
+  supabase-schema migration), so MCP will reject text lengths the DB and app still accept.
+- **B14 is `:shared`-only** for the same reason, in the other direction: the MCP and DB caps
+  the finding asks for are not in its batch.
