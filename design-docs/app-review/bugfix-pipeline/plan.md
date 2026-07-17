@@ -94,11 +94,8 @@ green" signal and lean entirely on the review stage plus the human PR review.
       selected per batch by `Batch.confirmation` in `config.mts`. The schema requires
       `evidence` + `sequence` on a static-evidence confirmation and the gate parks if either
       is missing (`confirmationDeficiency`).
-- [ ] **Blocks Phase 5:** update the five batch issue bodies (#47–#51). Each still reads
-      "Per-bug specs (to be written per plan.md Phase 3)" with glob placeholders — point them
-      at the real files now that they exist. While there: the bodies use repo-relative links
-      (`../potential-bugs.md`, `../bugfix-pipeline/batches.md`) which do **not** resolve from
-      a GitHub issue; they need full blob URLs.
+- [x] **Blocks Phase 5:** update the five batch issue bodies (#47–#51) — done; verified
+      2026-07-17 that all five now link the real spec files with full blob URLs.
 - [ ] **Before Phase 6:** file issues for the three sub-items D7 split out of B3's spec, or
       they'll vanish at close-out — (a) process death leaves an unclosed time entry,
       (b) rotation churn fires exit+enter per configuration change (both are android-ui
