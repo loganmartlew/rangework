@@ -22,3 +22,11 @@ supabase/.branches/
 .claude/skills
 .claude/worktrees
 .worktrees
+
+# Sandcastle bugfix pipeline — scratch state. The orchestrator itself
+# (.sandcastle/*.mts, prompts/) is tracked; its per-run output is not.
+.sandcastle/worktrees/
+.sandcastle/logs/
+.sandcastle/state/
+.sandcastle/patches/
+.sandcastle/.env

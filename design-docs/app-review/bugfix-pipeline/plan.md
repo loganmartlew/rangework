@@ -86,11 +86,14 @@ Supabase client in `:shared`, and no Docker per D2. They confirm by **static evi
 instead (agreed 2026-07-15), which means those two batches have no mechanical "test went
 green" signal and lean entirely on the review stage plus the human PR review.
 
-- [ ] **Blocks Phase 4:** the verify and review prompt templates must branch on the batch's
+- [x] **Blocks Phase 4:** the verify and review prompt templates must branch on the batch's
       confirmation method. For supabase-schema and shared-repo they must require quoted proof
       lines, and must **not** treat "no failing test" as grounds to dismiss — that wording
       would auto-dismiss 8 bugs, including the 3 high-severity data-loss ones (B1, B3, B7).
-      Also duplicated on the Phase 4 prompt-template item below.
+      Done: `prompts/partials/{verify,fix,review}-static-evidence.md` vs. `-failing-test.md`,
+      selected per batch by `Batch.confirmation` in `config.mts`. The schema requires
+      `evidence` + `sequence` on a static-evidence confirmation and the gate parks if either
+      is missing (`confirmationDeficiency`).
 - [ ] **Blocks Phase 5:** update the five batch issue bodies (#47–#51). Each still reads
       "Per-bug specs (to be written per plan.md Phase 3)" with glob placeholders — point them
       at the real files now that they exist. While there: the bodies use repo-relative links
@@ -118,29 +121,53 @@ that batch's PR.
 
 ## Phase 4 — Orchestrator build
 
-- [ ] Scaffold Sandcastle project (`sandcastle init`) — decide where it lives: .sandcastle folder in the repo - User Decision
-- [ ] Implement the **host provider** via `createBindMountSandboxProvider()`:
-      `exec` = spawn with cwd=worktree, `copyFileIn/Out` = fs, `close` = worktree removal.
-      Crib from `src/sandboxes/docker.ts`
-- [ ] **Windows shakedown:** verify `gradlew.bat`, `pnpm`, and `gh` all run correctly
-      under the provider's spawn (shell/quoting) inside a worktree — this is the expected
-      first-hour-of-debugging item
-- [ ] Write the three stage prompt templates (verify / fix / review) with structured
-      JSON output schemas. **The verify and review prompts must branch on the batch's
-      confirmation method** — failing-test for mcp / shared-validation / android-ui, static
-      evidence for supabase-schema / shared-repo. A single "no failing test → dismiss" prompt
-      auto-dismisses 8 bugs. See the Phase 3 follow-ups above and
-      [specs/README.md](specs/README.md)
-- [ ] Implement the stage chain: verify → gate on verdicts → fix → review →
-      `gh pr create` + issue label/comment updates
-- [ ] Implement guards: per-bug commit enforcement, additions-only check on existing
-      test files, iteration caps
-- [ ] Implement checkpoint/resume: persist `{batch, stage, sessionId, branch}` on any
-      throw; classify usage-limit errors loosely (unknown error after partial progress =
-      park, never auto-retry); Claude limit → sleep-until-reset + `resumeSession`;
-      Codex limit → park or fail fix stage over to Claude
-- [ ] Dry-run the full chain on the **mcp batch** (smallest, fastest feedback) before
-      trusting it with a Kotlin batch
+Rig lives in [`.sandcastle/`](../../../.sandcastle/README.md); run it with `pnpm pipeline <batch>`.
+
+- [x] Scaffold Sandcastle project — `.sandcastle/` in the repo, hand-written rather than
+      via `sandcastle init` (its init templates all scaffold a Docker setup, which D2 rules
+      out). Package is `@ai-hero/sandcastle`; the bare `sandcastle` on npm is an unrelated
+      2015 JS sandbox
+- [x] ~~Implement the **host provider** via `createBindMountSandboxProvider()`~~ — **not
+      needed.** Sandcastle now ships `noSandbox()` as a first-class provider (its ADR 0015):
+      spawn on the host against a git worktree, with the library owning worktree creation
+      and teardown, and the top-level `run()` path passing `--dangerously-skip-permissions`
+      so unattended runs don't hang on prompts. It already handles the Windows quirks a
+      hand-rolled provider would have had to rediscover. D2's intent is met; the custom code
+      isn't. Bind-mount providers are the container-oriented path
+- [x] **Windows shakedown** (`pnpm pipeline:shakedown`) — `gh`, `pnpm`, `node`, `git`,
+      `gradlew.bat` all green under the provider's spawn inside a worktree. Caught the
+      predicted gotcha: this host sets `NoDefaultCurrentDirectoryInExePath=1`, so `cmd.exe`
+      won't resolve from the cwd and **bare `gradlew.bat` fails — it must be `.\gradlew.bat`**.
+      Encoded in `config.mts`, in all prompts, and in the shakedown itself
+- [x] Stage prompt templates (`.sandcastle/prompts/`: verify / fix / review + `fix-retry`)
+      with structured JSON output (`schemas.mts`, zod via Sandcastle's `Output.object`).
+      **They branch on the batch's confirmation method** via `prompts/partials/<stage>-<method>.md`
+      — the static-evidence partials state plainly that "no failing test" is *not* grounds to
+      dismiss, so the 8 static-evidence bugs (incl. B1/B3/B7) survive verify. The verify
+      verdict — quotes and failure sequence included — travels with the spec into the fix and
+      review stages, because on a static-evidence batch it *is* the proof (no committed test
+      carries it). Prompts are passed **inline**, not as `promptFile`, so Sandcastle's
+      `` !`shell` `` expansion never touches pasted spec text. `pnpm exec tsx .sandcastle/render-check.mts`
+      renders all 20 prompt/batch combinations offline
+- [x] Stage chain: verify → gate on verdicts → fix → guards+suites → review →
+      `gh pr create` + issue label/comment updates (`lib/pipeline.mts`, `lib/github.mts`).
+      Labels are the state machine, comments the log (D5)
+- [x] Guards (`lib/guards.mts`): per-bug commit enforcement, additions-only check on existing
+      test files, iteration caps. Both guards read **git**, not agent JSON; both tolerate a
+      not-yet-created branch (static-evidence verify commits nothing). The orchestrator also
+      **re-runs the suites itself** rather than trusting the fixer's `suitesGreen`
+- [x] Checkpoint/resume (`lib/checkpoint.mts`): persists
+      `{batch, stage, branch, sessionId, kind, verdicts}` on any throw — the full verdicts,
+      so a resume doesn't lose static-evidence proof. Usage-limit classification is
+      deliberately narrow (mis-flagging a real bug as a limit would sleep-and-retry forever);
+      Claude limit + parseable reset + captured session → sleep then `resumeSession`; Codex
+      limit → park, with `--fix-agent claude --resume` as the manual fail-over. Caveat:
+      Sandcastle only surfaces `sessionId` on `StructuredOutputError`, so a usage-limit throw
+      may carry none — no session, no resume, so it parks
+- [ ] Dry-run the full chain on the **mcp batch** — **left for the owner** (it executes real
+      bugfixes: agent runs on the host, then comments on #47, pushes a branch, opens a PR).
+      Claude Code and Codex are both installed and covered by the shakedown. Preflight first:
+      `pnpm pipeline:check-specs`, `pnpm pipeline:test`, and `pnpm pipeline:shakedown`.
 
 ## Phase 5 — Execution (one line per batch; details in batches.md)
 
