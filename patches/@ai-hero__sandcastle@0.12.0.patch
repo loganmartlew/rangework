@@ -1,0 +1,41 @@
+diff --git a/dist/chunk-VOG34SRF.js b/dist/chunk-VOG34SRF.js
+index 93f24d139b795c284915a10c34d82f2fa769eab0..5af24719b7a6abed840ec4134d1c75702cd31caf 100644
+--- a/dist/chunk-VOG34SRF.js
++++ b/dist/chunk-VOG34SRF.js
+@@ -25270,7 +25270,7 @@ var create = (repoDir, opts) => Effect_exports.gen(function* () {
+   let worktreeName;
+   if (opts?.branch) {
+     branch = opts.branch;
+-    worktreeName = branch.replace(/\//g, "-");
++    worktreeName = branch.replace(/\//g, "-") + (opts.name ? `-${sanitizeName(opts.name)}` : "");
+   } else {
+     const timestamp = formatTimestamp(/* @__PURE__ */ new Date());
+     const suffix = randomBranchSuffix();
+@@ -26429,7 +26429,17 @@ var cleanupWorktree = (worktreePath, exit4) => hasUncommittedChanges(worktreePat
+ Worktree removed (no uncommitted changes)`);
+     }
+     return remove8(worktreePath).pipe(
+-      Effect_exports.map(() => void 0)
++      Effect_exports.map(() => void 0),
++      Effect_exports.catchAll(
++        (e) => Effect_exports.sync(() => {
++          console.error(
++            "[sandcastle] Warning: failed to remove worktree at",
++            worktreePath,
++            "-",
++            e.message
++          );
++        })
++      )
+     );
+   })
+ );
+@@ -26499,7 +26509,7 @@ var WorktreeDockerSandboxFactory = {
+           })
+         ),
+         Effect_exports.andThen(
+-          branch ? create(hostRepoDir, { branch, baseBranch }) : create(hostRepoDir, { name })
++          branch ? create(hostRepoDir, { branch, baseBranch, name }) : create(hostRepoDir, { name })
+         ),
+         Effect_exports.provideService(FileSystem_exports.FileSystem, fileSystem)
+       );

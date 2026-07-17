@@ -186,7 +186,14 @@ const runStage = async <T,>(options: {
 }): Promise<RunResult & { output: T }> => {
   const invoke = (resumeSession?: string) =>
     run({
-      name: `${options.batch.id}:${options.stage}`,
+      // Also becomes part of the worktree directory name (patched into
+      // create()'s naming — see patches/@ai-hero__sandcastle@0.12.0.patch),
+      // so each stage gets its own worktree dir under the same branch. That
+      // keeps one stage's undeletable-on-Windows leftover (a locked
+      // node_modules, say) from blocking the next stage's `git worktree add`
+      // at the same path. The branch name already carries the batch id, so
+      // repeating it here would just be noise in log filenames too.
+      name: options.stage,
       agent: options.agent,
       sandbox: noSandboxPwsh(),
       cwd: REPO_ROOT,
