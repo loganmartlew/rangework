@@ -12,7 +12,7 @@ import {
   StructuredOutputError,
   type RunResult,
 } from "@ai-hero/sandcastle";
-import { noSandbox } from "@ai-hero/sandcastle/sandboxes/no-sandbox";
+import { noSandboxPwsh } from "./no-sandbox-pwsh.mts";
 import {
   BASE_BRANCH,
   branchFor,
@@ -188,7 +188,7 @@ const runStage = async <T,>(options: {
     run({
       name: `${options.batch.id}:${options.stage}`,
       agent: options.agent,
-      sandbox: noSandbox(),
+      sandbox: noSandboxPwsh(),
       cwd: REPO_ROOT,
       prompt: options.prompt,
       maxIterations: 1,
@@ -297,7 +297,7 @@ const runSuites = async (
   const sandbox = await createSandbox({
     branch,
     baseBranch: BASE_BRANCH,
-    sandbox: noSandbox(),
+    sandbox: noSandboxPwsh(),
     cwd: REPO_ROOT,
   });
 

@@ -31,6 +31,7 @@ Exit codes: `0` landed, `2` parked (checkpointed and reported on the issue), `1`
 | `lib/guards.mts`    | Mechanical checks read out of git                                     |
 | `lib/checkpoint.mts`| Park/resume state and failure classification                          |
 | `lib/github.mts`    | `gh` wrappers — labels as state, comments as log                      |
+| `lib/no-sandbox-pwsh.mts` | Local fork of Sandcastle's `noSandbox()` using `pwsh` instead of `cmd.exe` — see Sandbox model below |
 | `shakedown.mts`     | Windows toolchain check                                               |
 
 Per-run output (`worktrees/`, `logs/`, `state/`) is gitignored.
@@ -73,25 +74,39 @@ Agent-reported JSON is a claim. The orchestrator independently verifies:
 
 ## Sandbox model
 
-`noSandbox()` — the agent runs **directly on this host** with permissions
-bypassed, against a git worktree. That is decision D2 (no Docker; use the local
-Android SDK and warm Gradle caches as-is), and the worktree is a blast-radius
-convenience, not a security boundary. Do not point this rig at a repo you would
-not hand an unsupervised shell.
+`noSandboxPwsh()` (`lib/no-sandbox-pwsh.mts`) — the agent runs **directly on
+this host** with permissions bypassed, against a git worktree. That is decision
+D2 (no Docker; use the local Android SDK and warm Gradle caches as-is), and the
+worktree is a blast-radius convenience, not a security boundary. Do not point
+this rig at a repo you would not hand an unsupervised shell.
 
-Sandcastle ships `noSandbox()` as a first-class provider, so the custom
-`createBindMountSandboxProvider()` the plan called for was not needed — the
-library's version already handles the Windows quirks (`cmd.exe` routing, PATHEXT
-resolution for `.cmd` shims) that a hand-rolled one would have had to rediscover.
+This is a local fork of Sandcastle's own `noSandbox()`, not the upstream
+provider — see the file header for why. Short version: upstream shells out via
+`cmd.exe /d /s /c` with verbatim args, but its `shellEscape()` always wraps
+values in POSIX single quotes (`'opus'`). `cmd.exe` doesn't understand single
+quotes as quoting syntax, so they pass straight through as literal characters —
+`claude`/`codex` receive `'opus'` (quotes included) as the model argument and
+reject it as unrecognized. This bit both agent roles: verify/review (Claude)
+and the fix stage's Claude fallback, and would have hit Codex identically the
+first time its `-c 'model_reasoning_effort="high"'` override ran. The fork
+changes only the shell — `pwsh -NoProfile -NonInteractive -Command` via a plain
+Node argv array (no `windowsVerbatimArguments`) — so Node applies correct
+Windows quoting for the outer `-Command` string, and pwsh's own quoting rules
+(where single quotes ARE real quoting) unwrap the value correctly on arrival.
+Verified byte-for-byte with a standalone repro and end-to-end against a live
+`claudeCode()` run before being wired into `lib/pipeline.mts` and
+`shakedown.mts`. `interactiveExec` (unused by the batch pipeline) is untouched
+upstream behavior, since it takes a plain argv array with no `shellEscape`
+involved.
 
 ## Windows notes
 
-`NoDefaultCurrentDirectoryInExePath=1` is set on this host, so `cmd.exe` will not
-resolve an executable from the current directory. **Invoke the Gradle wrapper as
-`.\gradlew.bat`, never bare `gradlew.bat`** — bare fails with "not recognized as
-an internal or external command". `config.mts` and every prompt already say so;
-`pnpm pipeline:shakedown` is what keeps that claim honest after a toolchain
-change.
+`NoDefaultCurrentDirectoryInExePath=1` is set on this host, so a plain shell
+will not resolve an executable from the current directory. **Invoke the Gradle
+wrapper as `.\gradlew.bat`, never bare `gradlew.bat`** — bare fails with "not
+recognized as an internal or external command". `config.mts` and every prompt
+already say so; `pnpm pipeline:shakedown` is what keeps that claim honest after
+a toolchain change.
 
 ## Before the first real run
 
