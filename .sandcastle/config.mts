@@ -146,10 +146,10 @@ export const branchFor = (batch: Batch): string => `bugfix/${batch.id}`;
 
 /** Claude owns the judgment stages: verify and review. */
 export const verifyAgent = (): AgentProvider =>
-  claudeCode('claude-opus-4-8', { effort: 'high' });
+  claudeCode('opus', { effort: 'high' });
 
 export const reviewAgent = (): AgentProvider =>
-  claudeCode('claude-opus-4-8', { effort: 'high' });
+  claudeCode('opus', { effort: 'high' });
 
 /**
  * Model the Codex CLI is invoked with. Override it without changing the rig by
@@ -169,7 +169,7 @@ export const CODEX_MODEL = process.env.RANGEWORK_CODEX_MODEL ?? 'gpt-5.6-terra';
 export const fixAgent = (kind: 'codex' | 'claude'): AgentProvider =>
   kind === 'codex'
     ? codex(CODEX_MODEL, { effort: 'high' })
-    : claudeCode('claude-opus-4-8', { effort: 'high' });
+    : claudeCode('sonnet', { effort: 'high' });
 
 /**
  * Agent stages get a long idle timeout: a cold `:androidApp:assembleDebug` can
