@@ -126,6 +126,14 @@ const park = async (options: {
     retryOutput: options.retryOutput,
   });
 
+  // Console first, GitHub second. The comment below carries the same detail,
+  // but it is the least reliable of the two sinks — if `gh` is missing or the
+  // network is down, that call fails and the operator is left with a bare
+  // "PARKED at verify" and no cause. Print before anything that can throw.
+  log(`PARKED at ${options.stage}: ${options.reason}`);
+  console.error(options.detail);
+  if (options.error) console.error(options.error);
+
   await github
     .comment(
       options.batch.issue,
@@ -152,7 +160,6 @@ const park = async (options: {
     .setState(options.batch.issue, "needs-info")
     .catch((e) => console.error(`(issue state update failed: ${String(e)})`));
 
-  log(`PARKED at ${options.stage}: ${options.reason}`);
   throw new Parked(options.stage, options.reason);
 };
 
