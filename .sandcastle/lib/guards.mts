@@ -236,8 +236,12 @@ export const checkVerifyStageChanges = async (
   cwd: string = REPO_ROOT,
 ): Promise<Violation[]> => {
   if (!(await branchExists(branch, cwd))) return [];
+  // Three dots, like the additions-only guard: diff against the merge-base, not
+  // against the tip of base. Two dots compares endpoints, so anything base
+  // gained after the branch was cut reports as a change the branch made — a
+  // stale branch would be parked for the orchestrator's own commits on main.
   const changed = (
-    await git(["diff", "--name-only", `${base}..${branch}`], cwd)
+    await git(["diff", "--name-only", `${base}...${branch}`], cwd)
   )
     .trim()
     .split("\n")
